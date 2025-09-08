@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(npx next dev:*)",
+      "Read(/C:\\Users\\stell\\src\\stella/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
