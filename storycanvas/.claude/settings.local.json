@@ -5,7 +5,14 @@
       "Bash(npm run dev:*)",
       "Bash(curl:*)",
       "Bash(npx next dev:*)",
-      "Read(/C:\\Users\\stell\\src\\stella/**)"
+      "Read(/C:\\Users\\stell\\src\\stella/**)",
+      "Bash(npx kill-port:*)",
+      "Bash(taskkill:*)",
+      "Bash(powershell:*)",
+      "Bash(xcopy:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

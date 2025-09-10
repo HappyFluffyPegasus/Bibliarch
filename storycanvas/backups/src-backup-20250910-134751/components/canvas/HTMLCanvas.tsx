@@ -74,9 +74,6 @@ export default function HTMLCanvas({
   const [paletteRefresh, setPaletteRefresh] = useState(0) // Force re-render when palette changes
   const [draggedNode, setDraggedNode] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
-  const [draggingNode, setDraggingNode] = useState<string | null>(null)
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
-  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 })
   const canvasRef = useRef<HTMLDivElement>(null)
 
   // Undo/Redo system
@@ -211,7 +208,7 @@ export default function HTMLCanvas({
       } else if (e.ctrlKey && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
         e.preventDefault()
         redo()
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+      } else if (e.key === 'Delete' && selectedId) {
         e.preventDefault()
         handleDeleteNode(selectedId)
       } else if (e.key === 'Escape') {
@@ -257,7 +254,7 @@ export default function HTMLCanvas({
       width: tool === 'list' ? 320 : 200,  // List containers are wider
       height: tool === 'list' ? 240 : 120, // List containers are taller
       type: tool,
-      // Don't set color - let it use dynamic theme colors
+      color: getNodeColor(tool),
       ...(tool === 'folder' ? { linkedCanvasId: `${tool}-canvas-${Date.now()}` } : {}),
       ...(tool === 'list' ? { childIds: [], layoutMode: 'single-column' as const } : {})
     }
@@ -287,39 +284,16 @@ export default function HTMLCanvas({
         y: prev.y + deltaY
       }))
       setLastPanPoint({ x: e.clientX, y: e.clientY })
-    } else if (draggingNode) {
-      // Handle node dragging - just update position state, don't re-render nodes
-      const rect = canvasRef.current?.getBoundingClientRect()
-      if (rect) {
-        const x = (e.clientX - rect.left - pan.x) / scale - dragOffset.x
-        const y = (e.clientY - rect.top - pan.y) / scale - dragOffset.y
-        
-        setDragPosition({ x: Math.max(0, x), y: Math.max(0, y) })
-        setIsMoving(true)
-      }
     }
-  }, [isPanning, lastPanPoint, draggingNode, nodes, pan, scale, dragOffset])
+  }, [isPanning, lastPanPoint])
 
   const handleCanvasMouseUp = useCallback(() => {
     setIsPanning(false)
-    if (draggingNode) {
-      // Update the actual node position when dragging ends
-      const updatedNodes = nodes.map(node =>
-        node.id === draggingNode
-          ? { ...node, x: dragPosition.x, y: dragPosition.y }
-          : node
-      )
-      setNodes(updatedNodes)
-      saveToHistory(updatedNodes, connections)
-      setDraggingNode(null)
-      setDragOffset({ x: 0, y: 0 })
-      setDragPosition({ x: 0, y: 0 })
-    }
     if (isMoving) {
       // Delay to allow final render with high quality after movement stops
       setTimeout(() => setIsMoving(false), 100)
     }
-  }, [isMoving, draggingNode, nodes, connections, saveToHistory, dragPosition])
+  }, [isMoving])
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault()
@@ -375,24 +349,20 @@ export default function HTMLCanvas({
       }
     }
     
-    // Get the current active palette from color context
-    const currentPalette = colorContext.getCurrentPalette()
-    
-    if (currentPalette && currentPalette.colors && currentPalette.colors.nodeDefault) {
-      return currentPalette.colors.nodeDefault
-    }
-    
-    // Try getting the color from CSS variables (applied by palette system)
+    // Use palette color as base, with slight type-specific tints
     const paletteBase = getComputedStyle(document.documentElement)
       .getPropertyValue('--color-node-default')
-      .trim()
+      .trim() || '#ffffff'
     
-    if (paletteBase && paletteBase !== '#ffffff' && paletteBase !== 'white' && paletteBase !== '') {
-      return paletteBase
+    // Return palette-based colors with subtle type variations
+    switch (nodeType) {
+      case 'character': return paletteBase  // Use palette base
+      case 'event': return paletteBase      // Use palette base  
+      case 'location': return paletteBase   // Use palette base
+      case 'folder': return paletteBase     // Use palette base
+      case 'list': return paletteBase       // Use palette base
+      default: return paletteBase           // Use palette base for text nodes
     }
-    
-    // Hard fallback - use a nice blue color instead of white
-    return '#e0f2fe' // Light blue instead of white
   }
 
   const getNodeBorderColor = (nodeType: string) => {
@@ -488,28 +458,6 @@ export default function HTMLCanvas({
     // Second click (or click on already selected node) starts inline editing
     setEditingNodeId(node.id)
     setEditingText(node.text)  // Set current text, will be selected for easy deletion
-  }
-
-  const handleNodeMouseDown = (e: React.MouseEvent, node: Node) => {
-    // Only handle dragging if we're in select tool or pan tool
-    if (tool !== 'select' && tool !== 'pan') return
-    
-    e.stopPropagation() // Prevent canvas panning
-    
-    // Calculate offset from mouse to node's top-left corner
-    const rect = canvasRef.current?.getBoundingClientRect()
-    if (rect) {
-      const nodeX = (e.currentTarget as HTMLElement).offsetLeft
-      const nodeY = (e.currentTarget as HTMLElement).offsetTop
-      const mouseX = (e.clientX - rect.left - pan.x) / scale
-      const mouseY = (e.clientY - rect.top - pan.y) / scale
-      
-      setDragOffset({
-        x: mouseX - node.x,
-        y: mouseY - node.y
-      })
-      setDraggingNode(node.id)
-    }
   }
 
   const handleNodeDoubleClick = (node: Node) => {
@@ -640,24 +588,6 @@ export default function HTMLCanvas({
     toast.success('Node color updated')
   }
 
-  const resetNodeToThemeColor = (nodeId: string) => {
-    const newNodes = nodes.map(node => 
-      node.id === nodeId 
-        ? { ...node, color: undefined }  // Remove custom color to use theme color
-        : node
-    )
-    setNodes(newNodes)
-    saveToHistory(newNodes, connections)
-    toast.success('Reset to theme color')
-  }
-
-  const resetAllNodesToThemeColors = () => {
-    const newNodes = nodes.map(node => ({ ...node, color: undefined }))
-    setNodes(newNodes)
-    saveToHistory(newNodes, connections)
-    toast.success('All nodes reset to theme colors')
-  }
-
   // Drag and drop handlers for list containers
   const handleDragStart = (e: React.DragEvent, nodeId: string) => {
     setDraggedNode(nodeId)
@@ -786,19 +716,13 @@ export default function HTMLCanvas({
     const deltaX = offsetX - templateBounds.minX
     const deltaY = offsetY - templateBounds.minY
 
-    // Offset template nodes to avoid overlaps and apply current palette colors
-    const offsetTemplateNodes = templateNodes.map(node => {
-      const { color: originalColor, ...nodeWithoutColor } = node // Remove hardcoded color
-      const newColor = getNodeColor(node.type || 'text') || '#3b82f6'
-      
-      return {
-        ...nodeWithoutColor,
-        id: `template-${Date.now()}-${node.id}`, // Ensure unique IDs
-        x: node.x + deltaX,
-        y: node.y + deltaY,
-        color: newColor // Explicitly set to current palette color with fallback
-      }
-    })
+    // Offset template nodes to avoid overlaps
+    const offsetTemplateNodes = templateNodes.map(node => ({
+      ...node,
+      id: `template-${Date.now()}-${node.id}`, // Ensure unique IDs
+      x: node.x + deltaX,
+      y: node.y + deltaY
+    }))
     
     // Update connections with new node IDs
     const nodeIdMap = new Map()
@@ -823,15 +747,6 @@ export default function HTMLCanvas({
     saveToHistory(newNodes, newConnections)
     setSelectedId(null)
     setTool('select')
-    
-    // Force a palette refresh to ensure template nodes get proper colors
-    setTimeout(() => {
-      const currentPalette = colorContext.getCurrentPalette()
-      if (currentPalette) {
-        colorContext.applyPalette(currentPalette)
-      }
-      setPaletteRefresh(prev => prev + 1)
-    }, 100)
     
     toast.success(`Template added with ${templateNodes.length} nodes`)
   }
@@ -1036,9 +951,6 @@ export default function HTMLCanvas({
               // Apply the palette immediately
               colorContext.applyPalette(palette)
               
-              // Reset all nodes to use the new theme colors
-              resetAllNodesToThemeColors()
-              
               // Force re-render to update node colors
               setPaletteRefresh(prev => prev + 1)
             }}
@@ -1071,11 +983,10 @@ export default function HTMLCanvas({
                 <div><strong>Pan:</strong> Click & drag, or use trackpad/scroll</div>
                 <div><strong>Zoom:</strong> Ctrl + scroll wheel</div>
                 <div><strong>Select:</strong> Click nodes to select, click again to edit</div>
-                <div><strong>Move:</strong> Drag selected nodes to reposition them</div>
                 <div><strong>Create:</strong> Select a tool then click on canvas</div>
                 <div><strong>Navigate:</strong> Double-click folder nodes to enter</div>
                 <div><strong>Organize:</strong> Drag nodes into list containers (📦)</div>
-                <div><strong>Delete:</strong> Select node and press Delete or Backspace</div>
+                <div><strong>Delete:</strong> Select node and press Delete key</div>
                 <div><strong>Undo/Redo:</strong> Ctrl+Z / Ctrl+Y</div>
                 <div><strong>Cancel:</strong> Press Escape to deselect</div>
               </div>
@@ -1143,8 +1054,8 @@ export default function HTMLCanvas({
                 renderSettings.skipAnimations ? '' : 'transition-all'
               }`}
               style={{
-                left: draggingNode === node.id ? dragPosition.x : node.x,
-                top: draggingNode === node.id ? dragPosition.y : node.y,
+                left: node.x,
+                top: node.y,
                 width: node.width,
                 height: node.height,
                 backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
@@ -1152,7 +1063,6 @@ export default function HTMLCanvas({
               }}
               onClick={(e) => handleNodeClick(node, e)}
               onDoubleClick={() => handleNodeDoubleClick(node)}
-              onMouseDown={(e) => handleNodeMouseDown(e, node)}
               onDragStart={(e) => handleDragStart(e, node.id)}
               onDragOver={(e) => handleDragOver(e, node.id)}
               onDragLeave={handleDragLeave}
@@ -1199,15 +1109,17 @@ export default function HTMLCanvas({
                       onColorChange={(color) => handleColorChange(node.id, color)}
                       className="h-6 w-6"
                     />
-                    {node.color && (
-                      <button
-                        onClick={() => resetNodeToThemeColor(node.id)}
-                        className="h-6 w-6 flex items-center justify-center text-xs bg-muted hover:bg-muted-foreground/20 rounded border"
-                        title="Reset to theme color"
-                      >
-                        ↺
-                      </button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteNode(node.id)
+                      }}
+                      className="h-6 w-6 p-0 hover:bg-destructive/20"
+                    >
+                      <Trash2 className="w-5 h-5 text-destructive" />
+                    </Button>
                   </div>
                 )}
               </div>

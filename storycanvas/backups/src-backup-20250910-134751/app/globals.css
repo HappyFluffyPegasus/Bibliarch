@@ -30,8 +30,22 @@
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
 
-    /* Color Palette System Variables - Dynamically set by ColorPaletteManager */
-    /* These are just fallbacks, real colors come from the palette system */
+    /* Color Palette System Variables */
+    --color-primary: #ffffff;
+    --color-primary-text: #1f2937;
+    --color-secondary: #f8f9fa;
+    --color-accent: #ffd700;
+    --color-border: #d1d5db;
+    --color-hover: #f3f4f6;
+    --color-selected: #e5e7eb;
+    --color-canvas-bg: #ffffff;
+    --color-node-default: #ffffff;
+    --color-node-text: #1f2937;
+    --color-connection-default: #8b5cf6;
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
+    --color-info: #3b82f6;
 
     /* StoryCanvas Node Color System - Unified White */
     --node-text: #f8fafc;      /* Unified white for all nodes */
@@ -90,8 +104,22 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
 
-    /* Color Palette System Variables - Dynamically set by ColorPaletteManager */
-    /* These are just fallbacks, real colors come from the palette system */
+    /* Color Palette System Variables - Dark Theme */
+    --color-primary: #1f2937;
+    --color-primary-text: #f9fafb;
+    --color-secondary: #374151;
+    --color-accent: #ffd700;
+    --color-border: #4b5563;
+    --color-hover: #374151;
+    --color-selected: #4b5563;
+    --color-canvas-bg: #111827;
+    --color-node-default: #1f2937;
+    --color-node-text: #f9fafb;
+    --color-connection-default: #a78bfa;
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --color-error: #f87171;
+    --color-info: #60a5fa;
 
     /* StoryCanvas Node Colors - Dark Mode - Unified White */
     --node-text: #f8fafc;      /* Unified white for all nodes */
