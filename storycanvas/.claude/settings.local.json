@@ -12,7 +12,11 @@
       "Bash(xcopy:*)",
       "Bash(npx tsc:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist:*)",
+      "Bash(copy:*)"
     ],
     "deny": [],
     "ask": []

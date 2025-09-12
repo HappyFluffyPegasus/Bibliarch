@@ -33,13 +33,13 @@
     /* Color Palette System Variables - Dynamically set by ColorPaletteManager */
     /* These are just fallbacks, real colors come from the palette system */
 
-    /* StoryCanvas Node Color System - Unified White */
-    --node-text: #f8fafc;      /* Unified white for all nodes */
-    --node-character: #f8fafc;  /* Unified white for all nodes */
-    --node-event: #f8fafc;     /* Unified white for all nodes */
-    --node-location: #f8fafc;  /* Unified white for all nodes */
-    --node-folder: #f8fafc;    /* Unified white for all nodes */
-    --node-image: #f8fafc;     /* Unified white for all nodes */
+    /* StoryCanvas Node Color System */
+    --node-text: #e0f2fe;      /* Light blue for text nodes */
+    --node-character: #fef3c7;  /* Light yellow for characters */
+    --node-event: #fce7f3;     /* Light pink for events */
+    --node-location: #dcfce7;  /* Light green for locations */
+    --node-folder: #e0e7ff;    /* Light indigo for folders */
+    --node-image: #f3e8ff;     /* Light purple for images */
 
     /* Node border colors for interactive states */
     --node-border-default: #d1d5db;    /* Gray 300 - Default border */
@@ -93,13 +93,13 @@
     /* Color Palette System Variables - Dynamically set by ColorPaletteManager */
     /* These are just fallbacks, real colors come from the palette system */
 
-    /* StoryCanvas Node Colors - Dark Mode - Unified White */
-    --node-text: #f8fafc;      /* Unified white for all nodes */
-    --node-character: #f8fafc;  /* Unified white for all nodes */
-    --node-event: #f8fafc;     /* Unified white for all nodes */
-    --node-location: #f8fafc;  /* Unified white for all nodes */
-    --node-folder: #f8fafc;    /* Unified white for all nodes */
-    --node-image: #f8fafc;     /* Unified white for all nodes */
+    /* StoryCanvas Node Colors - Dark Mode */
+    --node-text: #0c4a6e;      /* Dark blue for text nodes */
+    --node-character: #92400e;  /* Dark yellow for characters */
+    --node-event: #831843;     /* Dark pink for events */
+    --node-location: #14532d;  /* Dark green for locations */
+    --node-folder: #312e81;    /* Dark indigo for folders */
+    --node-image: #581c87;     /* Dark purple for images */
 
     /* Node border colors for interactive states - Dark Mode */
     --node-border-default: #4b5563;    /* Gray 600 - Default border */
@@ -219,6 +219,7 @@
 
 .dark .canvas-grid {
   background-image: radial-gradient(circle, var(--color-border, #334155) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
 /* Smooth transitions for theme changes */

@@ -47,6 +47,14 @@ export default function StoryPage({ params }: PageProps) {
   
   // Store the latest canvas state from StoryCanvas component
   const latestCanvasData = useRef<{ nodes: any[], connections: any[] }>({ nodes: [], connections: [] })
+
+  // Apply canvas-page class to body to prevent scrolling
+  useEffect(() => {
+    document.body.classList.add('canvas-page')
+    return () => {
+      document.body.classList.remove('canvas-page')
+    }
+  }, [])
   
   // Check if this is a new story with a template
   const isNewStory = searchParams.get('isNew') === 'true'
