@@ -40,6 +40,7 @@
     --node-location: #dcfce7;  /* Light green for locations */
     --node-folder: #e0e7ff;    /* Light indigo for folders */
     --node-image: #f3e8ff;     /* Light purple for images */
+    --node-table: #ffedd5;     /* Light orange for tables */
 
     /* Node border colors for interactive states */
     --node-border-default: #d1d5db;    /* Gray 300 - Default border */
@@ -100,6 +101,7 @@
     --node-location: #14532d;  /* Dark green for locations */
     --node-folder: #312e81;    /* Dark indigo for folders */
     --node-image: #581c87;     /* Dark purple for images */
+    --node-table: #7c2d12;     /* Dark orange for tables */
 
     /* Node border colors for interactive states - Dark Mode */
     --node-border-default: #4b5563;    /* Gray 600 - Default border */

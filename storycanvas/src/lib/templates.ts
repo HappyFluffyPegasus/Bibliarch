@@ -366,6 +366,72 @@ export const storyTemplates: StoryTemplate[] = [
 
 // Sub-canvas templates for expandable nodes
 export const subCanvasTemplates: Record<string, { nodes: any[], connections: any[] }> = {
+  // Characters & Relationships folder template
+  'characters-folder': {
+    nodes: [
+      {
+        id: 'characters-list',
+        x: 100,
+        y: 100,
+        text: 'Characters',
+        width: 380,
+        height: 440,
+        type: 'list',
+        childIds: ['character-1', 'character-2', 'character-3', 'character-4', 'character-5']
+      },
+      {
+        id: 'character-1',
+        x: 120,
+        y: 120,
+        text: 'Character',
+        width: 320,
+        height: 72,
+        type: 'character',
+        parentId: 'characters-list'
+      },
+      {
+        id: 'character-2',
+        x: 120,
+        y: 202,
+        text: 'Character',
+        width: 320,
+        height: 72,
+        type: 'character',
+        parentId: 'characters-list'
+      },
+      {
+        id: 'character-3',
+        x: 120,
+        y: 284,
+        text: 'Character',
+        width: 320,
+        height: 72,
+        type: 'character',
+        parentId: 'characters-list'
+      },
+      {
+        id: 'character-4',
+        x: 120,
+        y: 366,
+        text: 'Character',
+        width: 320,
+        height: 72,
+        type: 'character',
+        parentId: 'characters-list'
+      },
+      {
+        id: 'character-5',
+        x: 120,
+        y: 448,
+        text: 'Character',
+        width: 320,
+        height: 72,
+        type: 'character',
+        parentId: 'characters-list'
+      }
+    ],
+    connections: []
+  },
   // Template-specific character canvases
   'characters-canvas': {
     nodes: [

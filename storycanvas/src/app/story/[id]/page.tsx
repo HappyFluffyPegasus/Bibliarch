@@ -193,17 +193,57 @@ export default function StoryPage({ params }: PageProps) {
       // No existing canvas data - this is expected for new folder canvases
       console.log('No canvas data found for canvas:', currentCanvasId)
 
-      // For folder canvases, always start with an empty canvas
-      if (currentCanvasId.startsWith('folder-canvas-')) {
-        console.log('Creating empty folder canvas')
+      // Check if this is a folder canvas that needs a template
+      let templateData: { nodes: any[], connections: any[] } = { nodes: [], connections: [] }
+
+      // Detect if this is a specific folder canvas by checking the canvas ID pattern
+      console.log('🔍 Checking canvas ID for template:', currentCanvasId)
+      console.log('🔍 Has characters-folder template?', !!subCanvasTemplates['characters-folder'])
+
+      // For folder canvases, check if it needs a template FIRST
+      if (currentCanvasId.includes('characters-folder') && subCanvasTemplates['characters-folder']) {
+        console.log('✅ Applying Characters & Relationships folder template')
+        const timestamp = Date.now()
+
+        // Create ID mapping for updating references
+        const idMap: Record<string, string> = {}
+        subCanvasTemplates['characters-folder'].nodes.forEach(node => {
+          idMap[node.id] = `${node.id}-${timestamp}`
+        })
+
+        templateData = {
+          nodes: subCanvasTemplates['characters-folder'].nodes.map(node => ({
+            ...node,
+            id: idMap[node.id],
+            // Update childIds to use new IDs
+            ...(node.childIds ? { childIds: node.childIds.map(childId => idMap[childId]) } : {}),
+            // Update parentId to use new ID
+            ...(node.parentId ? { parentId: idMap[node.parentId] } : {})
+          })),
+          connections: subCanvasTemplates['characters-folder'].connections.map(conn => ({
+            ...conn,
+            id: `${conn.id}-${timestamp}`,
+            from: idMap[conn.from] || conn.from,
+            to: idMap[conn.to] || conn.to
+          }))
+        }
+        console.log('📦 Template nodes created:', templateData.nodes.length)
+        setCanvasData(templateData)
+        latestCanvasData.current = templateData
+
+        // Save template immediately
+        setTimeout(() => {
+          handleSaveCanvas(templateData.nodes, templateData.connections)
+        }, 1000)
+      } else if (currentCanvasId.startsWith('folder-canvas-')) {
+        console.log('Creating empty folder canvas (no template match)')
         const emptyData = { nodes: [], connections: [] }
         setCanvasData(emptyData)
         latestCanvasData.current = emptyData
       } else {
-        // For main canvas only, check for sub-canvas templates
-        let templateData: { nodes: any[], connections: any[] } = { nodes: [], connections: [] }
+        // For main canvas only, check for other sub-canvas templates
+        console.log('Checking for other templates...')
 
-        // Detect if this is a character or location canvas by checking the canvas ID pattern
         if (currentCanvasId.includes('character-') && subCanvasTemplates.character) {
           console.log('Applying character sub-canvas template')
           templateData = {

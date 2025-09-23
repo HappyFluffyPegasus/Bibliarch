@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, ArrowUp, ArrowDown } from 'lucide-react'
+import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, ArrowUp, ArrowDown, Table } from 'lucide-react'
 import { toast } from 'sonner'
 import { PaletteSelector } from '@/components/ui/palette-selector'
 import { ColorFilter } from '@/components/ui/color-filter'
@@ -18,12 +18,13 @@ interface Node {
   content?: string
   width: number
   height: number
-  type?: 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image'
+  type?: 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table'
   color?: string
   linkedCanvasId?: string
   imageUrl?: string
   profileImageUrl?: string // For character nodes profile pictures
   attributes?: any
+  tableData?: { label: string; value: string }[] // For table nodes
   // Container properties for list nodes
   parentId?: string // If this node is inside a container
   childIds?: string[] // If this node is a container (for list nodes)
@@ -59,7 +60,7 @@ export default function HTMLCanvas({
   const [nodes, setNodes] = useState<Node[]>(initialNodes)
   const [connections, setConnections] = useState<Connection[]>(initialConnections)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [tool, setTool] = useState<'pan' | 'select' | 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'connect'>('pan')
+  const [tool, setTool] = useState<'pan' | 'select' | 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'connect'>('pan')
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
   const [showHelp, setShowHelp] = useState(true)
@@ -489,8 +490,8 @@ export default function HTMLCanvas({
     if (tool === 'pan' || tool === 'select' || isPanning) return
     
     // Only create nodes when a creation tool is selected
-    if (!['text', 'character', 'event', 'location', 'folder', 'list', 'image'].includes(tool)) return
-    
+    if (!['text', 'character', 'event', 'location', 'folder', 'list', 'image', 'table'].includes(tool)) return
+
     const rect = canvasRef.current?.getBoundingClientRect()
     if (!rect) return
 
@@ -503,12 +504,13 @@ export default function HTMLCanvas({
       y: Math.max(0, y - 60),
       text: getDefaultText(tool),
       content: getDefaultContent(tool),
-      width: tool === 'list' ? 320 : tool === 'image' ? 300 : tool === 'character' ? 320 : 200,  // Character nodes just right size, image nodes bigger, list containers wider
-      height: tool === 'list' ? 240 : tool === 'image' ? 200 : tool === 'character' ? 72 : 120, // Character nodes shorter, image nodes taller, list containers taller
+      width: tool === 'list' ? 320 : tool === 'image' ? 300 : tool === 'character' ? 320 : tool === 'table' ? 280 : 200,  // Table nodes medium width
+      height: tool === 'list' ? 240 : tool === 'image' ? 200 : tool === 'character' ? 72 : tool === 'table' ? 200 : 120, // Table nodes taller for rows
       type: tool,
       // Don't set color - let it use dynamic theme colors
       ...(tool === 'folder' ? { linkedCanvasId: `${tool}-canvas-${Date.now()}` } : {}),
-      ...(tool === 'list' ? { childIds: [], layoutMode: 'single-column' as const } : {})
+      ...(tool === 'list' ? { childIds: [], layoutMode: 'single-column' as const } : {}),
+      ...(tool === 'table' ? { tableData: getDefaultTableData() } : {})
     }
 
     const newNodes = [...nodes, newNode]
@@ -779,6 +781,7 @@ export default function HTMLCanvas({
       case 'folder': return 'New Section'
       case 'list': return 'New List'
       case 'image': return 'New Image'
+      case 'table': return 'Character Info'
       default: return 'New Text Node'
     }
   }
@@ -791,8 +794,19 @@ export default function HTMLCanvas({
       case 'folder': return 'What does this section contain?'
       case 'list': return ''  // List containers show their children, no default content needed
       case 'image': return 'Image caption or paste URL here...'
+      case 'table': return '' // Tables use tableData instead of content
       default: return 'What would you like to write about?'
     }
+  }
+
+  const getDefaultTableData = () => {
+    return [
+      { label: 'Name', value: '' },
+      { label: 'Age', value: '' },
+      { label: 'Role', value: '' },
+      { label: 'Height', value: '' },
+      { label: 'Job', value: '' }
+    ]
   }
 
   const getNodeColor = (nodeType: string, customColor?: string, nodeId?: string) => {
@@ -1386,6 +1400,7 @@ export default function HTMLCanvas({
       case 'folder': return <Folder className="w-5 h-5" />
       case 'list': return <List className="w-5 h-5" />
       case 'image': return <ImageIcon className="w-5 h-5" />
+      case 'table': return <Table className="w-5 h-5" />
       default: return <Type className="w-5 h-5" />
     }
   }
@@ -2123,18 +2138,25 @@ export default function HTMLCanvas({
                     {/* Navigation arrow - clickable */}
                     <div
                       className="absolute bottom-1 right-1 p-1 cursor-pointer hover:bg-black/10 rounded"
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation()
                         // Single click navigation for character nodes
                         if (node.linkedCanvasId && onNavigateToCanvas) {
                             onNavigateToCanvas(node.linkedCanvasId, node.text)
                         } else if (!node.linkedCanvasId && onNavigateToCanvas) {
-                                                    const linkedCanvasId = `character-canvas-${node.id}-${Date.now()}`
+                          const linkedCanvasId = `character-canvas-${node.id}-${Date.now()}`
                           const updatedNodes = nodes.map(n =>
                             n.id === node.id ? { ...n, linkedCanvasId } : n
                           )
                           setNodes(updatedNodes)
-                            onNavigateToCanvas(linkedCanvasId, node.text)
+                          saveToHistory(updatedNodes, connections)
+
+                          // CRITICAL: Save immediately to ensure persistence
+                          if (onSave) {
+                            await onSave(updatedNodes, connections)
+                          }
+
+                          onNavigateToCanvas(linkedCanvasId, node.text)
                         }
                       }}
                       title="Open character development"
@@ -2743,7 +2765,7 @@ export default function HTMLCanvas({
                   )}
                   <div
                     className="p-1 cursor-pointer hover:bg-black/10 rounded"
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation()
                       // Single click navigation for folder nodes
                       if (node.linkedCanvasId && onNavigateToCanvas) {
@@ -2761,6 +2783,13 @@ export default function HTMLCanvas({
                           n.id === node.id ? { ...n, linkedCanvasId } : n
                         )
                         setNodes(updatedNodes)
+                        saveToHistory(updatedNodes, connections)
+
+                        // CRITICAL: Save immediately to ensure persistence
+                        if (onSave) {
+                          await onSave(updatedNodes, connections)
+                        }
+
                         // Switch to folder color context
                         colorContext.setCurrentFolderId(node.id)
                         onNavigateToCanvas(linkedCanvasId, node.text)
