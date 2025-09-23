@@ -384,16 +384,15 @@ export default function StoryPage({ params }: PageProps) {
         (canvasContainer as HTMLElement).style.opacity = '1'
       }
       
-      // Add current canvas to path with proper title BEFORE changing currentCanvasId
-      const currentTitle = currentCanvasId === 'main' ? story.title : canvasPath[canvasPath.length - 1]?.title || 'Canvas'
-      const newPath = [...canvasPath, { id: currentCanvasId, title: currentTitle }]
+      // Add to path: just append where we're going (not where we came from)
+      const newPath = [...canvasPath, { id: canvasId, title: nodeTitle }]
       setCanvasPath(newPath)
-      
+
       // CRITICAL: Clear canvas data before changing ID to prevent contamination
       // This ensures the old canvas nodes don't get auto-saved to the new canvas
       setCanvasData({ nodes: [], connections: [] })
       latestCanvasData.current = { nodes: [], connections: [] }
-      
+
       // Update to the new canvas ID (the linkedCanvasId from the folder node)
       setCurrentCanvasId(canvasId)
       
@@ -480,36 +479,40 @@ export default function StoryPage({ params }: PageProps) {
   // Navigate back
   async function handleNavigateBack() {
     if (canvasPath.length === 0) return
-    
+
     // SAVE CURRENT CANVAS FIRST!
     if (canvasData && (canvasData.nodes?.length > 0 || canvasData.connections?.length > 0)) {
       await handleSaveCanvas(canvasData.nodes, canvasData.connections)
       console.log('Saved canvas before navigating back:', currentCanvasId, canvasData)
     }
-    
+
     // Visual feedback first
     setIsLoading(true)
-    
+
     // Add fade-out effect to the entire canvas
     const canvasContainer = document.querySelector('.konvajs-content')
     if (canvasContainer) {
       (canvasContainer as HTMLElement).style.transition = 'opacity 0.2s ease-out'
       ;(canvasContainer as HTMLElement).style.opacity = '0'
     }
-    
+
     setTimeout(() => {
       // Reset canvas opacity for when new content loads
       if (canvasContainer) {
         (canvasContainer as HTMLElement).style.opacity = '1'
       }
+
       const newPath = [...canvasPath]
-      const previousCanvas = newPath.pop()
+      const currentLocation = newPath.pop() // Remove current location from path
       setCanvasPath(newPath)
-      setCurrentCanvasId(previousCanvas?.id || 'main')
-      
+
+      // Navigate to the previous location (last item in the new path, or main if empty)
+      const previousLocation = newPath.length > 0 ? newPath[newPath.length - 1] : null
+      setCurrentCanvasId(previousLocation?.id || 'main')
+
       // Don't clear data here - let loadStory handle it
-      
-      toast.success(`Returning to: ${previousCanvas?.title || 'Main Canvas'}`, {
+
+      toast.success(`Returning to: ${previousLocation?.title || 'Main Canvas'}`, {
         icon: '↩️',
         duration: 2000,
         style: {
@@ -517,7 +520,7 @@ export default function StoryPage({ params }: PageProps) {
           color: 'white'
         }
       })
-      
+
       // Force reload with animation
       setTimeout(() => {
         loadStory()
@@ -560,8 +563,8 @@ export default function StoryPage({ params }: PageProps) {
             >
               {story.title}
             </button>
-            {/* Each breadcrumb level is clickable */}
-            {canvasPath.slice(1).map((item, index) => (
+            {/* Show intermediate breadcrumb levels (all except last which is current) */}
+            {canvasPath.slice(0, -1).map((item, index) => (
               <React.Fragment key={index}>
                 <ChevronRight className="w-4 h-4" />
                 <button
@@ -572,12 +575,12 @@ export default function StoryPage({ params }: PageProps) {
                 </button>
               </React.Fragment>
             ))}
-            {currentCanvasId !== 'main' && (
+            {/* Show current location (last item in path) */}
+            {currentCanvasId !== 'main' && canvasPath.length > 0 && (
               <>
                 <ChevronRight className="w-4 h-4" />
                 <span className="text-purple-600 dark:text-purple-400 font-semibold">
-                  {/* Show the actual folder name we're in */}
-                  {canvasData?.nodes?.length > 0 ? 'Section Content' : 'Empty Section'}
+                  {canvasPath[canvasPath.length - 1]?.title}
                 </span>
               </>
             )}

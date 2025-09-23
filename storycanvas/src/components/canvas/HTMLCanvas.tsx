@@ -1888,9 +1888,9 @@ export default function HTMLCanvas({
                     <div
                       className="w-full h-full cursor-pointer flex items-center justify-center text-sm"
                       style={{
-                        backgroundColor: 'transparent',
-                        border: '1px dashed #ccc',
-                        color: '#666'
+                        backgroundColor: getNodeColor('image', node.color, node.id),
+                        border: `2px solid ${getNodeBorderColor('image')}`,
+                        color: getTextColor(getNodeColor('image', node.color, node.id))
                       }}
                       onDoubleClick={(e) => {
                         e.stopPropagation()
@@ -2465,24 +2465,62 @@ export default function HTMLCanvas({
                                     {/* Navigation arrow */}
                                     <div
                                       className="flex-shrink-0 p-1 cursor-pointer hover:bg-black/10 rounded"
-                                      onClick={(e) => {
+                                      onClick={async (e) => {
                                         e.stopPropagation()
-                                        if (childNode.linkedCanvasId && onNavigateToCanvas) {
-                                          colorContext.setCurrentFolderId(childNode.id)
-                                          const folderPalette = colorContext.getFolderPalette(childNode.id)
+
+                                        console.log('=== CHARACTER NAVIGATION FROM LIST DEBUG ===')
+                                        console.log('childNode from render:', childNode)
+
+                                        // CRITICAL: Get the most up-to-date node from the nodes array
+                                        const currentNode = nodes.find(n => n.id === childNode.id)
+                                        console.log('currentNode from nodes array:', currentNode)
+
+                                        if (!currentNode || !onNavigateToCanvas) {
+                                          console.log('ABORT: No current node or no navigate callback')
+                                          return
+                                        }
+
+                                        const nodeTitle = currentNode.text || 'Character'
+
+                                        // Use currentNode for linkedCanvasId, not childNode!
+                                        if (currentNode.linkedCanvasId) {
+                                          console.log('EXISTING linkedCanvasId found:', currentNode.linkedCanvasId)
+                                          colorContext.setCurrentFolderId(currentNode.id)
+                                          const folderPalette = colorContext.getFolderPalette(currentNode.id)
                                           if (folderPalette) {
                                             colorContext.applyPalette(folderPalette)
                                           }
-                                          onNavigateToCanvas(childNode.linkedCanvasId, childNode.text)
-                                        } else if (!childNode.linkedCanvasId && onNavigateToCanvas) {
-                                          const linkedCanvasId = `character-canvas-${childNode.id}-${Date.now()}`
+                                          console.log('Navigating to EXISTING canvas:', currentNode.linkedCanvasId, 'with title:', nodeTitle)
+                                          onNavigateToCanvas(currentNode.linkedCanvasId, nodeTitle)
+                                        } else {
+                                          // Create new linkedCanvasId
+                                          const linkedCanvasId = `character-canvas-${currentNode.id}-${Date.now()}`
+                                          console.log('Creating NEW linkedCanvasId:', linkedCanvasId)
+
                                           const updatedNodes = nodes.map(n =>
-                                            n.id === childNode.id ? { ...n, linkedCanvasId } : n
+                                            n.id === currentNode.id ? { ...n, linkedCanvasId } : n
                                           )
+
+                                          console.log('Updated node in array:', updatedNodes.find(n => n.id === currentNode.id))
+
+                                          // Update state
                                           setNodes(updatedNodes)
-                                          colorContext.setCurrentFolderId(childNode.id)
-                                          onNavigateToCanvas(linkedCanvasId, childNode.text)
+                                          saveToHistory(updatedNodes, connections)
+
+                                          // CRITICAL: Save immediately to ensure persistence
+                                          if (onSave) {
+                                            console.log('Saving to database BEFORE navigation...')
+                                            await onSave(updatedNodes, connections)
+                                            console.log('Save complete!')
+                                          } else {
+                                            console.log('WARNING: No onSave callback!')
+                                          }
+
+                                          colorContext.setCurrentFolderId(currentNode.id)
+                                          console.log('Navigating to NEW canvas:', linkedCanvasId, 'with title:', nodeTitle)
+                                          onNavigateToCanvas(linkedCanvasId, nodeTitle)
                                         }
+                                        console.log('=== END DEBUG ===')
                                       }}
                                       title="Open character development"
                                     >
@@ -2583,27 +2621,43 @@ export default function HTMLCanvas({
                                 )}
                                 <div
                                   className="p-1 cursor-pointer hover:bg-black/10 rounded"
-                                  onClick={(e) => {
+                                  onClick={async (e) => {
                                     e.stopPropagation()
-                                    // Single click navigation for folder nodes in lists
-                                    if (childNode.linkedCanvasId && onNavigateToCanvas) {
+                                    // CRITICAL: Get the most up-to-date node from the nodes array
+                                    const currentNode = nodes.find(n => n.id === childNode.id)
+                                    if (!currentNode || !onNavigateToCanvas) return
+
+                                    const nodeTitle = currentNode.text || 'Folder'
+
+                                    // Use currentNode for linkedCanvasId, not childNode!
+                                    if (currentNode.linkedCanvasId) {
                                       // Switch to folder color context when entering a folder
-                                      colorContext.setCurrentFolderId(childNode.id)
+                                      colorContext.setCurrentFolderId(currentNode.id)
                                       // Apply folder palette if it exists
-                                      const folderPalette = colorContext.getFolderPalette(childNode.id)
+                                      const folderPalette = colorContext.getFolderPalette(currentNode.id)
                                       if (folderPalette) {
                                         colorContext.applyPalette(folderPalette)
                                       }
-                                      onNavigateToCanvas(childNode.linkedCanvasId, childNode.text)
-                                    } else if (!childNode.linkedCanvasId && onNavigateToCanvas) {
-                                      const linkedCanvasId = `folder-canvas-${childNode.id}-${Date.now()}`
+                                      onNavigateToCanvas(currentNode.linkedCanvasId, nodeTitle)
+                                    } else {
+                                      // Create new linkedCanvasId
+                                      const linkedCanvasId = `folder-canvas-${currentNode.id}-${Date.now()}`
                                       const updatedNodes = nodes.map(n =>
-                                        n.id === childNode.id ? { ...n, linkedCanvasId } : n
+                                        n.id === currentNode.id ? { ...n, linkedCanvasId } : n
                                       )
+
+                                      // Update state
                                       setNodes(updatedNodes)
+                                      saveToHistory(updatedNodes, connections)
+
+                                      // CRITICAL: Save immediately to ensure persistence
+                                      if (onSave) {
+                                        await onSave(updatedNodes, connections)
+                                      }
+
                                       // Switch to folder color context
-                                      colorContext.setCurrentFolderId(childNode.id)
-                                      onNavigateToCanvas(linkedCanvasId, childNode.text)
+                                      colorContext.setCurrentFolderId(currentNode.id)
+                                      onNavigateToCanvas(linkedCanvasId, nodeTitle)
                                     }
                                   }}
                                   title="Open folder"

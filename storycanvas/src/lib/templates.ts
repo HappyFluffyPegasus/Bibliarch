@@ -51,7 +51,6 @@ export const storyTemplates: StoryTemplate[] = [
         width: 310,
         height: 90,
         type: 'folder',
-        linkedCanvasId: 'characters-canvas',
         parentId: 'story-development'
       },
       {
@@ -63,7 +62,6 @@ export const storyTemplates: StoryTemplate[] = [
         width: 310,
         height: 90,
         type: 'folder',
-        linkedCanvasId: 'plot-canvas',
         parentId: 'story-development'
       },
       {
@@ -75,7 +73,6 @@ export const storyTemplates: StoryTemplate[] = [
         width: 310,
         height: 90,
         type: 'folder',
-        linkedCanvasId: 'world-canvas',
         parentId: 'story-development'
       },
       {
@@ -87,7 +84,6 @@ export const storyTemplates: StoryTemplate[] = [
         width: 310,
         height: 90,
         type: 'folder',
-        linkedCanvasId: 'themes-canvas',
         parentId: 'story-development'
       },
 

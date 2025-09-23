@@ -978,4 +978,132 @@ const handleNodeMouseDown = (node: Node, e: React.MouseEvent) => {
 
 ---
 
+## 🎯 **Latest Session Updates** (September 22, 2025 - Afternoon)
+
+### **Image Resize, List Container Improvements, and Layer System** ✅ **COMPLETED**
+
+#### **Issue 13: Image Node Manual Resize Implementation** ✅ **COMPLETED**
+- **Problem**: Image nodes had no way to be manually resized by users
+- **Solution**: Added corner resize handle to image nodes
+- **Implementation**:
+  - Added bottom-right corner resize handle (3x3px blue square) that appears when image selected
+  - Resize maintains aspect ratio using existing AABB collision detection logic
+  - Handle has hover effect and cursor change for better UX
+  - Tooltip shows "Resize image (maintains aspect ratio)"
+- **Files Modified**: `src/components/canvas/HTMLCanvas.tsx`
+- **Result**: Users can now resize images while preserving their aspect ratios
+
+#### **Issue 14: Character Node Text Typing Backwards** ✅ **FIXED**
+- **Problem**: Character node name field typed text backwards (cursor jumped to beginning)
+- **Root Cause**: Using `onInput` which updated state immediately, causing React to re-render and overwrite DOM
+- **Solution**:
+  - Changed from `onInput` to `onBlur` for character name editing
+  - Added proper text initialization with `{node.text || ''}`
+  - Added click handler for better focus behavior
+  - Added placeholder text support
+- **Files Modified**: `src/components/canvas/HTMLCanvas.tsx` (lines 2028-2044)
+- **Result**: Character names now type normally from left to right
+
+#### **Issue 15: Folder/Character Node Drag into Lists** ✅ **COMPLETED**
+- **Problem**: Users couldn't drag folder or character nodes into list containers
+- **Root Causes**:
+  1. Collision detection only checked top-left corner, not full node overlap
+  2. Character nodes (600px wide) often had top-left corner outside list bounds
+  3. Rendering order caused newer lists to appear on top, blocking drops
+- **Solutions Implemented**:
+  1. **AABB Overlap Detection**:
+     - Changed from point-in-box to full rectangle overlap detection
+     - Checks if ANY part of dragged node overlaps with list bounds
+     - Handles wide character nodes (600px) properly
+  2. **Rendering Order Fix**:
+     - List nodes now always render at bottom layer (below other nodes)
+     - Sorting algorithm: lists first, then by zIndex, then original order
+  3. **Character Node Rendering in Lists**:
+     - Added conditional rendering for character nodes inside lists
+     - Character nodes show profile picture (48x48px) + name + navigation arrow
+     - Proper layout with compact 72px height
+     - Full profile picture upload/crop functionality preserved
+  4. **Dynamic List Auto-Sizing**:
+     - Updated `calculateAutoSize` to handle mixed node types
+     - Character nodes: 72px height
+     - Folder nodes: 140px height
+     - Calculates total height based on actual child node types
+- **Files Modified**:
+  - `src/components/canvas/HTMLCanvas.tsx` (collision detection, rendering, auto-sizing)
+  - Node interface (added zIndex property)
+- **Result**: Both folder AND character nodes can now be dropped into any list, regardless of creation order
+
+#### **Issue 16: Layer/Z-Index System** ✅ **COMPLETED**
+- **Problem**: No way to control which nodes appear on top of others
+- **Solution**: Complete layer management system with UI controls
+- **Implementation**:
+  - **Layer Property**: Added `zIndex?: number` to Node interface
+  - **Rendering Logic**:
+    - Sorts nodes before rendering: lists first (bottom), then by zIndex (low to high)
+    - Formula: `if (a.type === 'list' && b.type !== 'list') return -1`
+  - **UI Controls in Left Sidebar**:
+    - **⬆️ Arrow Up**: Increases zIndex by 1 (brings node forward)
+    - **⬇️ Arrow Down**: Decreases zIndex by 1 (sends node backward)
+    - Both buttons disabled when no node selected
+    - Toast notifications confirm layer changes
+  - **Import**: Added `ArrowUp, ArrowDown` from lucide-react
+- **Files Modified**: `src/components/canvas/HTMLCanvas.tsx`
+- **Result**: Users can control node layering with simple up/down arrow buttons
+
+#### **Issue 17: Folder Navigation Showing Wrong Content** ⚠️ **STILL BROKEN**
+- **Problem**: When entering folder/character nodes, shows wrong canvas content or says "Section Content"
+- **Root Cause Analysis**:
+  - Breadcrumb path not properly tracking navigation hierarchy
+  - `nodeTitle` passed to navigation but not stored correctly in path
+  - Breadcrumb display showing generic "Section Content" instead of actual node name
+- **Attempted Fixes**:
+  1. Simplified path building to just add new canvas with nodeTitle
+  2. Updated breadcrumb display to show actual title from path
+  3. Changed slice logic to avoid duplicating current location
+  4. Added proper path tracking for main→folder navigation
+- **Current Status**: ⚠️ **NOT WORKING** - Navigation still shows incorrect content
+- **Files Modified**: `src/app/story/[id]/page.tsx`
+- **Next Steps Required**:
+  - Debug full navigation flow from HTMLCanvas → page.tsx
+  - Verify canvasId and nodeTitle are being passed correctly
+  - Check if `loadStory` is using correct canvas_type
+  - Trace breadcrumb state through entire navigation cycle
+
+### **Technical Debt & Known Issues**
+
+#### **Working Features** ✅:
+- Image node manual resize with aspect ratio preservation
+- Character node text editing (no more backwards typing)
+- Folder nodes can be dropped into lists (working perfectly)
+- Character nodes can be dropped into lists (working perfectly)
+- Layer/z-index system with up/down arrows
+- List nodes always render at bottom layer
+- AABB collision detection for drag-drop
+
+#### **Broken Features** ⚠️:
+- **CRITICAL**: Folder/character navigation shows wrong canvas content
+- **CRITICAL**: Breadcrumb displays "Section Content" instead of actual folder name
+- **CRITICAL**: Canvas doesn't load proper interior when entering nodes
+
+### **Quality Assurance & Backups**
+- **Commit 1**: "Add image resize and list container improvements" (73cbc0c)
+  - Image resize handles
+  - Character/folder drop into lists
+  - Character node backwards typing fix
+  - Console debug cleanup
+- **Commit 2**: "Add layers system and fix character node drop detection" (e9bb55e)
+  - zIndex layer system with UI controls
+  - List nodes bottom-layer rendering
+  - AABB overlap collision detection
+  - Character node drop fixes
+
+#### **Current Session Summary**:
+- ✅ **Image Resize**: Manual resize with aspect ratio - WORKING
+- ✅ **Text Editing**: Character names type correctly - WORKING
+- ✅ **List Drag-Drop**: Both folder/character nodes - WORKING
+- ✅ **Layer System**: Z-index controls in sidebar - WORKING
+- ⚠️ **Navigation**: Folder/character interior loading - **BROKEN**
+
+---
+
 *This document serves as a comprehensive record of all achievements, current status, and future direction for the StoryCanvas project.*
