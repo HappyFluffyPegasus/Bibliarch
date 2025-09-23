@@ -61,6 +61,10 @@ export default function StoryPage({ params }: PageProps) {
   const templateId = searchParams.get('template')
 
   useEffect(() => {
+    // CRITICAL: Clear canvas data when changing canvases to prevent data mixing
+    setCanvasData({ nodes: [], connections: [] })
+    latestCanvasData.current = { nodes: [], connections: [] }
+
     loadStory()
   }, [resolvedParams.id, currentCanvasId])
 
@@ -187,8 +191,44 @@ export default function StoryPage({ params }: PageProps) {
         nodes: (canvas as any)?.nodes || [],
         connections: (canvas as any)?.connections || []
       }
-      setCanvasData(loadedData)
-      latestCanvasData.current = loadedData
+
+      // CRITICAL: Only apply template if canvas exists but is EMPTY
+      if (loadedData.nodes.length === 0 && currentCanvasId.includes('characters-folder') && subCanvasTemplates['characters-folder']) {
+        console.log('✅ Applying Characters & Relationships folder template to empty canvas')
+        const timestamp = Date.now()
+
+        // Create ID mapping for updating references
+        const idMap: Record<string, string> = {}
+        subCanvasTemplates['characters-folder'].nodes.forEach(node => {
+          idMap[node.id] = `${node.id}-${timestamp}`
+        })
+
+        const templateData = {
+          nodes: subCanvasTemplates['characters-folder'].nodes.map(node => ({
+            ...node,
+            id: idMap[node.id],
+            ...(node.childIds ? { childIds: node.childIds.map(childId => idMap[childId]) } : {}),
+            ...(node.parentId ? { parentId: idMap[node.parentId] } : {})
+          })),
+          connections: subCanvasTemplates['characters-folder'].connections.map(conn => ({
+            ...conn,
+            id: `${conn.id}-${timestamp}`,
+            from: idMap[conn.from] || conn.from,
+            to: idMap[conn.to] || conn.to
+          }))
+        }
+
+        setCanvasData(templateData)
+        latestCanvasData.current = templateData
+
+        // Save template immediately
+        setTimeout(() => {
+          handleSaveCanvas(templateData.nodes, templateData.connections)
+        }, 1000)
+      } else {
+        setCanvasData(loadedData)
+        latestCanvasData.current = loadedData
+      }
     } else {
       // No existing canvas data - this is expected for new folder canvases
       console.log('No canvas data found for canvas:', currentCanvasId)

@@ -2643,7 +2643,7 @@ export default function HTMLCanvas({
                                 )}
                                 <div
                                   className="p-1 cursor-pointer hover:bg-black/10 rounded"
-                                  onClick={async (e) => {
+                                  onClick={(e) => {
                                     e.stopPropagation()
                                     // CRITICAL: Get the most up-to-date node from the nodes array
                                     const currentNode = nodes.find(n => n.id === childNode.id)
@@ -2672,9 +2672,9 @@ export default function HTMLCanvas({
                                       setNodes(updatedNodes)
                                       saveToHistory(updatedNodes, connections)
 
-                                      // CRITICAL: Save immediately to ensure persistence
+                                      // Save in background without blocking navigation
                                       if (onSave) {
-                                        await onSave(updatedNodes, connections)
+                                        onSave(updatedNodes, connections)
                                       }
 
                                       // Switch to folder color context
