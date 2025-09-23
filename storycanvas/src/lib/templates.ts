@@ -465,6 +465,106 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
       }
     ]
   },
+  'plot-folder': {
+    nodes: [
+      {
+        id: 'image-reference',
+        x: 400,
+        y: 100,
+        text: '',
+        width: 300,
+        height: 220,
+        type: 'image'
+      },
+      {
+        id: 'timeline-folder',
+        x: 400,
+        y: 340,
+        text: 'Timeline',
+        width: 300,
+        height: 90,
+        type: 'folder',
+        linkedCanvasId: 'folder-canvas-timeline-folder'
+      },
+      {
+        id: 'themes-motifs',
+        x: 100,
+        y: 100,
+        text: 'Themes / Motifs',
+        content: 'Jot recurring imagery, symbols, or foreshadowing ideas.',
+        width: 280,
+        height: 180,
+        type: 'text'
+      },
+      {
+        id: 'conflict-stakes',
+        x: 720,
+        y: 100,
+        text: 'Conflict & Stakes',
+        content: 'Track how conflict escalates and what\'s at risk.',
+        width: 280,
+        height: 180,
+        type: 'text'
+      },
+      {
+        id: 'visual-anchor',
+        x: 100,
+        y: 300,
+        text: 'Visual Anchor',
+        content: 'Reminder to add/match imagery to scenes.',
+        width: 280,
+        height: 180,
+        type: 'text'
+      },
+      {
+        id: 'checklist-table',
+        x: 720,
+        y: 300,
+        text: 'Checklist',
+        width: 280,
+        height: 270,
+        type: 'table',
+        tableData: [
+          { col1: 'Unfinished scenes or unresolved beats', col2: '☐' },
+          { col1: '', col2: '☐' },
+          { col1: '', col2: '☐' },
+          { col1: '', col2: '☐' },
+          { col1: '', col2: '☐' }
+        ]
+      },
+      {
+        id: 'note-1',
+        x: 100,
+        y: 500,
+        text: 'Note',
+        content: '',
+        width: 280,
+        height: 140,
+        type: 'text'
+      },
+      {
+        id: 'note-2',
+        x: 410,
+        y: 450,
+        text: 'Note',
+        content: '',
+        width: 280,
+        height: 140,
+        type: 'text'
+      },
+      {
+        id: 'note-3',
+        x: 720,
+        y: 500,
+        text: 'Note',
+        content: '',
+        width: 280,
+        height: 140,
+        type: 'text'
+      }
+    ],
+    connections: []
+  },
   character: {
     nodes: [
       {

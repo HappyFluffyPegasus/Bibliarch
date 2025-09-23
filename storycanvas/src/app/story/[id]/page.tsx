@@ -48,6 +48,9 @@ export default function StoryPage({ params }: PageProps) {
   // Store the latest canvas state from StoryCanvas component
   const latestCanvasData = useRef<{ nodes: any[], connections: any[] }>({ nodes: [], connections: [] })
 
+  // Track current canvas ID to prevent stale closures
+  const currentCanvasIdRef = useRef(currentCanvasId)
+
   // Apply canvas-page class to body to prevent scrolling
   useEffect(() => {
     document.body.classList.add('canvas-page')
@@ -64,6 +67,7 @@ export default function StoryPage({ params }: PageProps) {
     // CRITICAL: Clear canvas data when changing canvases to prevent data mixing
     setCanvasData({ nodes: [], connections: [] })
     latestCanvasData.current = { nodes: [], connections: [] }
+    currentCanvasIdRef.current = currentCanvasId
 
     loadStory()
   }, [resolvedParams.id, currentCanvasId])
@@ -308,9 +312,41 @@ export default function StoryPage({ params }: PageProps) {
         latestCanvasData.current = templateData
 
         // Save template immediately
-        setTimeout(() => {
-          handleSaveCanvas(templateData.nodes, templateData.connections)
-        }, 1000)
+        handleSaveCanvas(templateData.nodes, templateData.connections)
+      } else if (currentCanvasId.includes('plot-folder') && subCanvasTemplates['plot-folder']) {
+        console.log('✅ Applying Plot Structure & Events folder template')
+        const timestamp = Date.now()
+
+        // Create ID mapping for updating references
+        const idMap: Record<string, string> = {}
+        subCanvasTemplates['plot-folder'].nodes.forEach(node => {
+          idMap[node.id] = `${node.id}-${timestamp}`
+        })
+
+        templateData = {
+          nodes: subCanvasTemplates['plot-folder'].nodes.map(node => ({
+            ...node,
+            id: idMap[node.id],
+            // Update childIds to use new IDs
+            ...(node.childIds ? { childIds: node.childIds.map(childId => idMap[childId]) } : {}),
+            // Update parentId to use new ID
+            ...(node.parentId ? { parentId: idMap[node.parentId] } : {}),
+            // Update linkedCanvasId for folder nodes
+            ...(node.linkedCanvasId ? { linkedCanvasId: `${node.linkedCanvasId}-${timestamp}` } : {})
+          })),
+          connections: subCanvasTemplates['plot-folder'].connections.map(conn => ({
+            ...conn,
+            id: `${conn.id}-${timestamp}`,
+            from: idMap[conn.from] || conn.from,
+            to: idMap[conn.to] || conn.to
+          }))
+        }
+        console.log('📦 Template nodes created:', templateData.nodes.length)
+        setCanvasData(templateData)
+        latestCanvasData.current = templateData
+
+        // Save template immediately
+        handleSaveCanvas(templateData.nodes, templateData.connections)
       } else if (currentCanvasId.startsWith('folder-canvas-')) {
         console.log('Creating empty folder canvas (no template match)')
         const emptyData = { nodes: [], connections: [] }
@@ -366,9 +402,7 @@ export default function StoryPage({ params }: PageProps) {
 
         // If we applied a template, save it immediately so it persists
         if (templateData.nodes.length > 0) {
-          setTimeout(() => {
-            handleSaveCanvas(templateData.nodes, templateData.connections)
-          }, 1000) // Save after component loads
+          handleSaveCanvas(templateData.nodes, templateData.connections)
         }
       }
     }
@@ -382,19 +416,21 @@ export default function StoryPage({ params }: PageProps) {
   }
 
   async function handleSaveCanvas(nodes: any[], connections: any[] = []) {
+    const saveToCanvasId = currentCanvasIdRef.current
+
     console.log('handleSaveCanvas called:', {
       storyId: resolvedParams.id,
-      canvasId: currentCanvasId,
+      canvasId: saveToCanvasId,
       nodeCount: nodes.length,
       connectionCount: connections.length,
       nodes
     })
-    
+
     // Update the ref with latest data
     latestCanvasData.current = { nodes, connections }
-    
+
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     if (!user) {
       console.error('No user, cannot save')
       return
@@ -404,7 +440,7 @@ export default function StoryPage({ params }: PageProps) {
       story_id: resolvedParams.id,
       nodes: nodes,
       connections: connections,
-      canvas_type: currentCanvasId // This will be 'main' or the folder's linkedCanvasId
+      canvas_type: saveToCanvasId // Use the ref value to prevent stale closures
     }
 
     // Check if canvas data exists
@@ -412,7 +448,7 @@ export default function StoryPage({ params }: PageProps) {
       .from('canvas_data')
       .select('id')
       .eq('story_id', resolvedParams.id)
-      .eq('canvas_type', currentCanvasId)
+      .eq('canvas_type', saveToCanvasId)
       .single()
     
     if (checkError && checkError.code !== 'PGRST116') {

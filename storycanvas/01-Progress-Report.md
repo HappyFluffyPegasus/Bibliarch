@@ -1106,4 +1106,142 @@ const handleNodeMouseDown = (node: Node, e: React.MouseEvent) => {
 
 ---
 
+## 🎯 **Latest Session Updates** (September 23, 2025)
+
+### **Navigation System Fixes and Character Node Enhancements** ⚠️ **IN PROGRESS**
+
+#### **Issue 18: Character/Folder Navigation Duplication and Looping** ⚠️ **PARTIALLY FIXED**
+- **Problem**: Clicking character or folder nodes creates duplicate canvases and loops infinitely
+- **Root Causes Identified**:
+  1. Templates had hardcoded `linkedCanvasId` values causing multiple nodes to share same canvas
+  2. `await onSave()` in navigation handlers blocked UI and caused looping
+  3. Async/await timing issues with React re-renders
+  4. Navigation function `handleNavigateToCanvas` had stale closure on `currentCanvasId`
+
+**🔧 Attempted Fixes**:
+1. **Template LinkedCanvasId Removal** ✅
+   - Removed all hardcoded linkedCanvasIds from templates
+   - Generate unique IDs on first click: `folder-canvas-${nodeId}-${timestamp}`
+   - ID mapping system for template node relationships
+
+2. **Async/Await Navigation** ⚠️
+   - Removed `await onSave()` from initial navigation handlers
+   - Changed to background saves without blocking
+   - Re-added `await onSave()` for linkedCanvasId persistence (required to prevent duplicates)
+   - Made `handleNavigateToCanvas` async again to properly save before navigation
+
+3. **Canvas Data Isolation** ✅
+   - Added `setCanvasData({ nodes: [], connections: [] })` in useEffect before loading
+   - Clears data on EVERY canvas ID change to prevent mixing
+
+4. **Template Application Logic** ✅
+   - Only apply template when `loadedData.nodes.length === 0`
+   - Prevents re-applying templates on re-entry
+
+5. **Themes Folder Replacement** ✅
+   - Replaced `themes-folder` with `themes-references-folder` (new unique ID)
+   - Updated all references and connections
+
+**⚠️ Current Status**:
+- Looping persists for character nodes (especially in lists)
+- User reports: "it still loops on nodes that are housed in the list node"
+- Navigation works momentarily then redirects to duplicate space
+- List nodes seem to change child node functionality when they shouldn't
+
+#### **Issue 19: Character Node Template Implementation** ✅ **COMPLETED**
+- **Problem**: Character nodes needed comprehensive development template
+- **Solution**: Created detailed character template with:
+  - **Character Design**: Image node (300x200px) for visual reference
+  - **Character Info Table**: 2-column table with Name, Age, Height, Weight, Role, Occupation, Species
+  - **Backstory**: Text node for character history
+  - **Beginning of Story**: Text node for starting state
+  - **End of Story**: Text node for character arc completion
+  - **Themes**: Text node for thematic elements (repositioned next to Backstory)
+  - **Motivations**: Text node for character drives
+  - **Morality**: Text node for ethical principles
+  - **Character Arc Connection**: Visual connection between Beginning and End
+- **Files Modified**: `src/lib/templates.ts`
+
+#### **Issue 20: Table Node Implementation** ✅ **COMPLETED**
+- **Problem**: Needed table node type for structured data entry
+- **Solution**: Complete table node system with:
+
+**🎨 Table Node Features**:
+- **Dynamic Rows/Columns**: Resize vertically to add/remove rows, horizontally to add/remove columns
+- **Auto-Expanding Text**: Textarea cells that grow with content
+- **Clean Borders**: 1px borders with no rounded corners for sharp table appearance
+- **No Excess Space**: Table fits content exactly with no padding
+- **Background Prevention**: Keyboard shortcuts (backspace/delete) disabled when typing in table
+- **3 Column Default**: Starts with 3 columns and 3 rows, all empty
+- **Sizing Logic**:
+  - Vertical resize: ~40px per row
+  - Horizontal resize: ~100px per column
+  - Preserves data when resizing up, truncates when resizing down
+
+**🔧 Technical Implementation**:
+- **File**: `src/components/canvas/HTMLCanvas.tsx`
+- **Interface**: `tableData?: { col1: string; col2: string; col3: string }[]`
+- **Dynamic Rendering**: Maps over `Object.keys(row)` to support any column count
+- **Resize Logic**: Special case in resize handler that updates tableData structure
+- **Border Styling**:
+  - Outer: `border: 1px solid ${getNodeBorderColor()}`
+  - Inner cells: `borderWidth: '1px', borderStyle: 'solid'`
+  - No rounded corners
+
+#### **Issue 21: Character Canvas Changes Not Saving** ⚠️ **CRITICAL - NOT FIXED**
+- **Problem**: Changes made inside character canvases don't persist to database
+- **User Report**: "When I go into a character node and make changes it doesnt save the changes"
+- **Root Cause Investigation**:
+
+**🔍 Diagnosis Attempts**:
+1. **onSave Callback Analysis** ⚠️
+   - All `onBlur` handlers NOW call both `saveToHistory` AND `onSave`
+   - Table `onChange` handlers NOW call `onSave`
+   - BUT: `handleSaveCanvas` uses `currentCanvasId` from closure (STALE VALUE!)
+
+2. **Stale Closure Problem** ✅ **IDENTIFIED**
+   - `handleSaveCanvas` function created with `currentCanvasId` in closure
+   - When inside character canvas, `currentCanvasId` changes but closure has old value
+   - Saves are going to WRONG canvas ID in database!
+
+3. **Attempted Fix with Ref** ✅ **IMPLEMENTED**
+   - Created `currentCanvasIdRef = useRef(currentCanvasId)`
+   - Update ref in useEffect when `currentCanvasId` changes
+   - Changed `handleSaveCanvas` to use `currentCanvasIdRef.current` (always latest)
+   - Modified both canvas_type queries to use `activeCanvasId` from ref
+
+**⚠️ Current Status**: User reports "It still isnt saving"
+- Save logic updated to use ref for current canvas ID
+- All onBlur/onChange handlers call onSave
+- Table changes trigger onSave
+- Database save function uses latest canvas ID from ref
+- **STILL NOT WORKING** - Requires further debugging
+
+**🔧 Files Modified**:
+- `src/app/story/[id]/page.tsx` - Added currentCanvasIdRef and updated handleSaveCanvas
+- `src/components/canvas/HTMLCanvas.tsx` - Added onSave calls to all edit handlers
+
+### **Current Critical Issues** ⚠️:
+1. **NAVIGATION LOOPING**: Character nodes (especially in lists) create infinite loops and duplicate canvases
+2. **SAVE NOT WORKING**: Changes inside character canvases don't persist to database despite ref fix
+3. **LIST NODE INTERFERENCE**: List nodes change functionality of child nodes when they shouldn't
+
+### **Working Features** ✅:
+- Table node with dynamic rows/columns
+- Character template with comprehensive development structure
+- Table border styling (1px, no rounded corners)
+- Text auto-expansion in table cells
+- Keyboard shortcut prevention in tables
+- Themes folder with unique ID
+- Canvas data isolation between navigations
+
+### **Next Steps Required**:
+1. **🚨 CRITICAL**: Debug character canvas save issue - changes MUST persist
+2. **🚨 CRITICAL**: Fix navigation looping permanently
+3. **🔍 Debug**: Investigate why currentCanvasIdRef solution didn't work
+4. **🔍 Debug**: Check if onSave is actually being called with console logs
+5. **🔍 Debug**: Verify database queries are using correct canvas_type
+
+---
+
 *This document serves as a comprehensive record of all achievements, current status, and future direction for the StoryCanvas project.*

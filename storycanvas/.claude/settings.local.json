@@ -19,7 +19,13 @@
       "Bash(copy:*)",
       "Bash(sort:*)",
       "Bash(ren:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(dir:*)",
+      "Bash(for dir in backup-*/)",
+      "Bash(do echo \"=== $dir ===\")",
+      "Bash(grep:*)",
+      "Bash(done)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

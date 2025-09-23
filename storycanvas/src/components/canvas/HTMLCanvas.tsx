@@ -509,7 +509,6 @@ export default function HTMLCanvas({
       height: tool === 'list' ? 240 : tool === 'image' ? 200 : tool === 'character' ? 72 : tool === 'table' ? 200 : 120, // Table nodes taller for rows
       type: tool,
       // Don't set color - let it use dynamic theme colors
-      ...(tool === 'folder' ? { linkedCanvasId: `${tool}-canvas-${Date.now()}` } : {}),
       ...(tool === 'list' ? { childIds: [], layoutMode: 'single-column' as const } : {}),
       ...(tool === 'table' ? { tableData: getDefaultTableData() } : {})
     }
@@ -2308,7 +2307,7 @@ export default function HTMLCanvas({
                         if (node.linkedCanvasId && onNavigateToCanvas) {
                             onNavigateToCanvas(node.linkedCanvasId, node.text)
                         } else if (!node.linkedCanvasId && onNavigateToCanvas) {
-                          const linkedCanvasId = `character-canvas-${node.id}-${Date.now()}`
+                          const linkedCanvasId = `character-canvas-${node.id}`
                           const updatedNodes = nodes.map(n =>
                             n.id === node.id ? { ...n, linkedCanvasId } : n
                           )
@@ -2680,7 +2679,7 @@ export default function HTMLCanvas({
                                           onNavigateToCanvas(currentNode.linkedCanvasId, nodeTitle)
                                         } else {
                                           // Create new linkedCanvasId
-                                          const linkedCanvasId = `character-canvas-${currentNode.id}-${Date.now()}`
+                                          const linkedCanvasId = `character-canvas-${currentNode.id}`
                                           console.log('Creating NEW linkedCanvasId:', linkedCanvasId)
 
                                           const updatedNodes = nodes.map(n =>
@@ -2823,7 +2822,7 @@ export default function HTMLCanvas({
                                       onNavigateToCanvas(currentNode.linkedCanvasId, nodeTitle)
                                     } else {
                                       // Create new linkedCanvasId
-                                      const linkedCanvasId = `folder-canvas-${currentNode.id}-${Date.now()}`
+                                      const linkedCanvasId = `folder-canvas-${currentNode.id}`
                                       const updatedNodes = nodes.map(n =>
                                         n.id === currentNode.id ? { ...n, linkedCanvasId } : n
                                       )
@@ -2938,7 +2937,7 @@ export default function HTMLCanvas({
                         }
                         onNavigateToCanvas(node.linkedCanvasId, node.text)
                       } else if (!node.linkedCanvasId && onNavigateToCanvas) {
-                        const linkedCanvasId = `folder-canvas-${node.id}-${Date.now()}`
+                        const linkedCanvasId = `folder-canvas-${node.id}`
                         const updatedNodes = nodes.map(n =>
                           n.id === node.id ? { ...n, linkedCanvasId } : n
                         )
