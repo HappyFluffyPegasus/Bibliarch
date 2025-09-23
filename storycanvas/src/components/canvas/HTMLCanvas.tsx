@@ -2061,7 +2061,7 @@ export default function HTMLCanvas({
                 <div
                   key={node.id}
                   data-node-id={node.id}
-                  className={`absolute border-2 rounded-lg cursor-move hover:shadow-lg shadow-sm ${
+                  className={`absolute cursor-move hover:shadow-lg shadow-sm ${
                     selectedId === node.id ? 'ring-2 ring-primary' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
@@ -2071,7 +2071,7 @@ export default function HTMLCanvas({
                     top: draggingNode === node.id ? dragPosition.y : node.y,
                     width: node.width,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
-                    borderColor: getNodeBorderColor(node.type || 'text'),
+                    border: `1px solid ${getNodeBorderColor(node.type || 'text')}`,
                     padding: '0',
                     overflow: 'visible'
                   }}
@@ -2102,7 +2102,7 @@ export default function HTMLCanvas({
                           return (
                             <tr key={rowIndex}>
                               {Object.keys(row).map((colKey, colIndex) => (
-                                <td key={colIndex} className="border p-0.5" style={{ borderColor: getNodeBorderColor(node.type || 'text'), width: colWidth }}>
+                                <td key={colIndex} className="p-0.5" style={{ borderColor: getNodeBorderColor(node.type || 'text'), borderWidth: '1px', borderStyle: 'solid', width: colWidth }}>
                                   <textarea
                                     value={(row as any)[colKey]}
                                     onChange={(e) => {
