@@ -2151,9 +2151,9 @@ export default function HTMLCanvas({
                           setNodes(updatedNodes)
                           saveToHistory(updatedNodes, connections)
 
-                          // CRITICAL: Save immediately to ensure persistence
+                          // Save in background without blocking navigation
                           if (onSave) {
-                            await onSave(updatedNodes, connections)
+                            onSave(updatedNodes, connections)
                           }
 
                           onNavigateToCanvas(linkedCanvasId, node.text)
@@ -2529,13 +2529,9 @@ export default function HTMLCanvas({
                                           setNodes(updatedNodes)
                                           saveToHistory(updatedNodes, connections)
 
-                                          // CRITICAL: Save immediately to ensure persistence
+                                          // Save in background without blocking navigation
                                           if (onSave) {
-                                            console.log('Saving to database BEFORE navigation...')
-                                            await onSave(updatedNodes, connections)
-                                            console.log('Save complete!')
-                                          } else {
-                                            console.log('WARNING: No onSave callback!')
+                                            onSave(updatedNodes, connections)
                                           }
 
                                           colorContext.setCurrentFolderId(currentNode.id)
@@ -2785,9 +2781,9 @@ export default function HTMLCanvas({
                         setNodes(updatedNodes)
                         saveToHistory(updatedNodes, connections)
 
-                        // CRITICAL: Save immediately to ensure persistence
+                        // Save in background without blocking navigation
                         if (onSave) {
-                          await onSave(updatedNodes, connections)
+                          onSave(updatedNodes, connections)
                         }
 
                         // Switch to folder color context

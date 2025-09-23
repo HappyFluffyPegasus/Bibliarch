@@ -193,38 +193,74 @@ export default function StoryPage({ params }: PageProps) {
       }
 
       // CRITICAL: Only apply template if canvas exists but is EMPTY
-      if (loadedData.nodes.length === 0 && currentCanvasId.includes('characters-folder') && subCanvasTemplates['characters-folder']) {
-        console.log('✅ Applying Characters & Relationships folder template to empty canvas')
-        const timestamp = Date.now()
+      if (loadedData.nodes.length === 0) {
+        // Check for characters-folder template
+        if (currentCanvasId.includes('characters-folder') && subCanvasTemplates['characters-folder']) {
+          console.log('✅ Applying Characters & Relationships folder template to empty canvas')
+          const timestamp = Date.now()
 
-        // Create ID mapping for updating references
-        const idMap: Record<string, string> = {}
-        subCanvasTemplates['characters-folder'].nodes.forEach(node => {
-          idMap[node.id] = `${node.id}-${timestamp}`
-        })
+          const idMap: Record<string, string> = {}
+          subCanvasTemplates['characters-folder'].nodes.forEach(node => {
+            idMap[node.id] = `${node.id}-${timestamp}`
+          })
 
-        const templateData = {
-          nodes: subCanvasTemplates['characters-folder'].nodes.map(node => ({
-            ...node,
-            id: idMap[node.id],
-            ...(node.childIds ? { childIds: node.childIds.map(childId => idMap[childId]) } : {}),
-            ...(node.parentId ? { parentId: idMap[node.parentId] } : {})
-          })),
-          connections: subCanvasTemplates['characters-folder'].connections.map(conn => ({
-            ...conn,
-            id: `${conn.id}-${timestamp}`,
-            from: idMap[conn.from] || conn.from,
-            to: idMap[conn.to] || conn.to
-          }))
+          const templateData = {
+            nodes: subCanvasTemplates['characters-folder'].nodes.map(node => ({
+              ...node,
+              id: idMap[node.id],
+              ...(node.childIds ? { childIds: node.childIds.map(childId => idMap[childId]) } : {}),
+              ...(node.parentId ? { parentId: idMap[node.parentId] } : {})
+            })),
+            connections: subCanvasTemplates['characters-folder'].connections.map(conn => ({
+              ...conn,
+              id: `${conn.id}-${timestamp}`,
+              from: idMap[conn.from] || conn.from,
+              to: idMap[conn.to] || conn.to
+            }))
+          }
+
+          setCanvasData(templateData)
+          latestCanvasData.current = templateData
+
+          setTimeout(() => {
+            handleSaveCanvas(templateData.nodes, templateData.connections)
+          }, 1000)
         }
+        // Check for character node template
+        else if (currentCanvasId.includes('character-') && subCanvasTemplates.character) {
+          console.log('✅ Applying character template to empty canvas')
+          const timestamp = Date.now()
 
-        setCanvasData(templateData)
-        latestCanvasData.current = templateData
+          const idMap: Record<string, string> = {}
+          subCanvasTemplates.character.nodes.forEach(node => {
+            idMap[node.id] = `${node.id}-${timestamp}`
+          })
 
-        // Save template immediately
-        setTimeout(() => {
-          handleSaveCanvas(templateData.nodes, templateData.connections)
-        }, 1000)
+          const templateData = {
+            nodes: subCanvasTemplates.character.nodes.map(node => ({
+              ...node,
+              id: idMap[node.id],
+              ...(node.childIds ? { childIds: node.childIds.map(childId => idMap[childId]) } : {}),
+              ...(node.parentId ? { parentId: idMap[node.parentId] } : {})
+            })),
+            connections: subCanvasTemplates.character.connections.map(conn => ({
+              ...conn,
+              id: `${conn.id}-${timestamp}`,
+              from: idMap[conn.from] || conn.from,
+              to: idMap[conn.to] || conn.to
+            }))
+          }
+
+          setCanvasData(templateData)
+          latestCanvasData.current = templateData
+
+          setTimeout(() => {
+            handleSaveCanvas(templateData.nodes, templateData.connections)
+          }, 1000)
+        } else {
+          setCanvasData(loadedData)
+          latestCanvasData.current = loadedData
+        }
       } else {
         setCanvasData(loadedData)
         latestCanvasData.current = loadedData
@@ -286,16 +322,26 @@ export default function StoryPage({ params }: PageProps) {
 
         if (currentCanvasId.includes('character-') && subCanvasTemplates.character) {
           console.log('Applying character sub-canvas template')
+          const timestamp = Date.now()
+
+          // Create ID mapping for updating references
+          const idMap: Record<string, string> = {}
+          subCanvasTemplates.character.nodes.forEach(node => {
+            idMap[node.id] = `${node.id}-${timestamp}`
+          })
+
           templateData = {
             nodes: subCanvasTemplates.character.nodes.map(node => ({
               ...node,
-              id: `${node.id}-${Date.now()}`
+              id: idMap[node.id],
+              ...(node.childIds ? { childIds: node.childIds.map(childId => idMap[childId]) } : {}),
+              ...(node.parentId ? { parentId: idMap[node.parentId] } : {})
             })),
             connections: subCanvasTemplates.character.connections.map(conn => ({
               ...conn,
-              id: `${conn.id}-${Date.now()}`,
-              from: `${conn.from}-${Date.now()}`,
-              to: `${conn.to}-${Date.now()}`
+              id: `${conn.id}-${timestamp}`,
+              from: idMap[conn.from] || conn.from,
+              to: idMap[conn.to] || conn.to
             }))
           }
         } else if (currentCanvasId.includes('location-') && subCanvasTemplates.location) {

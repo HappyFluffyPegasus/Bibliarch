@@ -40,7 +40,7 @@ export const storyTemplates: StoryTemplate[] = [
         width: 350,
         height: 650, // Adjusted to be just a couple px below last node
         type: 'list',
-        childIds: ['characters-folder', 'plot-folder', 'world-folder', 'themes-folder']
+        childIds: ['characters-folder', 'plot-folder', 'world-folder', 'themes-references-folder']
       },
       {
         id: 'characters-folder',
@@ -76,7 +76,7 @@ export const storyTemplates: StoryTemplate[] = [
         parentId: 'story-development'
       },
       {
-        id: 'themes-folder',
+        id: 'themes-references-folder',
         x: 120,
         y: 570,
         text: 'Themes & References',
@@ -126,7 +126,7 @@ export const storyTemplates: StoryTemplate[] = [
       {
         id: 'world-to-themes',
         from: 'world-folder',
-        to: 'themes-folder',
+        to: 'themes-references-folder',
         type: 'relates-to'
       },
       {
@@ -468,74 +468,81 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
   character: {
     nodes: [
       {
-        id: 'basic-info',
+        id: 'character-design',
         x: 100,
         y: 100,
-        text: 'Basic Information',
-        content: 'What are the basics about this character?',
-        width: 220,
-        height: 120,
-        type: 'text'
+        text: 'Character Design',
+        width: 300,
+        height: 200,
+        type: 'image'
       },
       {
-        id: 'personality',
-        x: 400,
+        id: 'backstory',
+        x: 450,
         y: 100,
-        text: 'Personality',
-        content: 'How does this character act and think?',
-        width: 220,
-        height: 120,
+        text: 'Backstory',
+        content: 'What is their history and past?',
+        width: 280,
+        height: 160,
         type: 'text'
       },
       {
-        id: 'motivation',
+        id: 'beginning-of-story',
+        x: 450,
+        y: 290,
+        text: 'Beginning of Story',
+        content: 'Who are they at the start?',
+        width: 280,
+        height: 140,
+        type: 'text'
+      },
+      {
+        id: 'end-of-story',
+        x: 760,
+        y: 290,
+        text: 'End of Story',
+        content: 'Who have they become?',
+        width: 280,
+        height: 140,
+        type: 'text'
+      },
+      {
+        id: 'themes',
         x: 100,
-        y: 280,
-        text: 'Goals & Motivations',
-        content: 'What does this character want?',
-        width: 220,
-        height: 120,
+        y: 330,
+        text: 'Themes',
+        content: 'What themes do they represent?',
+        width: 280,
+        height: 140,
         type: 'text'
       },
       {
-        id: 'relationships',
-        x: 400,
-        y: 280,
-        text: 'Relationships',
-        content: 'How does this character relate to others?',
-        width: 220,
-        height: 120,
-        type: 'text'
-      },
-      {
-        id: 'arc',
-        x: 250,
+        id: 'motivations',
+        x: 450,
         y: 460,
-        text: 'Character Arc',
-        content: 'How will this character change?',
-        width: 220,
-        height: 120,
+        text: 'Motivations',
+        content: 'What drives this character?',
+        width: 280,
+        height: 140,
+        type: 'text'
+      },
+      {
+        id: 'morality',
+        x: 760,
+        y: 460,
+        text: 'Morality',
+        content: 'What are their moral principles?',
+        width: 280,
+        height: 140,
         type: 'text'
       }
     ],
     connections: [
       {
-        id: 'conn-1',
-        from: 'basic-info',
-        to: 'personality',
-        type: 'relates-to'
-      },
-      {
-        id: 'conn-2',
-        from: 'personality',
-        to: 'relationships',
-        type: 'relates-to'
-      },
-      {
-        id: 'conn-3',
-        from: 'motivation',
-        to: 'arc',
-        type: 'leads-to'
+        id: 'arc-connection',
+        from: 'beginning-of-story',
+        to: 'end-of-story',
+        type: 'character-arc'
       }
     ]
   },
