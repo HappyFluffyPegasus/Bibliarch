@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon } from 'lucide-react'
+import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, ArrowUp, ArrowDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { PaletteSelector } from '@/components/ui/palette-selector'
 import { ColorFilter } from '@/components/ui/color-filter'
@@ -28,6 +28,8 @@ interface Node {
   parentId?: string // If this node is inside a container
   childIds?: string[] // If this node is a container (for list nodes)
   layoutMode?: 'single-column' | 'multi-column' // Layout for list containers
+  // Layer control
+  zIndex?: number // Layer ordering (higher = on top)
 }
 
 interface Connection {
@@ -668,14 +670,23 @@ export default function HTMLCanvas({
       if (draggedNodeObj && (draggedNodeObj.type === 'folder' || draggedNodeObj.type === 'character') && !draggedNodeObj.parentId) {
         // Find if dropped onto any list container
         const listContainers = nodes.filter(n => n.type === 'list')
-        console.log('Checking drop for', draggedNodeObj.type, 'at position', dragPosition, 'into', listContainers.length, 'lists')
         for (const listNode of listContainers) {
-          // Check if dragged node position is within list bounds
-          const isWithinX = dragPosition.x >= listNode.x && dragPosition.x <= listNode.x + listNode.width
-          const isWithinY = dragPosition.y >= listNode.y && dragPosition.y <= listNode.y + listNode.height
-          console.log('List', listNode.text, 'bounds:', { x: listNode.x, y: listNode.y, w: listNode.width, h: listNode.height }, 'isWithin:', isWithinX && isWithinY)
+          // Check if dragged node overlaps with list bounds (AABB collision detection)
+          // Get dragged node bounds
+          const draggedRight = dragPosition.x + draggedNodeObj.width
+          const draggedBottom = dragPosition.y + draggedNodeObj.height
+          const listRight = listNode.x + listNode.width
+          const listBottom = listNode.y + listNode.height
 
-          if (isWithinX && isWithinY) {
+          // Check for overlap (not just point-in-box)
+          const isOverlapping = !(
+            dragPosition.x > listRight ||  // dragged is to the right of list
+            draggedRight < listNode.x ||   // dragged is to the left of list
+            dragPosition.y > listBottom || // dragged is below list
+            draggedBottom < listNode.y     // dragged is above list
+          )
+
+          if (isOverlapping) {
             // Add the node to the list container
             const newChildIds = [...(listNode.childIds || []), draggingNode]
             const newListSize = calculateAutoSize({...listNode, childIds: newChildIds}, '')
@@ -1564,6 +1575,63 @@ export default function HTMLCanvas({
         {/* Divider */}
         <div className="w-8 h-px bg-border my-2" />
 
+        {/* Layer Controls */}
+        <div className="flex flex-col gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (!selectedId) {
+                toast.info('Select a node first')
+                return
+              }
+              const selectedNode = nodes.find(n => n.id === selectedId)
+              if (!selectedNode) return
+
+              const currentZ = selectedNode.zIndex ?? 0
+              const updatedNodes = nodes.map(n =>
+                n.id === selectedId ? { ...n, zIndex: currentZ + 1 } : n
+              )
+              setNodes(updatedNodes)
+              saveToHistory(updatedNodes, connections)
+              toast.success('Moved layer up')
+            }}
+            disabled={!selectedId}
+            className="h-11 w-14 p-0"
+            title="Move Layer Up (bring forward)"
+          >
+            <ArrowUp className="w-6 h-6" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (!selectedId) {
+                toast.info('Select a node first')
+                return
+              }
+              const selectedNode = nodes.find(n => n.id === selectedId)
+              if (!selectedNode) return
+
+              const currentZ = selectedNode.zIndex ?? 0
+              const updatedNodes = nodes.map(n =>
+                n.id === selectedId ? { ...n, zIndex: currentZ - 1 } : n
+              )
+              setNodes(updatedNodes)
+              saveToHistory(updatedNodes, connections)
+              toast.success('Moved layer down')
+            }}
+            disabled={!selectedId}
+            className="h-11 w-14 p-0"
+            title="Move Layer Down (send backward)"
+          >
+            <ArrowDown className="w-6 h-6" />
+          </Button>
+        </div>
+
+        {/* Divider */}
+        <div className="w-8 h-px bg-border my-2" />
+
         {/* Color Tools */}
         <div className="flex flex-col items-center gap-1">
           <PaletteSelector
@@ -1680,8 +1748,19 @@ export default function HTMLCanvas({
             transition: 'transform 0.1s ease-out'
           }}
         >
-          {/* Render nodes */}
-          {viewportNodes.filter(node => !node.parentId).map(node => {
+          {/* Render nodes - list nodes first (bottom layer), then others */}
+          {viewportNodes
+            .filter(node => !node.parentId)
+            .sort((a, b) => {
+              // List nodes render first (bottom layer)
+              if (a.type === 'list' && b.type !== 'list') return -1
+              if (a.type !== 'list' && b.type === 'list') return 1
+              // Then sort by zIndex if it exists, otherwise maintain order
+              const aZ = a.zIndex ?? 0
+              const bZ = b.zIndex ?? 0
+              return aZ - bZ
+            })
+            .map(node => {
             const renderSettings = PerformanceOptimizer.getOptimalRenderSettings(nodes.length, isMoving)
             const nodeDetails = { showTitle: true, showContent: true } // Always show all details in fixed canvas
             const isDropTarget = dropTarget === node.id
@@ -1936,11 +2015,8 @@ export default function HTMLCanvas({
                                          target.tagName === 'TEXTAREA' ||
                                          target.closest('[contenteditable="true"]')
 
-                    console.log('Character mouseDown - isTextElement:', isTextElement, 'target:', target.tagName, 'contentEditable:', target.contentEditable)
-
                     // Only start drag if NOT clicking on editable text
                     if (!isTextElement) {
-                      console.log('Starting drag for character node')
                       e.preventDefault()
                       e.stopPropagation()
                       setDragStartPos({ x: e.clientX, y: e.clientY })
