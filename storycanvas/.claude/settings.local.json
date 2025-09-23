@@ -16,7 +16,10 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(tasklist:*)",
-      "Bash(copy:*)"
+      "Bash(copy:*)",
+      "Bash(sort:*)",
+      "Bash(ren:*)",
+      "Bash(npm run lint)"
     ],
     "deny": [],
     "ask": []
