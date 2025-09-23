@@ -661,14 +661,63 @@ export default function HTMLCanvas({
     }
     
     if (draggingNode) {
-      // Update the actual node position when dragging ends
-      const updatedNodes = nodes.map(node =>
-        node.id === draggingNode
-          ? { ...node, x: dragPosition.x, y: dragPosition.y }
-          : node
-      )
-      setNodes(updatedNodes)
-      saveToHistory(updatedNodes, connections)
+      // Check if the dragged node was dropped onto a list container
+      const draggedNodeObj = nodes.find(n => n.id === draggingNode)
+      let droppedIntoList = false
+
+      if (draggedNodeObj && (draggedNodeObj.type === 'folder' || draggedNodeObj.type === 'character') && !draggedNodeObj.parentId) {
+        // Find if dropped onto any list container
+        const listContainers = nodes.filter(n => n.type === 'list')
+        console.log('Checking drop for', draggedNodeObj.type, 'at position', dragPosition, 'into', listContainers.length, 'lists')
+        for (const listNode of listContainers) {
+          // Check if dragged node position is within list bounds
+          const isWithinX = dragPosition.x >= listNode.x && dragPosition.x <= listNode.x + listNode.width
+          const isWithinY = dragPosition.y >= listNode.y && dragPosition.y <= listNode.y + listNode.height
+          console.log('List', listNode.text, 'bounds:', { x: listNode.x, y: listNode.y, w: listNode.width, h: listNode.height }, 'isWithin:', isWithinX && isWithinY)
+
+          if (isWithinX && isWithinY) {
+            // Add the node to the list container
+            const newChildIds = [...(listNode.childIds || []), draggingNode]
+            const newListSize = calculateAutoSize({...listNode, childIds: newChildIds}, '')
+
+            const updatedNodes = nodes.map(node => {
+              if (node.id === listNode.id) {
+                return {
+                  ...node,
+                  childIds: newChildIds,
+                  width: newListSize.width,
+                  height: newListSize.height
+                }
+              }
+              if (node.id === draggingNode) {
+                return {
+                  ...node,
+                  parentId: listNode.id
+                }
+              }
+              return node
+            })
+
+            setNodes(updatedNodes)
+            saveToHistory(updatedNodes, connections)
+            toast.success(`Added ${draggedNodeObj.type} "${draggedNodeObj.text}" to ${listNode.text}`)
+            droppedIntoList = true
+            break
+          }
+        }
+      }
+
+      if (!droppedIntoList) {
+        // Update the actual node position when dragging ends (normal canvas drop)
+        const updatedNodes = nodes.map(node =>
+          node.id === draggingNode
+            ? { ...node, x: dragPosition.x, y: dragPosition.y }
+            : node
+        )
+        setNodes(updatedNodes)
+        saveToHistory(updatedNodes, connections)
+      }
+
       setDraggingNode(null)
       setDragOffset({ x: 0, y: 0 })
       setDragPosition({ x: 0, y: 0 })
@@ -926,15 +975,24 @@ export default function HTMLCanvas({
       // List nodes: uniform spacing between nodes and edges
       const childCount = node.childIds?.length || 0
       const headerHeight = 40 // Header space for title
-      const folderNodeHeight = 140 // Exact height of folder nodes
       const uniformSpacing = 15 // Consistent spacing: top, between nodes, and bottom
       const emptyStateHeight = 120 // Height when empty
 
       const minListWidth = 380 // Width to accommodate full folder nodes
 
+      // Calculate total height based on actual child node types
+      let totalChildHeight = 0
+      if (childCount > 0 && node.childIds) {
+        const childNodes = nodes.filter(n => node.childIds?.includes(n.id))
+        totalChildHeight = childNodes.reduce((sum, childNode) => {
+          const nodeHeight = childNode.type === 'character' ? 72 : 140 // Character nodes are 72px, folders are 140px
+          return sum + nodeHeight + uniformSpacing
+        }, 0)
+      }
+
       // Calculate height with uniform spacing
       const requiredHeight = childCount > 0
-        ? headerHeight + uniformSpacing + (childCount * folderNodeHeight) + (childCount * uniformSpacing)
+        ? headerHeight + uniformSpacing + totalChildHeight
         : emptyStateHeight
 
       // Always use the calculated height for proper sizing
@@ -1823,6 +1881,20 @@ export default function HTMLCanvas({
                       Double-click to add image
                     </div>
                   )}
+
+                  {/* Add corner resize handle for image nodes when selected */}
+                  {selectedId === node.id && (
+                    <div
+                      className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-sm cursor-se-resize hover:bg-primary/80 border border-background"
+                      onMouseDown={(e) => {
+                        e.stopPropagation()
+                        setResizingNode(node.id)
+                        setResizeStartSize({ width: node.width, height: node.height })
+                        setResizeStartPos({ x: e.clientX, y: e.clientY })
+                      }}
+                      title="Resize image (maintains aspect ratio)"
+                    />
+                  )}
                 </div>
               )
             }
@@ -1864,8 +1936,11 @@ export default function HTMLCanvas({
                                          target.tagName === 'TEXTAREA' ||
                                          target.closest('[contenteditable="true"]')
 
+                    console.log('Character mouseDown - isTextElement:', isTextElement, 'target:', target.tagName, 'contentEditable:', target.contentEditable)
+
                     // Only start drag if NOT clicking on editable text
                     if (!isTextElement) {
+                      console.log('Starting drag for character node')
                       e.preventDefault()
                       e.stopPropagation()
                       setDragStartPos({ x: e.clientX, y: e.clientY })
@@ -1950,15 +2025,22 @@ export default function HTMLCanvas({
                           overflow: 'hidden',
                           textOverflow: 'ellipsis'
                         }}
-                        onInput={(e) => {
+                        onBlur={(e) => {
                           const newText = e.currentTarget.textContent || ''
                           const updatedNodes = nodes.map(n =>
                             n.id === node.id ? { ...n, text: newText } : n
                           )
                           setNodes(updatedNodes)
+                          saveToHistory(updatedNodes, connections)
                         }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          e.currentTarget.focus()
+                        }}
+                        spellCheck={false}
+                        data-placeholder="Character name..."
                       >
-                        {node.text}
+                        {node.text || ''}
                       </div>
                     </div>
 
@@ -2043,13 +2125,6 @@ export default function HTMLCanvas({
 
                 // Only start drag if NOT clicking on editable text
                 if (!isTextElement) {
-                  // For folder nodes inside list containers, skip mouse-based movement
-                  // Let HTML5 drag-and-drop handle them exclusively for list organization
-                  if (node.type === 'folder' && node.parentId) {
-                    return // Don't interfere with HTML5 drag at all for folders inside lists
-                  }
-
-                  // For all other node types (including standalone folder nodes), use mouse-based movement
                   e.preventDefault()
                   e.stopPropagation()
                   setDragStartPos({ x: e.clientX, y: e.clientY })
@@ -2165,16 +2240,20 @@ export default function HTMLCanvas({
                   <div className="space-y-2">
                     {childNodes.length > 0 ? (
                       <div className="space-y-1">
-                        {childNodes.map((childNode, index) => (
+                        {childNodes.map((childNode, index) => {
+                          // Determine height based on node type
+                          const childHeight = childNode.type === 'character' ? '72px' : '140px'
+
+                          return (
                           <div
                             key={childNode.id}
                             className="mb-2 last:mb-0"
                             style={{
                               width: '100%',
-                              height: '140px' // Standard folder height
+                              height: childHeight
                             }}
                           >
-                            {/* Full folder node structure */}
+                            {/* Render based on node type */}
                             <div
                               className="relative bg-card rounded-lg border-2 cursor-move transition-all duration-200 w-full h-full node-background"
                               style={{
@@ -2223,8 +2302,122 @@ export default function HTMLCanvas({
                                 }
                               }}
                             >
-                              {/* Header with title and controls */}
-                              <div className="flex items-center justify-between p-2 pb-1">
+                              {/* Render character nodes with profile picture layout */}
+                              {childNode.type === 'character' ? (
+                                <>
+                                  <div className="flex items-center gap-3 p-2 h-full">
+                                    {/* Profile picture */}
+                                    <div
+                                      className="flex-shrink-0 w-12 h-12 bg-muted rounded-md overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        const fileInput = document.createElement('input')
+                                        fileInput.type = 'file'
+                                        fileInput.accept = 'image/*'
+                                        fileInput.onchange = async (e) => {
+                                          const file = (e.target as HTMLInputElement).files?.[0]
+                                          if (file) {
+                                            const reader = new FileReader()
+                                            reader.onload = async (event) => {
+                                              const imageUrl = event.target?.result as string
+                                              setImageToCrop(imageUrl)
+                                              setCroppingNodeId(childNode.id)
+                                              setShowCropModal(true)
+                                            }
+                                            reader.readAsDataURL(file)
+                                          }
+                                        }
+                                        fileInput.click()
+                                      }}
+                                      title="Click to upload profile picture"
+                                    >
+                                      {childNode.profileImageUrl ? (
+                                        <img
+                                          src={childNode.profileImageUrl}
+                                          alt="Profile"
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                          <User className="w-6 h-6 text-muted-foreground" />
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Character name */}
+                                    <div className="flex-1 min-w-0 flex items-center">
+                                      <div
+                                        contentEditable
+                                        suppressContentEditableWarning={true}
+                                        data-content-type="title"
+                                        className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text hover:bg-muted/20 rounded px-1 whitespace-nowrap overflow-hidden"
+                                        style={{
+                                          color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id)),
+                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id))
+                                        }}
+                                        onBlur={(e) => {
+                                          const newText = e.currentTarget.textContent || ''
+                                          const updatedNodes = nodes.map(n =>
+                                            n.id === childNode.id ? { ...n, text: newText } : n
+                                          )
+                                          setNodes(updatedNodes)
+                                          saveToHistory(updatedNodes, connections)
+                                        }}
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          e.currentTarget.focus()
+                                        }}
+                                        spellCheck={false}
+                                        data-placeholder="Character name..."
+                                      >
+                                        {childNode.text || ''}
+                                      </div>
+                                    </div>
+
+                                    {/* Remove button */}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        removeFromContainer(childNode.id)
+                                      }}
+                                      className="text-red-500 hover:text-red-700 w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 flex-shrink-0"
+                                      title="Remove from container"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+
+                                    {/* Navigation arrow */}
+                                    <div
+                                      className="flex-shrink-0 p-1 cursor-pointer hover:bg-black/10 rounded"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        if (childNode.linkedCanvasId && onNavigateToCanvas) {
+                                          colorContext.setCurrentFolderId(childNode.id)
+                                          const folderPalette = colorContext.getFolderPalette(childNode.id)
+                                          if (folderPalette) {
+                                            colorContext.applyPalette(folderPalette)
+                                          }
+                                          onNavigateToCanvas(childNode.linkedCanvasId, childNode.text)
+                                        } else if (!childNode.linkedCanvasId && onNavigateToCanvas) {
+                                          const linkedCanvasId = `character-canvas-${childNode.id}-${Date.now()}`
+                                          const updatedNodes = nodes.map(n =>
+                                            n.id === childNode.id ? { ...n, linkedCanvasId } : n
+                                          )
+                                          setNodes(updatedNodes)
+                                          colorContext.setCurrentFolderId(childNode.id)
+                                          onNavigateToCanvas(linkedCanvasId, childNode.text)
+                                        }
+                                      }}
+                                      title="Open character development"
+                                    >
+                                      <span className="text-2xl font-bold" style={{ color: getNodeBorderColor('character') }}>→</span>
+                                    </div>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  {/* Header with title and controls for folder nodes */}
+                                  <div className="flex items-center justify-between p-2 pb-1">
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                   <div style={{ color: getNodeBorderColor(childNode.type || 'folder') }}>
                                     {getNodeIcon(childNode.type)}
@@ -2342,15 +2535,16 @@ export default function HTMLCanvas({
                                   <span className="text-2xl font-bold" style={{ color: getNodeBorderColor('folder') }}>→</span>
                                 </div>
                               </div>
+                                </>
+                              )}
                             </div>
                           </div>
-                        ))}
+                        )})}
                       </div>
                     ) : (
                       <div className="text-center py-4" style={{ color: 'color-mix(in srgb, var(--node-border-default, hsl(var(--border))) 75%, transparent)' }}>
-                        <div className="text-sm mb-1">Empty Folder List</div>
-                        <div className="text-xs">Drag folder nodes here to organize them</div>
-                        <div className="text-xs mt-1" style={{ color: 'color-mix(in srgb, var(--node-border-default, hsl(var(--border))) 75%, transparent)' }}>⚠ Only accepts folder nodes</div>
+                        <div className="text-sm mb-1">Empty List</div>
+                        <div className="text-xs">Drag folder or character nodes here to organize them</div>
                       </div>
                     )}
                   </div>
