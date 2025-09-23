@@ -24,7 +24,7 @@ interface Node {
   imageUrl?: string
   profileImageUrl?: string // For character nodes profile pictures
   attributes?: any
-  tableData?: { label: string; value: string }[] // For table nodes
+  tableData?: { col1: string; col2: string; col3: string }[] // For table nodes
   // Container properties for list nodes
   parentId?: string // If this node is inside a container
   childIds?: string[] // If this node is a container (for list nodes)
@@ -462,9 +462,10 @@ export default function HTMLCanvas({
   // Keyboard shortcuts for undo/redo and delete
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts while user is typing in contentEditable
+      // Don't trigger shortcuts while user is typing in contentEditable or input/textarea
       if (document.activeElement?.getAttribute('contenteditable') === 'true') return
-      
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return
+
       if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
         undo()
@@ -603,6 +604,60 @@ export default function HTMLCanvas({
         // Ensure minimum sizes
         newWidth = Math.max(200, newWidth)
         newHeight = Math.max(200, newHeight)
+      } else if (resizingNodeObj.type === 'table') {
+        // Table nodes: resize rows/columns based on direction
+        const rowHeight = 40 // Approximate height per row
+        const colWidth = 100 // Approximate width per column
+
+        const currentRows = resizingNodeObj.tableData?.length || 3
+        const currentCols = resizingNodeObj.tableData?.[0] ? Object.keys(resizingNodeObj.tableData[0]).length : 3
+
+        // Calculate new row and column counts based on resize
+        const newRowCount = Math.max(1, Math.round(newHeight / rowHeight))
+        const newColCount = Math.max(1, Math.round(newWidth / colWidth))
+
+        // Update table data if row/column count changed
+        let updatedTableData = [...(resizingNodeObj.tableData || [])]
+
+        // Adjust rows
+        if (newRowCount > currentRows) {
+          // Add rows
+          for (let i = currentRows; i < newRowCount; i++) {
+            const newRow: any = {}
+            for (let j = 1; j <= currentCols; j++) {
+              newRow[`col${j}`] = ''
+            }
+            updatedTableData.push(newRow)
+          }
+        } else if (newRowCount < currentRows) {
+          // Remove rows
+          updatedTableData = updatedTableData.slice(0, newRowCount)
+        }
+
+        // Adjust columns
+        if (newColCount !== currentCols) {
+          updatedTableData = updatedTableData.map(row => {
+            const newRow: any = {}
+            for (let i = 1; i <= newColCount; i++) {
+              newRow[`col${i}`] = (row as any)[`col${i}`] || ''
+            }
+            return newRow
+          })
+        }
+
+        // Set minimum sizes based on content
+        newWidth = Math.max(150, newColCount * colWidth)
+        newHeight = Math.max(60, newRowCount * rowHeight)
+
+        // Update the node with new tableData
+        setNodes(prevNodes =>
+          prevNodes.map(node =>
+            node.id === resizingNode
+              ? { ...node, width: newWidth, height: newHeight, tableData: updatedTableData }
+              : node
+          )
+        )
+        return // Early return since we've already updated nodes
       } else if (resizingNodeObj.type === 'list') {
         // List nodes: scale proportionally and update child nodes
         const childCount = resizingNodeObj.childIds?.length || 0
@@ -781,7 +836,7 @@ export default function HTMLCanvas({
       case 'folder': return 'New Section'
       case 'list': return 'New List'
       case 'image': return 'New Image'
-      case 'table': return 'Character Info'
+      case 'table': return ''
       default: return 'New Text Node'
     }
   }
@@ -801,11 +856,9 @@ export default function HTMLCanvas({
 
   const getDefaultTableData = () => {
     return [
-      { label: 'Name', value: '' },
-      { label: 'Age', value: '' },
-      { label: 'Role', value: '' },
-      { label: 'Height', value: '' },
-      { label: 'Job', value: '' }
+      { col1: '', col2: '', col3: '' },
+      { col1: '', col2: '', col3: '' },
+      { col1: '', col2: '', col3: '' }
     ]
   }
 
@@ -1502,6 +1555,15 @@ export default function HTMLCanvas({
           >
             <ImageIcon className="w-7 h-7" />
           </Button>
+          <Button
+            size="sm"
+            variant={tool === 'table' ? 'default' : 'outline'}
+            onClick={() => setTool('table')}
+            className={`h-12 w-14 p-0 ${tool === 'table' ? 'bg-teal-600 text-white' : ''}`}
+            title="Add Table - Click canvas to create"
+          >
+            <Table className="w-7 h-7" />
+          </Button>
         </div>
 
         {/* Divider */}
@@ -1988,6 +2050,108 @@ export default function HTMLCanvas({
                       }}
                       title="Resize image (maintains aspect ratio)"
                     />
+                  )}
+                </div>
+              )
+            }
+
+            // Render table nodes
+            if (node.type === 'table') {
+              return (
+                <div
+                  key={node.id}
+                  data-node-id={node.id}
+                  className={`absolute border-2 rounded-lg cursor-move hover:shadow-lg shadow-sm ${
+                    selectedId === node.id ? 'ring-2 ring-primary' : ''
+                  } ${
+                    connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
+                  }`}
+                  style={{
+                    left: draggingNode === node.id ? dragPosition.x : node.x,
+                    top: draggingNode === node.id ? dragPosition.y : node.y,
+                    width: node.width,
+                    backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
+                    borderColor: getNodeBorderColor(node.type || 'text'),
+                    padding: '0',
+                    overflow: 'visible'
+                  }}
+                  onClick={(e) => handleNodeClick(node, e)}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setDragStartPos({ x: e.clientX, y: e.clientY })
+                    setIsDragReady(node.id)
+
+                    const rect = canvasRef.current?.getBoundingClientRect()
+                    if (rect) {
+                      const mouseX = e.clientX - rect.left
+                      const mouseY = e.clientY - rect.top
+                      setDragOffset({
+                        x: mouseX - node.x,
+                        y: mouseY - node.y
+                      })
+                    }
+                  }}
+                >
+                  <div className="w-full h-auto">
+                    <table className="w-full border-collapse">
+                      <tbody>
+                        {node.tableData?.map((row, rowIndex) => {
+                          const colCount = Object.keys(row).length
+                          const colWidth = `${100 / colCount}%`
+                          return (
+                            <tr key={rowIndex}>
+                              {Object.keys(row).map((colKey, colIndex) => (
+                                <td key={colIndex} className="border p-0.5" style={{ borderColor: getNodeBorderColor(node.type || 'text'), width: colWidth }}>
+                                  <textarea
+                                    value={(row as any)[colKey]}
+                                    onChange={(e) => {
+                                      const updatedTableData = [...(node.tableData || [])]
+                                      updatedTableData[rowIndex] = { ...updatedTableData[rowIndex], [colKey]: e.target.value }
+                                      const updatedNodes = nodes.map(n =>
+                                        n.id === node.id ? { ...n, tableData: updatedTableData } : n
+                                      )
+                                      setNodes(updatedNodes)
+                                      saveToHistory(updatedNodes, connections)
+                                    }}
+                                    className="w-full bg-transparent outline-none resize-none overflow-hidden"
+                                    style={{
+                                      color: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
+                                      minHeight: '20px',
+                                      height: 'auto'
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onFocus={(e) => e.stopPropagation()}
+                                    onInput={(e) => {
+                                      const target = e.target as HTMLTextAreaElement
+                                      target.style.height = 'auto'
+                                      target.style.height = target.scrollHeight + 'px'
+                                    }}
+                                    rows={1}
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Resize handles for table nodes */}
+                  {selectedId === node.id && (
+                    <>
+                      <div
+                        className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-sm cursor-se-resize hover:bg-primary/80 border border-background"
+                        onMouseDown={(e) => {
+                          e.stopPropagation()
+                          setResizingNode(node.id)
+                          setResizeStartSize({ width: node.width, height: node.height })
+                          setResizeStartPos({ x: e.clientX, y: e.clientY })
+                        }}
+                      />
+                    </>
                   )}
                 </div>
               )
