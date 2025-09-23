@@ -477,6 +477,24 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         type: 'image'
       },
       {
+        id: 'character-info',
+        x: 100,
+        y: 320,
+        text: '',
+        width: 300,
+        height: 200,
+        type: 'table',
+        tableData: [
+          { col1: 'Name', col2: '' },
+          { col1: 'Age', col2: '' },
+          { col1: 'Height', col2: '' },
+          { col1: 'Weight', col2: '' },
+          { col1: 'Role', col2: '' },
+          { col1: 'Occupation', col2: '' },
+          { col1: 'Species', col2: '' }
+        ]
+      },
+      {
         id: 'backstory',
         x: 450,
         y: 100,
@@ -508,8 +526,8 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
       },
       {
         id: 'themes',
-        x: 100,
-        y: 330,
+        x: 760,
+        y: 100,
         text: 'Themes',
         content: 'What themes do they represent?',
         width: 280,
