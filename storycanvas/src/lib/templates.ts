@@ -489,11 +489,11 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         type: 'text'
       },
       {
-        id: 'visual-anchor',
+        id: 'subplots-side-stories',
         x: 100,
         y: 300,
-        text: 'Visual Anchor',
-        content: 'Reminder to add/match imagery to scenes.',
+        text: 'Subplots & Side Stories',
+        content: 'What subplots or secondary stories run alongside your main plot?',
         width: 280,
         height: 180,
         type: 'text'

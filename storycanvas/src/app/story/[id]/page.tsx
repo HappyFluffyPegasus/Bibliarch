@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, use, useRef } from 'react'
+import React, { useEffect, useState, use, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
@@ -10,6 +10,7 @@ import { ArrowLeft, Edit2, Check, X, Sparkles, ChevronRight } from 'lucide-react
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { useColorContext } from '@/components/providers/color-provider'
 import { storyTemplates, subCanvasTemplates } from '@/lib/templates'
 
 // Use the HTML canvas instead to avoid Jest worker issues completely
@@ -34,6 +35,7 @@ interface PageProps {
 
 export default function StoryPage({ params }: PageProps) {
   const resolvedParams = use(params)
+  const colorContext = useColorContext()
   const [story, setStory] = useState<any>(null)
   const [canvasData, setCanvasData] = useState<any>(null)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
@@ -47,6 +49,11 @@ export default function StoryPage({ params }: PageProps) {
   
   // Store the latest canvas state from StoryCanvas component
   const latestCanvasData = useRef<{ nodes: any[], connections: any[] }>({ nodes: [], connections: [] })
+
+  // Set project context for color palette persistence
+  useEffect(() => {
+    colorContext.setCurrentProjectId(resolvedParams.id)
+  }, [resolvedParams.id])
 
   // Track current canvas ID to prevent stale closures
   const currentCanvasIdRef = useRef(currentCanvasId)
@@ -347,6 +354,72 @@ export default function StoryPage({ params }: PageProps) {
 
         // Save template immediately
         handleSaveCanvas(templateData.nodes, templateData.connections)
+      } else if (currentCanvasId.includes('world-folder') && subCanvasTemplates['world-folder']) {
+        console.log('✅ Applying World & Settings folder template', currentCanvasId)
+        const timestamp = Date.now()
+
+        // Create ID mapping for updating references
+        const idMap: Record<string, string> = {}
+        subCanvasTemplates['world-folder'].nodes.forEach(node => {
+          idMap[node.id] = `${node.id}-${timestamp}`
+        })
+
+        templateData = {
+          nodes: subCanvasTemplates['world-folder'].nodes.map(node => ({
+            ...node,
+            id: idMap[node.id],
+            // Update childIds to use new IDs
+            ...(node.childIds ? { childIds: node.childIds.map(childId => idMap[childId]) } : {}),
+            // Update parentId to use new ID
+            ...(node.parentId ? { parentId: idMap[node.parentId] } : {}),
+            // Update linkedCanvasId for folder nodes
+            ...(node.linkedCanvasId ? { linkedCanvasId: `${node.linkedCanvasId}-${timestamp}` } : {})
+          })),
+          connections: subCanvasTemplates['world-folder'].connections.map(conn => ({
+            ...conn,
+            id: `${conn.id}-${timestamp}`,
+            from: idMap[conn.from] || conn.from,
+            to: idMap[conn.to] || conn.to
+          }))
+        }
+        console.log('📦 Template nodes created:', templateData.nodes.length)
+        setCanvasData(templateData)
+        latestCanvasData.current = templateData
+
+        // Save template immediately
+        handleSaveCanvas(templateData.nodes, templateData.connections)
+      } else if (currentCanvasId.includes('country-') && subCanvasTemplates['country']) {
+        console.log('✅ Applying Country template')
+        const timestamp = Date.now()
+
+        // Create ID mapping for updating references
+        const idMap: Record<string, string> = {}
+        subCanvasTemplates['country'].nodes.forEach(node => {
+          idMap[node.id] = `${node.id}-${timestamp}`
+        })
+
+        templateData = {
+          nodes: subCanvasTemplates['country'].nodes.map(node => ({
+            ...node,
+            id: idMap[node.id],
+            // Update childIds to use new IDs
+            ...(node.childIds ? { childIds: node.childIds.map(childId => idMap[childId]) } : {}),
+            // Update parentId to use new ID
+            ...(node.parentId ? { parentId: idMap[node.parentId] } : {})
+          })),
+          connections: subCanvasTemplates['country'].connections.map(conn => ({
+            ...conn,
+            id: `${conn.id}-${timestamp}`,
+            from: idMap[conn.from] || conn.from,
+            to: idMap[conn.to] || conn.to
+          }))
+        }
+        console.log('📦 Template nodes created:', templateData.nodes.length)
+        setCanvasData(templateData)
+        latestCanvasData.current = templateData
+
+        // Save template immediately
+        handleSaveCanvas(templateData.nodes, templateData.connections)
       } else if (currentCanvasId.startsWith('folder-canvas-')) {
         console.log('Creating empty folder canvas (no template match)')
         const emptyData = { nodes: [], connections: [] }
@@ -415,7 +488,7 @@ export default function StoryPage({ params }: PageProps) {
     }
   }
 
-  async function handleSaveCanvas(nodes: any[], connections: any[] = []) {
+  const handleSaveCanvas = useCallback(async (nodes: any[], connections: any[] = []) => {
     const saveToCanvasId = currentCanvasIdRef.current
 
     console.log('handleSaveCanvas called:', {
@@ -450,7 +523,7 @@ export default function StoryPage({ params }: PageProps) {
       .eq('story_id', resolvedParams.id)
       .eq('canvas_type', saveToCanvasId)
       .single()
-    
+
     if (checkError && checkError.code !== 'PGRST116') {
       console.error('Error checking existing canvas:', checkError)
     }
@@ -466,7 +539,7 @@ export default function StoryPage({ params }: PageProps) {
           updated_at: new Date().toISOString()
         })
         .eq('id', (existing as any)?.id)
-      
+
       if (updateError) {
         console.error('Error updating canvas:', updateError)
       } else {
@@ -478,7 +551,7 @@ export default function StoryPage({ params }: PageProps) {
       const { error: insertError } = await supabase
         .from('canvas_data')
         .insert(canvasPayload)
-      
+
       if (insertError) {
         console.error('Error inserting canvas:', insertError)
       } else {
@@ -493,7 +566,7 @@ export default function StoryPage({ params }: PageProps) {
       .eq('id', resolvedParams.id)
 
     // No toast for auto-save - too spammy
-  }
+  }, [resolvedParams.id])
 
   async function handleUpdateTitle() {
     if (!editedTitle.trim() || editedTitle === story.title) {
@@ -522,172 +595,50 @@ export default function StoryPage({ params }: PageProps) {
       toast.error('Maximum nesting level reached (3 levels)')
       return
     }
-    
+
     // SAVE CURRENT CANVAS FIRST! Use the latest data from the ref
     if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
       await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
       console.log('Saved canvas before navigation:', currentCanvasId, latestCanvasData.current)
     }
-    
-    // VISUAL FEEDBACK - User sees something is happening!
-    setIsLoading(true)
-    
-    // Add fade-out effect to the entire canvas
-    const canvasContainer = document.querySelector('.konvajs-content')
-    if (canvasContainer) {
-      (canvasContainer as HTMLElement).style.transition = 'opacity 0.2s ease-out'
-      ;(canvasContainer as HTMLElement).style.opacity = '0'
-    }
-    
-    // Clear the canvas after animation
-    setTimeout(() => {
-      // Reset canvas opacity for when new content loads
-      if (canvasContainer) {
-        (canvasContainer as HTMLElement).style.opacity = '1'
-      }
-      
-      // Add to path: just append where we're going (not where we came from)
-      const newPath = [...canvasPath, { id: canvasId, title: nodeTitle }]
-      setCanvasPath(newPath)
 
-      // CRITICAL: Clear canvas data before changing ID to prevent contamination
-      // This ensures the old canvas nodes don't get auto-saved to the new canvas
-      setCanvasData({ nodes: [], connections: [] })
-      latestCanvasData.current = { nodes: [], connections: [] }
+    // Add to path for breadcrumbs
+    const newPath = [...canvasPath, { id: canvasId, title: nodeTitle }]
+    setCanvasPath(newPath)
 
-      // Update to the new canvas ID (the linkedCanvasId from the folder node)
-      setCurrentCanvasId(canvasId)
-      
-      // Show feedback with animation
-      toast.success(`Entering: ${nodeTitle}`, {
-        icon: '📂',
-        duration: 2000,
-        style: {
-          background: '#10b981',
-          color: 'white'
-        }
-      })
-      
-      // Force reload to get new canvas data
-      setTimeout(() => {
-        loadStory()
-      }, 100) // Small delay for visual transition
-    }, 200)
+    // Update canvas ID IMMEDIATELY (no clearing, no delays)
+    setCurrentCanvasId(canvasId)
+
+    // Show feedback
+    toast.success(`Entering: ${nodeTitle}`, {
+      icon: '📂',
+      duration: 2000
+    })
   }
 
-  // Navigate to a specific breadcrumb level
-  async function navigateToLevel(targetLevel: number) {
-    // If clicking on current level, do nothing
-    if (targetLevel === canvasPath.length) return
-    
-    // SAVE CURRENT CANVAS FIRST!
-    if (canvasData && (canvasData.nodes?.length > 0 || canvasData.connections?.length > 0)) {
-      await handleSaveCanvas(canvasData.nodes, canvasData.connections)
-      console.log('Saved canvas before breadcrumb navigation:', currentCanvasId, canvasData)
-    }
-    
-    // Visual feedback
-    setIsLoading(true)
-    
-    // Add fade-out effect to the entire canvas
-    const canvasContainer = document.querySelector('.konvajs-content')
-    if (canvasContainer) {
-      (canvasContainer as HTMLElement).style.transition = 'opacity 0.2s ease-out'
-      ;(canvasContainer as HTMLElement).style.opacity = '0'
-    }
-    
-    setTimeout(() => {
-      // Reset canvas opacity for when new content loads
-      if (canvasContainer) {
-        (canvasContainer as HTMLElement).style.opacity = '1'
-      }
-      if (targetLevel === 0) {
-        // Navigate to main canvas
-        setCanvasPath([])
-        setCurrentCanvasId('main')
-        // Don't clear data here - let loadStory handle it
-        toast.success('Returning to Main Canvas', {
-          icon: '🏠',
-          duration: 2000,
-          style: {
-            background: '#3b82f6',
-            color: 'white'
-          }
-        })
-      } else {
-        // Navigate to a specific level
-        const newPath = canvasPath.slice(0, targetLevel)
-        const targetCanvas = canvasPath[targetLevel - 1]
-        setCanvasPath(newPath)
-        setCurrentCanvasId(targetCanvas.id)
-        // Don't clear data here - let loadStory handle it
-        toast.success(`Returning to: ${targetCanvas.title}`, {
-          icon: '📁',
-          duration: 2000,
-          style: {
-            background: '#3b82f6',
-            color: 'white'
-          }
-        })
-      }
-      
-      // Force reload with animation
-      setTimeout(() => {
-        loadStory()
-      }, 100)
-    }, 200)
-  }
 
   // Navigate back
   async function handleNavigateBack() {
     if (canvasPath.length === 0) return
 
     // SAVE CURRENT CANVAS FIRST!
-    if (canvasData && (canvasData.nodes?.length > 0 || canvasData.connections?.length > 0)) {
-      await handleSaveCanvas(canvasData.nodes, canvasData.connections)
-      console.log('Saved canvas before navigating back:', currentCanvasId, canvasData)
+    if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+      await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+      console.log('Saved canvas before navigating back:', currentCanvasId, latestCanvasData.current)
     }
 
-    // Visual feedback first
-    setIsLoading(true)
+    const newPath = [...canvasPath]
+    newPath.pop() // Remove current location from path
+    setCanvasPath(newPath)
 
-    // Add fade-out effect to the entire canvas
-    const canvasContainer = document.querySelector('.konvajs-content')
-    if (canvasContainer) {
-      (canvasContainer as HTMLElement).style.transition = 'opacity 0.2s ease-out'
-      ;(canvasContainer as HTMLElement).style.opacity = '0'
-    }
+    // Navigate to the previous location (last item in the new path, or main if empty)
+    const previousLocation = newPath.length > 0 ? newPath[newPath.length - 1] : null
+    setCurrentCanvasId(previousLocation?.id || 'main')
 
-    setTimeout(() => {
-      // Reset canvas opacity for when new content loads
-      if (canvasContainer) {
-        (canvasContainer as HTMLElement).style.opacity = '1'
-      }
-
-      const newPath = [...canvasPath]
-      const currentLocation = newPath.pop() // Remove current location from path
-      setCanvasPath(newPath)
-
-      // Navigate to the previous location (last item in the new path, or main if empty)
-      const previousLocation = newPath.length > 0 ? newPath[newPath.length - 1] : null
-      setCurrentCanvasId(previousLocation?.id || 'main')
-
-      // Don't clear data here - let loadStory handle it
-
-      toast.success(`Returning to: ${previousLocation?.title || 'Main Canvas'}`, {
-        icon: '↩️',
-        duration: 2000,
-        style: {
-          background: '#3b82f6',
-          color: 'white'
-        }
-      })
-
-      // Force reload with animation
-      setTimeout(() => {
-        loadStory()
-      }, 100)
-    }, 200)
+    toast.success(`Returning to: ${previousLocation?.title || 'Main Canvas'}`, {
+      icon: '↩️',
+      duration: 2000
+    })
   }
 
   if (isLoading) {
@@ -705,47 +656,29 @@ export default function StoryPage({ params }: PageProps) {
     <div className="h-screen max-h-screen overflow-hidden flex flex-col bg-gray-50 dark:bg-gray-950">
       {/* Header */}
       <header className="border-b bg-white dark:bg-gray-900 px-4 py-3">
-        {/* Breadcrumb navigation */}
+        {/* Simple Navigation Bar */}
         {canvasPath.length > 0 && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Button 
-              variant="ghost" 
+          <div className="flex items-center gap-3 text-sm mb-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-md">
+            {/* Back Button - Simple, just goes back one level */}
+            <Button
+              variant="ghost"
               size="sm"
               onClick={handleNavigateBack}
-              className="h-6 px-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="h-7 px-2"
             >
               <ArrowLeft className="w-3 h-3 mr-1" />
               Back
             </Button>
-            <ChevronRight className="w-4 h-4" />
-            {/* Main canvas - clickable to go back to root */}
-            <button
-              onClick={() => navigateToLevel(0)}
-              className="font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 hover:underline cursor-pointer transition-colors"
-            >
-              {story.title}
-            </button>
-            {/* Show intermediate breadcrumb levels (all except last which is current) */}
-            {canvasPath.slice(0, -1).map((item, index) => (
-              <React.Fragment key={index}>
-                <ChevronRight className="w-4 h-4" />
-                <button
-                  onClick={() => navigateToLevel(index + 1)}
-                  className="text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:underline cursor-pointer transition-colors"
-                >
-                  {item.title}
-                </button>
-              </React.Fragment>
-            ))}
-            {/* Show current location (last item in path) */}
-            {currentCanvasId !== 'main' && canvasPath.length > 0 && (
-              <>
-                <ChevronRight className="w-4 h-4" />
-                <span className="text-purple-600 dark:text-purple-400 font-semibold">
-                  {canvasPath[canvasPath.length - 1]?.title}
-                </span>
-              </>
-            )}
+
+            <div className="h-4 w-px bg-gray-300 dark:bg-gray-700" />
+
+            {/* Current Location Display - NO CLICK HANDLERS */}
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+              <span className="text-xs opacity-60">You are in:</span>
+              <span className="font-semibold text-purple-600 dark:text-purple-400">
+                {canvasPath[canvasPath.length - 1]?.title}
+              </span>
+            </div>
           </div>
         )}
         
