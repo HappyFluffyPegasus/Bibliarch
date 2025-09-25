@@ -2193,8 +2193,11 @@ export default function HTMLCanvas({
                                          target.tagName === 'TEXTAREA' ||
                                          target.closest('[contenteditable="true"]')
 
-                    // Only start drag if NOT clicking on editable text
-                    if (!isTextElement) {
+                    // Check if user is clicking on profile picture area
+                    const isProfilePicture = target.closest('.profile-picture-area')
+
+                    // Only start drag if NOT clicking on editable text OR profile picture
+                    if (!isTextElement && !isProfilePicture) {
                       e.preventDefault()
                       e.stopPropagation()
                       setDragStartPos({ x: e.clientX, y: e.clientY })
@@ -2216,8 +2219,9 @@ export default function HTMLCanvas({
                   <div className="flex h-full items-center">
                     {/* Profile picture area */}
                     <div
-                      className="flex-shrink-0 w-16 h-16 ml-2 mr-3 bg-muted rounded border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:bg-muted/80"
+                      className="profile-picture-area flex-shrink-0 w-16 h-16 ml-2 mr-3 bg-muted rounded border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:bg-muted/80"
                       onClick={(e) => {
+                        console.log('Character profile picture clicked (standalone)')
                         e.stopPropagation()
                         // Create file input for profile picture upload
                         const fileInput = document.createElement('input')
@@ -2569,21 +2573,37 @@ export default function HTMLCanvas({
                                   <div className="flex items-center gap-3 p-2 h-full">
                                     {/* Profile picture */}
                                     <div
-                                      className="flex-shrink-0 w-12 h-12 bg-muted rounded-md overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                                      className="profile-picture-area flex-shrink-0 w-12 h-12 bg-muted rounded-md overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
                                       onClick={(e) => {
+                                        console.log('Character profile picture clicked (in list)')
                                         e.stopPropagation()
                                         const fileInput = document.createElement('input')
                                         fileInput.type = 'file'
                                         fileInput.accept = 'image/*'
-                                        fileInput.onchange = async (e) => {
+                                        fileInput.onchange = (e) => {
                                           const file = (e.target as HTMLInputElement).files?.[0]
                                           if (file) {
                                             const reader = new FileReader()
-                                            reader.onload = async (event) => {
-                                              const imageUrl = event.target?.result as string
-                                              setImageToCrop(imageUrl)
-                                              setCroppingNodeId(childNode.id)
-                                              setShowCropModal(true)
+                                            reader.onload = (e) => {
+                                              const imageUrl = e.target?.result as string
+                                              // Load image to get dimensions
+                                              const img = new Image()
+                                              img.onload = () => {
+                                                // Open crop modal with image dimensions
+                                                setCropModal({
+                                                  isOpen: true,
+                                                  nodeId: childNode.id,
+                                                  imageUrl: imageUrl,
+                                                  imageWidth: img.width,
+                                                  imageHeight: img.height
+                                                })
+                                                // Initialize crop area to center square
+                                                const size = Math.min(img.width, img.height)
+                                                const x = (img.width - size) / 2
+                                                const y = (img.height - size) / 2
+                                                setCropData({ x, y, width: size, height: size })
+                                              }
+                                              img.src = imageUrl
                                             }
                                             reader.readAsDataURL(file)
                                           }
