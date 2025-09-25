@@ -1,32 +1,40 @@
 # **StoryCanvas Relationship System Implementation Plan**
 
 ## **Overview**
-A visual relationship mapping system where users can connect character profile pictures with colored lines to show different types of relationships, making story planning more intuitive and visual.
+A visual relationship mapping system using a special relationship canvas node that contains character profile pictures connected with colored lines to show different types of relationships, making story planning more intuitive and visual.
 
 ---
 
 ## **What We're Building:**
-A visual map where users can connect character profile pictures with colored lines to show relationships, just like drawing connections on a poster board!
+A special relationship canvas node (like how image nodes contain images or text nodes contain text) that acts as a mini-canvas for relationship mapping with automatically populated character profile pictures!
 
 ---
 
 ## **How It Will Work:**
 
-### **Step 1: The Relationship Canvas**
-- **Where**: Add a new section to the "Characters & Relationships" folder
-- **What**: A special canvas that automatically shows all characters with their profile pictures
-- **Layout**: Characters appear as circles with their uploaded profile pictures inside
+### **Step 1: The Relationship Canvas Node**
+- **What**: A special node type that acts like a "canvas within a canvas"
+- **Where**: Can be placed anywhere, but typically in "Characters & Relationships" folder
+- **Function**: Contains an internal relationship mapping area with character profile pictures
+- **Layout**: Profile pictures appear as circles inside this dedicated node space
 
-### **Step 2: Creating Relationships**
-**User clicks a "Connect" button, then:**
-1. **Click first character** → their circle gets a blue glow
-2. **Click second character** → a line appears between them
+### **Step 2: Character Selection System**
+**User opens the relationship canvas node and sees:**
+1. **Character Selection Interface** → dropdown/list showing all character names from the story
+2. **Auto-Population** → when user selects a character name, their profile picture automatically appears in the node
+3. **Profile Picture Sources** → pictures are pulled from existing character nodes' `profileImageUrl` field
+4. **Contained System** → everything happens inside this special relationship node
+
+### **Step 3: Creating Relationships**
+**User clicks a "Connect" button within the relationship node, then:**
+1. **Click first profile picture** → circle gets a blue glow
+2. **Click second profile picture** → a line appears between them
 3. **Relationship popup opens** asking:
    - What type of relationship? (dropdown menu)
    - How strong? (1-3 dots for weak/medium/strong)
    - Any notes? (text box for details)
 
-### **Step 3: Relationship Types & Colors**
+### **Step 4: Relationship Types & Colors**
 - 🔴 **Red**: Romantic (dating, married, crushes)
 - 🔵 **Blue**: Family (siblings, parents, cousins)
 - 🟢 **Green**: Friends (best friends, close friends)
@@ -34,12 +42,12 @@ A visual map where users can connect character profile pictures with colored lin
 - 🟣 **Purple**: Rivals/Enemies (hate, competition, conflicts)
 - ⚫ **Gray**: Other (neighbors, strangers, complicated)
 
-### **Step 4: Line Styles Show Strength**
+### **Step 5: Line Styles Show Strength**
 - **Thick solid line**: Strong relationship
 - **Medium line**: Normal relationship
 - **Thin dotted line**: Weak/distant relationship
 
-### **Step 5: Interactive Features**
+### **Step 6: Interactive Features**
 - **Hover over line**: Shows relationship label (like "siblings" or "rivals")
 - **Click on line**: Opens details popup to edit or delete
 - **Filter buttons**: Hide/show certain relationship types
@@ -49,36 +57,48 @@ A visual map where users can connect character profile pictures with colored lin
 
 ## **Technical Implementation:**
 
+### **New Node Type Required:**
+1. **Add 'relationship-canvas' node type**: Special node that contains an internal canvas area
+2. **Character Selection System**: Dropdown/interface to select from all character nodes in the story
+3. **Auto-Population**: System automatically pulls `profileImageUrl` from selected character nodes
+4. **Internal Canvas Logic**: Handles positioning, connections, and interactions within the node
+5. **Profile Picture Management**: Displays character profile pictures as circular nodes inside the relationship canvas node
+
 ### **File Changes Needed:**
-1. **Add to templates.ts**: New relationship canvas template
-2. **Update HTMLCanvas.tsx**: Add relationship mode and connection drawing
-3. **New component**: RelationshipModal for editing relationship details
-4. **Update character template**: Add "View Relationships" button
+1. **Update HTMLCanvas.tsx**: Add new 'relationship-canvas' node type with internal canvas rendering
+2. **New component**: RelationshipCanvasNode for the internal relationship mapping interface
+3. **Character Detection System**: Function to find all character nodes across the story and extract their data
+4. **Update templates.ts**: Replace relationship canvas template with relationship-canvas node type
+5. **Internal Connection System**: Handle relationships within the relationship canvas node (not main canvas)
 
 ### **How the Code Works:**
-1. **Character Detection**: System finds all character nodes and their profile pictures
-2. **Connection Tool**: New tool mode for drawing relationship lines
-3. **Data Storage**: Relationships saved as special connection objects with extra data
-4. **Visual Rendering**: Different colored SVG lines drawn between character circles
+1. **Character Detection**: System scans all story canvases to find character nodes and their profile pictures
+2. **Selection Interface**: User picks characters from a list, system auto-adds their profile pictures to internal canvas
+3. **Contained Canvas**: All relationship mapping happens inside the special node, not on main canvas
+4. **Data Storage**: Relationships saved within the relationship canvas node data structure
+5. **Visual Rendering**: SVG lines drawn between profile pictures inside the relationship canvas node
 
 ### **User Interface:**
-- **Toolbar button**: "Relationships" mode (like existing text/image tools)
-- **Relationship panel**: Shows legend and filter checkboxes
-- **Quick add buttons**: Common relationships like "Make them siblings" or "Make them friends"
+- **Relationship Canvas Node**: Special node type available in toolbar (like text, image, character nodes)
+- **Internal Interface**: Character selection dropdown, connection tools, and legend all contained within the node
+- **Profile Picture Display**: Circular character images arranged inside the relationship canvas node area
 
 ---
 
 ## **User Workflow Example:**
-1. Go to Characters & Relationships folder
-2. Click "View Relationship Map" button
-3. See all characters laid out with their photos
-4. Click "Add Relationship" tool
-5. Click Mom character, then Dad character
-6. Select "Family → Married" from dropdown
-7. Red line appears connecting them!
-8. Repeat for all character relationships
+1. Create character nodes throughout your story (with profile pictures uploaded)
+2. Add a "Relationship Canvas" node to your canvas (new node type from toolbar)
+3. Double-click the relationship canvas node to open its internal interface
+4. See character selection dropdown populated with all your story's character names
+5. Select "Alice" from dropdown → her profile picture appears as a circle in the canvas
+6. Select "Bob" from dropdown → his profile picture appears as a circle in the canvas
+7. Click "Connect" tool within the relationship canvas node
+8. Click Alice's profile picture, then Bob's profile picture
+9. Select "Friends → Best Friends" from relationship popup
+10. Green line appears connecting their profile pictures inside the node!
+11. Repeat to build your complete relationship network
 
-**Result**: Visual family tree/relationship web that updates automatically when you add new characters!
+**Result**: Self-contained relationship mapping node with all your character relationships visualized using their actual profile pictures!
 
 ---
 

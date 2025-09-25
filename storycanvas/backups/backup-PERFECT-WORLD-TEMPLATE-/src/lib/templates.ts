@@ -151,20 +151,6 @@ export const storyTemplates: StoryTemplate[] = [
             height: 160,
             type: 'text',
             color: '#f8fafc'
-          },
-          {
-            id: 'relationship-map',
-            x: 100,
-            y: 500,
-            text: 'Relationship Map',
-            content: 'Visual map of character relationships',
-            width: 600,
-            height: 400,
-            type: 'relationship-canvas',
-            relationshipData: {
-              selectedCharacters: [],
-              relationships: []
-            }
           }
         ],
         connections: [
@@ -503,11 +489,11 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         type: 'text'
       },
       {
-        id: 'subplots-side-stories',
+        id: 'visual-anchor',
         x: 100,
         y: 300,
-        text: 'Subplots & Side Stories',
-        content: 'What subplots or secondary stories run alongside your main plot?',
+        text: 'Visual Anchor',
+        content: 'Reminder to add/match imagery to scenes.',
         width: 280,
         height: 180,
         type: 'text'
@@ -859,191 +845,154 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
   },
   'country': {
     nodes: [
-      // LEFT COLUMN: Info table anchor
-      {
-        id: 'country-info-table',
-        x: 80,
-        y: 80,
-        text: 'Country Profile',
-        width: 250,
-        height: 320,
-        type: 'table',
-        tableData: [
-          { col1: 'Name', col2: '' },
-          { col1: 'Population', col2: '' },
-          { col1: 'Capital', col2: '' },
-          { col1: 'Founded', col2: '' },
-          { col1: 'Area (sq km)', col2: '' },
-          { col1: 'Currency', col2: '' },
-          { col1: 'Main Language', col2: '' },
-          { col1: 'Government', col2: '' },
-          { col1: 'Development Level', col2: '' },
-          { col1: 'Main Export', col2: '' }
-        ]
-      },
-      {
-        id: 'country-trade',
-        x: 80,
-        y: 440,
-        text: 'Trade & Economy',
-        content: 'What are the main exports/imports? How wealthy is the nation?',
-        width: 250,
-        height: 140,
-        type: 'text'
-      },
-      {
-        id: 'culture-exports',
-        x: 80,
-        y: 600,
-        text: 'Culture Exports',
-        content: 'Music, fashion, food, or art they\'re known for abroad.',
-        width: 250,
-        height: 140,
-        type: 'text'
-      },
-      {
-        id: 'country-languages',
-        x: 80,
-        y: 760,
-        text: 'Languages & Dialects',
-        content: 'What\'s spoken here? Any regional slang or secret codes?',
-        width: 250,
-        height: 120,
-        type: 'text'
-      },
-
-      // CENTER COLUMN: Cultural foundation with tall culture node
       {
         id: 'local-culture',
-        x: 350,
-        y: 80,
+        x: 100,
+        y: 100,
         text: 'Local Culture',
-        content: 'What defines the country\'s traditions, customs, festivals, and rituals?',
-        width: 240,
-        height: 200,
+        content: 'What defines the country\'s traditions, customs, and norms?',
+        width: 280,
+        height: 160,
         type: 'text'
       },
       {
         id: 'country-geography',
-        x: 350,
-        y: 310,
+        x: 400,
+        y: 100,
         text: 'Geography & Climate',
         content: 'What terrain, natural resources, or weather shape life here?',
-        width: 240,
-        height: 120,
+        width: 280,
+        height: 160,
+        type: 'text'
+      },
+      {
+        id: 'country-history',
+        x: 700,
+        y: 100,
+        text: 'History & Origins',
+        content: 'How did this country form? What key events shaped it?',
+        width: 280,
+        height: 160,
+        type: 'text'
+      },
+      {
+        id: 'country-power',
+        x: 100,
+        y: 280,
+        text: 'Power Structures',
+        content: 'Who rules? What systems of government, monarchy, or councils exist?',
+        width: 280,
+        height: 160,
         type: 'text'
       },
       {
         id: 'country-religion',
-        x: 350,
-        y: 450,
+        x: 400,
+        y: 280,
         text: 'Religion & Beliefs',
         content: 'Are there dominant faiths, cults, or superstitions?',
-        width: 240,
-        height: 120,
-        type: 'text'
-      },
-      {
-        id: 'country-values',
-        x: 350,
-        y: 590,
-        text: 'Values & Taboos',
-        content: 'What\'s sacred, shameful, or central to identity?',
-        width: 240,
-        height: 120,
-        type: 'text'
-      },
-      {
-        id: 'military-defense',
-        x: 350,
-        y: 730,
-        text: 'Military & Defense',
-        content: 'What\'s their army/navy like? Are they expansionist or defensive?',
-        width: 240,
-        height: 120,
-        type: 'text'
-      },
-
-      // RIGHT COLUMN: Power structures with tall conflicts node
-      {
-        id: 'country-power',
-        x: 610,
-        y: 80,
-        text: 'Power Structures',
-        content: 'Who rules? What systems of government, monarchy, or councils exist?',
-        width: 240,
-        height: 120,
-        type: 'text'
-      },
-      {
-        id: 'major-cities',
-        x: 610,
-        y: 220,
-        text: 'Major Cities',
-        content: 'List the most important or notable urban centers.',
-        width: 240,
-        height: 120,
+        width: 280,
+        height: 160,
         type: 'text'
       },
       {
         id: 'country-tech-magic',
-        x: 610,
-        y: 360,
+        x: 700,
+        y: 280,
         text: 'Technology & Magic',
         content: 'What\'s unique about their level of progress or magical practices?',
-        width: 240,
-        height: 120,
+        width: 280,
+        height: 160,
+        type: 'text'
+      },
+      {
+        id: 'country-trade',
+        x: 100,
+        y: 460,
+        text: 'Trade & Economy',
+        content: 'What are the main exports/imports? How wealthy is the nation?',
+        width: 280,
+        height: 160,
         type: 'text'
       },
       {
         id: 'country-conflicts',
-        x: 610,
-        y: 500,
+        x: 400,
+        y: 460,
         text: 'Conflicts & Tensions',
-        content: 'Rivalries, wars, rebellions, internal strife, and current political tensions.',
-        width: 240,
-        height: 200,
+        content: 'Rivalries, wars, rebellions, or internal strife.',
+        width: 280,
+        height: 160,
+        type: 'text'
+      },
+      {
+        id: 'country-languages',
+        x: 700,
+        y: 460,
+        text: 'Languages & Dialects',
+        content: 'What\'s spoken here? Any regional slang or secret codes?',
+        width: 280,
+        height: 160,
+        type: 'text'
+      },
+      {
+        id: 'country-values',
+        x: 100,
+        y: 640,
+        text: 'Values & Taboos',
+        content: 'What\'s sacred, shameful, or central to identity?',
+        width: 280,
+        height: 160,
+        type: 'text'
+      },
+      {
+        id: 'major-cities',
+        x: 400,
+        y: 640,
+        text: 'Major Cities',
+        content: 'List the most important or notable urban centers.',
+        width: 280,
+        height: 160,
+        type: 'text'
+      },
+      {
+        id: 'major-politicians',
+        x: 700,
+        y: 640,
+        text: 'Major Politicians / Leaders',
+        content: 'Who are the big names shaping politics?',
+        width: 280,
+        height: 160,
+        type: 'text'
+      },
+      {
+        id: 'military-defense',
+        x: 100,
+        y: 820,
+        text: 'Military & Defense',
+        content: 'What\'s their army/navy like? Are they expansionist or defensive?',
+        width: 280,
+        height: 160,
+        type: 'text'
+      },
+      {
+        id: 'culture-exports',
+        x: 400,
+        y: 820,
+        text: 'Culture Exports',
+        content: 'Music, fashion, food, or art they\'re known for abroad.',
+        width: 280,
+        height: 160,
         type: 'text'
       },
       {
         id: 'everyday-life',
-        x: 610,
-        y: 720,
+        x: 700,
+        y: 820,
         text: 'Everyday Life',
         content: 'What\'s daily living like for common people vs. elites?',
-        width: 240,
-        height: 120,
-        type: 'text'
-      },
-
-      // FAR RIGHT: Map with isolated space
-      {
-        id: 'local-map-instructions',
-        x: 900,
-        y: 80,
-        text: 'Local Map',
-        content: 'Upload a map of this country/region (any shape/size) →',
-        width: 400,
-        height: 70,
-        type: 'text'
-      },
-      {
-        id: 'local-map-image',
-        x: 900,
-        y: 170,
-        text: 'Country Map',
-        width: 400,
-        height: 280,
-        type: 'image'
-      },
-      {
-        id: 'country-history',
-        x: 900,
-        y: 470,
-        text: 'History & Origins',
-        content: 'How did this country form? What key events shaped it? Founding myths, major wars, cultural shifts, and historical turning points.',
-        width: 400,
-        height: 300,
+        width: 280,
+        height: 160,
         type: 'text'
       }
     ],
@@ -1106,80 +1055,5 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         type: 'leads-to'
       }
     ]
-  },
-  'relationship-canvas': {
-    nodes: [
-      {
-        id: 'relationship-instructions',
-        x: 50,
-        y: 50,
-        text: 'Relationship Map',
-        content: 'Welcome to your visual relationship map! Create character nodes here and use the relationship tool (❤️) to connect them with colored relationship lines.',
-        width: 400,
-        height: 100,
-        type: 'text',
-        color: '#e0f2fe'
-      },
-      {
-        id: 'relationship-legend',
-        x: 500,
-        y: 50,
-        text: 'Relationship Legend',
-        width: 300,
-        height: 220,
-        type: 'table',
-        tableData: [
-          { col1: 'Type', col2: 'Color & Strength' },
-          { col1: 'Romantic', col2: '🔴 Red (thick=strong)' },
-          { col1: 'Family', col2: '🔵 Blue (dashed=weak)' },
-          { col1: 'Friends', col2: '🟢 Green (normal)' },
-          { col1: 'Professional', col2: '🟠 Orange' },
-          { col1: 'Rivals/Enemies', col2: '🟣 Purple' },
-          { col1: 'Other', col2: '⚫ Gray' }
-        ]
-      },
-      {
-        id: 'how-to-guide',
-        x: 50,
-        y: 180,
-        text: 'How to Use',
-        content: '1. Add character nodes using the User tool (👤)\n2. Select the Relationship tool (❤️) from the toolbar\n3. Click one character, then another to create a relationship\n4. Choose the relationship type, strength, and label\n5. Use filters to show/hide relationship types',
-        width: 400,
-        height: 160,
-        type: 'text',
-        color: '#f0fdf4'
-      },
-      {
-        id: 'sample-character-1',
-        x: 200,
-        y: 400,
-        text: 'Alice',
-        content: 'Main protagonist - add more details about this character',
-        width: 200,
-        height: 150,
-        type: 'character'
-      },
-      {
-        id: 'sample-character-2',
-        x: 600,
-        y: 400,
-        text: 'Bob',
-        content: 'Alice\'s best friend - supporting character',
-        width: 200,
-        height: 150,
-        type: 'character'
-      },
-      {
-        id: 'sample-character-3',
-        x: 400,
-        y: 600,
-        text: 'Charlie',
-        content: 'The antagonist - creates conflict for Alice',
-        width: 200,
-        height: 150,
-        type: 'character'
-      }
-    ],
-    connections: []
   }
 }

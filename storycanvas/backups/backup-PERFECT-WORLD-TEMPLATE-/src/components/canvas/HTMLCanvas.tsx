@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, ArrowUp, ArrowDown, Table, Heart } from 'lucide-react'
+import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, ArrowUp, ArrowDown, Table } from 'lucide-react'
 import { toast } from 'sonner'
 import { PaletteSelector } from '@/components/ui/palette-selector'
 import { ColorFilter } from '@/components/ui/color-filter'
@@ -18,7 +18,7 @@ interface Node {
   content?: string
   width: number
   height: number
-  type?: 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'relationship-canvas'
+  type?: 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table'
   color?: string
   linkedCanvasId?: string
   imageUrl?: string
@@ -29,16 +29,6 @@ interface Node {
   parentId?: string // If this node is inside a container
   childIds?: string[] // If this node is a container (for list nodes)
   layoutMode?: 'single-column' | 'multi-column' // Layout for list containers
-  // Relationship canvas properties
-  relationshipData?: {
-    selectedCharacters: Array<{
-      id: string
-      name: string
-      profileImageUrl?: string
-      position: { x: number; y: number }
-    }>
-    relationships: RelationshipConnection[]
-  }
   // Layer control
   zIndex?: number // Layer ordering (higher = on top)
 }
@@ -47,18 +37,7 @@ interface Connection {
   id: string
   from: string
   to: string
-  type?: 'leads-to' | 'conflicts-with' | 'relates-to' | 'relationship'
-}
-
-interface RelationshipConnection {
-  id: string
-  fromCharacterId: string
-  toCharacterId: string
-  relationshipType: 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other'
-  strength: 1 | 2 | 3  // weak, medium, strong
-  label: string        // "married", "siblings", "best friends", etc.
-  notes?: string       // additional details
-  isBidirectional: boolean  // true for mutual relationships
+  type?: 'leads-to' | 'conflicts-with' | 'relates-to'
 }
 
 interface HTMLCanvasProps {
@@ -81,7 +60,7 @@ export default function HTMLCanvas({
   const [nodes, setNodes] = useState<Node[]>(initialNodes)
   const [connections, setConnections] = useState<Connection[]>(initialConnections)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [tool, setTool] = useState<'pan' | 'select' | 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'connect' | 'relationship-canvas'>('pan')
+  const [tool, setTool] = useState<'pan' | 'select' | 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'connect'>('pan')
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
   const [showHelp, setShowHelp] = useState(true)
@@ -119,33 +98,6 @@ export default function HTMLCanvas({
     height: 100
   })
   const [isDraggingCrop, setIsDraggingCrop] = useState(false)
-
-  // Relationship canvas modal state
-  const [relationshipCanvasModal, setRelationshipCanvasModal] = useState<{
-    isOpen: boolean
-    nodeId: string
-    node: Node
-  } | null>(null)
-
-  // Relationship connection state
-  const [isConnectingMode, setIsConnectingMode] = useState(false)
-  const [selectedCharacterForConnection, setSelectedCharacterForConnection] = useState<string | null>(null)
-  const [isDraggingCharacter, setIsDraggingCharacter] = useState(false)
-  const [draggingCharacter, setDraggingCharacter] = useState<string | null>(null)
-  const [dragCharacterOffset, setDragCharacterOffset] = useState({ x: 0, y: 0 })
-  const [relationshipModal, setRelationshipModal] = useState<{
-    isOpen: boolean
-    fromCharacter: { id: string, name: string }
-    toCharacter: { id: string, name: string }
-    editingRelationship?: {
-      id: string
-      relationshipType: 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other'
-      strength: 1 | 2 | 3
-      label: string
-      notes?: string
-    }
-  } | null>(null)
-
   const [isResizingCrop, setIsResizingCrop] = useState(false)
   const [resizeDirection, setResizeDirection] = useState<'se' | 'sw' | 'ne' | 'nw' | null>(null)
   const [dragStartCrop, setDragStartCrop] = useState({ x: 0, y: 0 })
@@ -539,7 +491,7 @@ export default function HTMLCanvas({
     if (tool === 'pan' || tool === 'select' || isPanning) return
     
     // Only create nodes when a creation tool is selected
-    if (!['text', 'character', 'event', 'location', 'folder', 'list', 'image', 'table', 'relationship-canvas'].includes(tool)) return
+    if (!['text', 'character', 'event', 'location', 'folder', 'list', 'image', 'table'].includes(tool)) return
 
     const rect = canvasRef.current?.getBoundingClientRect()
     if (!rect) return
@@ -553,13 +505,12 @@ export default function HTMLCanvas({
       y: Math.max(0, y - 60),
       text: getDefaultText(tool),
       content: getDefaultContent(tool),
-      width: tool === 'list' ? 320 : tool === 'image' ? 300 : tool === 'character' ? 320 : tool === 'table' ? 280 : tool === 'relationship-canvas' ? 600 : 200,  // Relationship canvas large
-      height: tool === 'list' ? 240 : tool === 'image' ? 200 : tool === 'character' ? 72 : tool === 'table' ? 200 : tool === 'relationship-canvas' ? 400 : 120, // Relationship canvas tall
+      width: tool === 'list' ? 320 : tool === 'image' ? 300 : tool === 'character' ? 320 : tool === 'table' ? 280 : 200,  // Table nodes medium width
+      height: tool === 'list' ? 240 : tool === 'image' ? 200 : tool === 'character' ? 72 : tool === 'table' ? 200 : 120, // Table nodes taller for rows
       type: tool,
       // Don't set color - let it use dynamic theme colors
       ...(tool === 'list' ? { childIds: [], layoutMode: 'single-column' as const } : {}),
-      ...(tool === 'table' ? { tableData: getDefaultTableData() } : {}),
-      ...(tool === 'relationship-canvas' ? { relationshipData: { selectedCharacters: [], relationships: [] } } : {})
+      ...(tool === 'table' ? { tableData: getDefaultTableData() } : {})
     }
 
     const newNodes = [...nodes, newNode]
@@ -571,27 +522,27 @@ export default function HTMLCanvas({
   }, [tool, isPanning, nodes, connections, saveToHistory])
 
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
-    if (tool === 'pan' && e.target === canvasRef.current && !isDraggingCharacter) {
+    if (tool === 'pan' && e.target === canvasRef.current) {
       setIsPanning(true)
       setIsMoving(true)
       setLastPanPoint({ x: e.clientX, y: e.clientY })
     }
-  }, [tool, isDraggingCharacter])
+  }, [tool])
 
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isPanning && !isDraggingCharacter) {
+    if (isPanning) {
       const deltaX = e.clientX - lastPanPoint.x
       const deltaY = e.clientY - lastPanPoint.y
-
+      
       // Use the parent container for scrolling instead of transform
       const canvasContainer = canvasRef.current?.parentElement
       if (canvasContainer) {
         canvasContainer.scrollLeft -= deltaX
         canvasContainer.scrollTop -= deltaY
       }
-
+      
       setLastPanPoint({ x: e.clientX, y: e.clientY })
-    } else if (isDragReady && !draggingNode && !isDraggingCharacter) {
+    } else if (isDragReady && !draggingNode) {
       // Check if mouse moved enough to start dragging (very small threshold for immediate response)
       const deltaX = e.clientX - dragStartPos.x
       const deltaY = e.clientY - dragStartPos.y
@@ -757,7 +708,7 @@ export default function HTMLCanvas({
         )
       )
     }
-  }, [isPanning, lastPanPoint, draggingNode, isDragReady, dragOffset, dragStartPos, resizingNode, resizeStartPos, resizeStartSize, isDraggingCharacter])
+  }, [isPanning, lastPanPoint, draggingNode, isDragReady, dragOffset, dragStartPos, resizingNode, resizeStartPos, resizeStartSize])
 
   const handleCanvasMouseUp = useCallback(() => {
     setIsPanning(false)
@@ -885,7 +836,6 @@ export default function HTMLCanvas({
       case 'list': return 'New List'
       case 'image': return 'New Image'
       case 'table': return ''
-      case 'relationship-canvas': return 'Relationship Map'
       default: return 'New Text Node'
     }
   }
@@ -899,21 +849,9 @@ export default function HTMLCanvas({
       case 'list': return ''  // List containers show their children, no default content needed
       case 'image': return 'Image caption or paste URL here...'
       case 'table': return '' // Tables use tableData instead of content
-      case 'relationship-canvas': return '' // Relationship canvas uses relationshipData instead of content
       default: return 'What would you like to write about?'
     }
   }
-
-  // Character detection system - finds all character nodes for relationship canvas
-  const getAllCharacters = useCallback(() => {
-    return nodes
-      .filter(node => node.type === 'character')
-      .map(node => ({
-        id: node.id,
-        name: node.text,
-        profileImageUrl: node.profileImageUrl
-      }))
-  }, [nodes])
 
   const getDefaultTableData = () => {
     return [
@@ -1006,17 +944,7 @@ export default function HTMLCanvas({
 
   const handleNodeClick = (node: Node, e: React.MouseEvent) => {
     e.stopPropagation()
-
-    // Handle double-click on relationship-canvas nodes
-    if (e.detail === 2 && node.type === 'relationship-canvas') {
-      setRelationshipCanvasModal({
-        isOpen: true,
-        nodeId: node.id,
-        node: node
-      })
-      return
-    }
-
+    
     // Handle connection tool
     if (tool === 'connect') {
       if (!connectingFrom) {
@@ -1525,7 +1453,6 @@ export default function HTMLCanvas({
       case 'list': return <List className="w-5 h-5" />
       case 'image': return <ImageIcon className="w-5 h-5" />
       case 'table': return <Table className="w-5 h-5" />
-      case 'relationship-canvas': return <Heart className="w-5 h-5" />
       default: return <Type className="w-5 h-5" />
     }
   }
@@ -1635,15 +1562,6 @@ export default function HTMLCanvas({
             title="Add Table - Click canvas to create"
           >
             <Table className="w-7 h-7" />
-          </Button>
-          <Button
-            size="sm"
-            variant={tool === 'relationship-canvas' ? 'default' : 'outline'}
-            onClick={() => setTool('relationship-canvas')}
-            className={`h-12 w-14 p-0 ${tool === 'relationship-canvas' ? 'bg-red-600 text-white' : ''}`}
-            title="Add Relationship Canvas - Click canvas to create"
-          >
-            <Heart className="w-7 h-7" />
           </Button>
         </div>
 
@@ -1827,7 +1745,6 @@ export default function HTMLCanvas({
             nodes={nodes}
             onFilterChange={setVisibleNodeIds}
           />
-
         </div>
       </div>
 
@@ -1887,9 +1804,8 @@ export default function HTMLCanvas({
         <div 
           ref={canvasRef}
           className={`canvas-grid relative ${
-            tool === 'pan' ? 'cursor-grab' :
-            tool === 'select' ? 'cursor-default' :
-            tool === 'relationships' ? 'cursor-pointer' :
+            tool === 'pan' ? 'cursor-grab' : 
+            tool === 'select' ? 'cursor-default' : 
             'cursor-crosshair'
           } ${isPanning ? 'cursor-grabbing' : ''}`}
           onClick={handleCanvasClick}
@@ -2240,288 +2156,6 @@ export default function HTMLCanvas({
               )
             }
 
-            // Render relationship-canvas nodes
-            if (node.type === 'relationship-canvas') {
-              const selectedCharacters = node.relationshipData?.selectedCharacters || []
-
-              return (
-                <div
-                  key={node.id}
-                  data-node-id={node.id}
-                  className={`absolute cursor-move hover:shadow-lg shadow-sm border-2 rounded-lg ${
-                    selectedId === node.id ? 'ring-2 ring-primary' : ''
-                  } ${
-                    connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
-                  }`}
-                  style={{
-                    left: draggingNode === node.id ? dragPosition.x : node.x,
-                    top: draggingNode === node.id ? dragPosition.y : node.y,
-                    width: node.width,
-                    height: node.height,
-                    backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
-                    borderColor: selectedId === node.id ? 'hsl(var(--primary))' : getNodeBorderColor(node.type || 'text'),
-                    padding: '12px',
-                    overflow: 'hidden'
-                  }}
-                  onClick={(e) => handleNodeClick(node, e)}
-                  onMouseDown={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setDragStartPos({ x: e.clientX, y: e.clientY })
-                    setIsDragReady(node.id)
-
-                    const rect = canvasRef.current?.getBoundingClientRect()
-                    if (rect) {
-                      const mouseX = e.clientX - rect.left
-                      const mouseY = e.clientY - rect.top
-                      setDragOffset({
-                        x: mouseX - node.x,
-                        y: mouseY - node.y
-                      })
-                    }
-                  }}
-                >
-                  {/* Header */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Heart className="w-5 h-5 text-red-500" />
-                      <h3 className="font-semibold text-sm text-foreground">{node.text}</h3>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {selectedCharacters.length} character{selectedCharacters.length !== 1 ? 's' : ''}
-                    </div>
-                  </div>
-
-                  {/* Character Display Area */}
-                  <div
-                    className="relative flex-1 rounded bg-white border border-border"
-                    style={{ height: node.height - 80 }}
-                    onDoubleClick={(e) => {
-                      // Only open modal if clicking on empty space (not on characters)
-                      if (e.target === e.currentTarget) {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setRelationshipCanvasModal({
-                          isOpen: true,
-                          nodeId: node.id,
-                          node: node
-                        })
-                      }
-                    }}
-                  >
-                    {selectedCharacters.map(character => {
-                      // Scale profile picture size based on node dimensions
-                      const minSize = 60; // minimum size in pixels
-                      const scaleX = node.width / 400; // scale based on default width of 400
-                      const scaleY = node.height / 300; // scale based on default height of 300
-                      const scale = Math.min(scaleX, scaleY, 2); // max scale of 2x
-                      const profileSize = Math.max(minSize, minSize * scale);
-
-                      return (
-                        <div
-                          key={character.id}
-                          className={`absolute transition-transform cursor-move hover:scale-105 select-none ${
-                            isConnectingMode && selectedCharacterForConnection === character.id
-                              ? 'scale-110 ring-4 ring-blue-400 shadow-lg'
-                              : ''
-                          }`}
-                          style={{
-                            width: profileSize,
-                            height: profileSize,
-                            left: Math.min(character.position.x, node.width - profileSize - 20),
-                            top: Math.min(character.position.y, node.height - profileSize - 100),
-                            zIndex: 10
-                          }}
-                          title={character.name}
-                          onMouseDown={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-
-                            // Set dragging state to prevent canvas dragging
-                            setIsDraggingCharacter(true)
-
-                            // Always allow dragging
-                            const startX = e.clientX
-                            const startY = e.clientY
-                            const initialX = character.position.x
-                            const initialY = character.position.y
-                            let hasMoved = false
-
-                            const handleMouseMove = (moveEvent: MouseEvent) => {
-                              hasMoved = true
-                              const deltaX = moveEvent.clientX - startX
-                              const deltaY = moveEvent.clientY - startY
-
-                              const newX = Math.max(0, Math.min(node.width - profileSize - 20, initialX + deltaX))
-                              const newY = Math.max(0, Math.min(node.height - profileSize - 100, initialY + deltaY))
-
-                              const updatedCharacters = selectedCharacters.map(char =>
-                                char.id === character.id ? { ...char, position: { x: newX, y: newY } } : char
-                              )
-
-                              const updatedNodes = nodes.map(n =>
-                                n.id === node.id ? {
-                                  ...n,
-                                  relationshipData: {
-                                    ...n.relationshipData,
-                                    selectedCharacters: updatedCharacters,
-                                    relationships: n.relationshipData?.relationships || []
-                                  }
-                                } : n
-                              )
-                              setNodes(updatedNodes)
-                            }
-
-                            const handleMouseUp = () => {
-                              document.removeEventListener('mousemove', handleMouseMove)
-                              document.removeEventListener('mouseup', handleMouseUp)
-                              setIsDraggingCharacter(false)
-
-                              if (hasMoved) {
-                                saveToHistory(nodes, connections)
-                              }
-                            }
-
-                            document.addEventListener('mousemove', handleMouseMove)
-                            document.addEventListener('mouseup', handleMouseUp)
-                          }}
-                        >
-                          <div className="w-full h-full rounded-full border-2 border-gray-300 overflow-hidden bg-background shadow-sm">
-                            {character.profileImageUrl ? (
-                              <img
-                                src={character.profileImageUrl}
-                                alt={character.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <User
-                                  className="text-muted-foreground"
-                                  style={{
-                                    width: profileSize * 0.3,
-                                    height: profileSize * 0.3
-                                  }}
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-
-                    {/* Relationship Lines SVG Overlay */}
-                    <svg
-                      className="absolute inset-0 pointer-events-none"
-                      style={{ width: '100%', height: '100%', zIndex: 5 }}
-                    >
-                      {node.relationshipData?.relationships?.map(relationship => {
-                        const fromChar = selectedCharacters.find(c => c.id === relationship.fromCharacterId)
-                        const toChar = selectedCharacters.find(c => c.id === relationship.toCharacterId)
-
-                        if (!fromChar || !toChar) return null
-
-                        // Get character positions and profile sizes
-                        const minSize = 60
-                        const scaleX = node.width / 400
-                        const scaleY = node.height / 300
-                        const scale = Math.min(scaleX, scaleY, 2)
-                        const profileSize = Math.max(minSize, minSize * scale)
-
-                        const fromX = Math.min(fromChar.position.x, node.width - profileSize - 20) + profileSize / 2
-                        const fromY = Math.min(fromChar.position.y, node.height - profileSize - 100) + profileSize / 2
-                        const toX = Math.min(toChar.position.x, node.width - profileSize - 20) + profileSize / 2
-                        const toY = Math.min(toChar.position.y, node.height - profileSize - 100) + profileSize / 2
-
-                        // Get line color based on relationship type
-                        const getLineColor = (type: string) => {
-                          switch (type) {
-                            case 'romantic': return '#ec4899' // pink/rose
-                            case 'family': return '#3b82f6' // sky blue
-                            case 'friends': return '#10b981' // emerald
-                            case 'professional': return '#f59e0b' // amber
-                            case 'rivals': return '#8b5cf6' // violet
-                            default: return '#64748b' // slate
-                          }
-                        }
-
-                        // Get line style based on strength
-                        const getLineStyle = (strength: number) => {
-                          switch (strength) {
-                            case 3: return { strokeWidth: 4, strokeDasharray: 'none' }
-                            case 2: return { strokeWidth: 2, strokeDasharray: 'none' }
-                            case 1: return { strokeWidth: 1, strokeDasharray: '4,4' }
-                            default: return { strokeWidth: 2, strokeDasharray: 'none' }
-                          }
-                        }
-
-                        const lineColor = getLineColor(relationship.relationshipType)
-                        const lineStyle = getLineStyle(relationship.strength)
-
-                        return (
-                          <g key={relationship.id}>
-                            {/* Invisible wider line for easier clicking */}
-                            <line
-                              x1={fromX}
-                              y1={fromY}
-                              x2={toX}
-                              y2={toY}
-                              stroke="transparent"
-                              strokeWidth={Math.max(10, lineStyle.strokeWidth + 6)}
-                              className="cursor-pointer"
-                              style={{ pointerEvents: 'all' }}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                const fromCharData = selectedCharacters.find(c => c.id === relationship.fromCharacterId)
-                                const toCharData = selectedCharacters.find(c => c.id === relationship.toCharacterId)
-
-                                if (fromCharData && toCharData) {
-                                  setRelationshipModal({
-                                    isOpen: true,
-                                    fromCharacter: { id: fromCharData.id, name: fromCharData.name },
-                                    toCharacter: { id: toCharData.id, name: toCharData.name },
-                                    editingRelationship: {
-                                      id: relationship.id,
-                                      relationshipType: relationship.relationshipType,
-                                      strength: relationship.strength,
-                                      label: relationship.label,
-                                      notes: relationship.notes || ''
-                                    }
-                                  })
-                                }
-                              }}
-                              title={`Click to edit: ${relationship.label}`}
-                            />
-                            {/* Visible relationship line */}
-                            <line
-                              x1={fromX}
-                              y1={fromY}
-                              x2={toX}
-                              y2={toY}
-                              stroke={lineColor}
-                              strokeWidth={lineStyle.strokeWidth}
-                              strokeDasharray={lineStyle.strokeDasharray}
-                              opacity={0.8}
-                              className="pointer-events-none"
-                            />
-                          </g>
-                        )
-                      })}
-                    </svg>
-
-                    {selectedCharacters.length === 0 && (
-                      <div className="absolute inset-0 flex items-center justify-center text-muted-foreground bg-muted/30 rounded">
-                        <div className="text-center p-4">
-                          <Heart className="w-12 h-12 text-muted-foreground/50 mx-auto mb-2" />
-                          <p className="text-sm font-medium mb-1">Character Relationships</p>
-                          <p className="text-xs opacity-75">Double-click to add characters and map their relationships</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            }
-
             // Render character nodes with profile picture layout
             if (node.type === 'character') {
               return (
@@ -2559,11 +2193,8 @@ export default function HTMLCanvas({
                                          target.tagName === 'TEXTAREA' ||
                                          target.closest('[contenteditable="true"]')
 
-                    // Check if user is clicking on profile picture area
-                    const isProfilePicture = target.closest('.profile-picture-area')
-
-                    // Only start drag if NOT clicking on editable text OR profile picture
-                    if (!isTextElement && !isProfilePicture) {
+                    // Only start drag if NOT clicking on editable text
+                    if (!isTextElement) {
                       e.preventDefault()
                       e.stopPropagation()
                       setDragStartPos({ x: e.clientX, y: e.clientY })
@@ -2585,9 +2216,8 @@ export default function HTMLCanvas({
                   <div className="flex h-full items-center">
                     {/* Profile picture area */}
                     <div
-                      className="profile-picture-area flex-shrink-0 w-16 h-16 ml-2 mr-3 bg-muted rounded border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:bg-muted/80"
+                      className="flex-shrink-0 w-16 h-16 ml-2 mr-3 bg-muted rounded border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:bg-muted/80"
                       onClick={(e) => {
-                        console.log('Character profile picture clicked (standalone)')
                         e.stopPropagation()
                         // Create file input for profile picture upload
                         const fileInput = document.createElement('input')
@@ -2939,37 +2569,21 @@ export default function HTMLCanvas({
                                   <div className="flex items-center gap-3 p-2 h-full">
                                     {/* Profile picture */}
                                     <div
-                                      className="profile-picture-area flex-shrink-0 w-12 h-12 bg-muted rounded-md overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                                      className="flex-shrink-0 w-12 h-12 bg-muted rounded-md overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
                                       onClick={(e) => {
-                                        console.log('Character profile picture clicked (in list)')
                                         e.stopPropagation()
                                         const fileInput = document.createElement('input')
                                         fileInput.type = 'file'
                                         fileInput.accept = 'image/*'
-                                        fileInput.onchange = (e) => {
+                                        fileInput.onchange = async (e) => {
                                           const file = (e.target as HTMLInputElement).files?.[0]
                                           if (file) {
                                             const reader = new FileReader()
-                                            reader.onload = (e) => {
-                                              const imageUrl = e.target?.result as string
-                                              // Load image to get dimensions
-                                              const img = new Image()
-                                              img.onload = () => {
-                                                // Open crop modal with image dimensions
-                                                setCropModal({
-                                                  isOpen: true,
-                                                  nodeId: childNode.id,
-                                                  imageUrl: imageUrl,
-                                                  imageWidth: img.width,
-                                                  imageHeight: img.height
-                                                })
-                                                // Initialize crop area to center square
-                                                const size = Math.min(img.width, img.height)
-                                                const x = (img.width - size) / 2
-                                                const y = (img.height - size) / 2
-                                                setCropData({ x, y, width: size, height: size })
-                                              }
-                                              img.src = imageUrl
+                                            reader.onload = async (event) => {
+                                              const imageUrl = event.target?.result as string
+                                              setImageToCrop(imageUrl)
+                                              setCroppingNodeId(childNode.id)
+                                              setShowCropModal(true)
                                             }
                                             reader.readAsDataURL(file)
                                           }
@@ -3415,7 +3029,6 @@ export default function HTMLCanvas({
             )
           })}
 
-
           {/* Empty state */}
           {nodes.filter(node => visibleNodeIds.includes(node.id)).length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center">
@@ -3606,591 +3219,6 @@ export default function HTMLCanvas({
               >
                 Apply Crop
               </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Relationship Canvas Modal */}
-      {relationshipCanvasModal?.isOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium flex items-center gap-2">
-                <Heart className="w-5 h-5 text-red-500" />
-                {relationshipCanvasModal.node.text} - Relationship Editor
-              </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setRelationshipCanvasModal(null)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Panel - Character Selection */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-md font-semibold">Characters</h4>
-                  <Button
-                    variant={isConnectingMode ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setIsConnectingMode(!isConnectingMode)
-                      setSelectedCharacterForConnection(null)
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <Heart className="w-4 h-4" />
-                    {isConnectingMode ? "Exit Connect Mode" : "Connect Characters"}
-                  </Button>
-                </div>
-
-                {isConnectingMode && (
-                  <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
-                    <p className="text-sm text-blue-700 dark:text-blue-300">
-                      Double-click on two characters in the canvas to create a relationship between them.
-                      You can still drag characters around to position them.
-                    </p>
-                  </div>
-                )}
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Add Characters to Map:</label>
-                    <select
-                      className="w-full p-2 border rounded-md"
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          const characterId = e.target.value
-                          const availableCharacters = getAllCharacters()
-                          const character = availableCharacters.find(c => c.id === characterId)
-                          const currentNode = relationshipCanvasModal.node
-                          const selectedCharacters = currentNode.relationshipData?.selectedCharacters || []
-
-                          if (character && !selectedCharacters.find(sc => sc.id === characterId)) {
-                            const newCharacter = {
-                              id: character.id,
-                              name: character.name,
-                              profileImageUrl: character.profileImageUrl,
-                              position: {
-                                x: 50 + Math.random() * 200,
-                                y: 50 + Math.random() * 200
-                              }
-                            }
-
-                            const updatedNodes = nodes.map(n =>
-                              n.id === currentNode.id ? {
-                                ...n,
-                                relationshipData: {
-                                  ...n.relationshipData,
-                                  selectedCharacters: [...selectedCharacters, newCharacter],
-                                  relationships: n.relationshipData?.relationships || []
-                                }
-                              } : n
-                            )
-                            setNodes(updatedNodes)
-                            saveToHistory(updatedNodes, connections)
-
-                            // Update modal state
-                            const updatedNode = updatedNodes.find(n => n.id === currentNode.id)
-                            if (updatedNode) {
-                              setRelationshipCanvasModal({
-                                ...relationshipCanvasModal,
-                                node: updatedNode
-                              })
-                            }
-                          }
-                          e.target.value = ''
-                        }
-                      }}
-                    >
-                      <option value="">Select a character to add...</option>
-                      {getAllCharacters()
-                        .filter(char => !(relationshipCanvasModal.node.relationshipData?.selectedCharacters || []).find(sc => sc.id === char.id))
-                        .map(char => (
-                          <option key={char.id} value={char.id}>{char.name}</option>
-                        ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Selected Characters:</label>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {(relationshipCanvasModal.node.relationshipData?.selectedCharacters || []).map(character => (
-                        <div key={character.id} className="flex items-center justify-between p-2 bg-muted rounded">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full overflow-hidden bg-background border border-border flex items-center justify-center">
-                              {character.profileImageUrl ? (
-                                <img
-                                  src={character.profileImageUrl}
-                                  alt={character.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <User className="w-4 h-4 text-muted-foreground" />
-                              )}
-                            </div>
-                            <span className="text-sm font-medium text-foreground">{character.name}</span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              const currentNode = relationshipCanvasModal.node
-                              const selectedCharacters = currentNode.relationshipData?.selectedCharacters || []
-                              const updatedCharacters = selectedCharacters.filter(sc => sc.id !== character.id)
-
-                              const updatedNodes = nodes.map(n =>
-                                n.id === currentNode.id ? {
-                                  ...n,
-                                  relationshipData: {
-                                    ...n.relationshipData,
-                                    selectedCharacters: updatedCharacters,
-                                    relationships: n.relationshipData?.relationships || []
-                                  }
-                                } : n
-                              )
-                              setNodes(updatedNodes)
-                              saveToHistory(updatedNodes, connections)
-
-                              // Update modal state
-                              const updatedNode = updatedNodes.find(n => n.id === currentNode.id)
-                              if (updatedNode) {
-                                setRelationshipCanvasModal({
-                                  ...relationshipCanvasModal,
-                                  node: updatedNode
-                                })
-                              }
-                            }}
-                          >
-                            <X className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Panel - Relationship Visualization */}
-              <div>
-                <h4 className="text-md font-semibold mb-3">Relationship Map Preview</h4>
-                <div
-                  className="relative border-2 border-dashed border-border rounded-lg bg-white"
-                  style={{ height: '400px', minHeight: '300px' }}
-                  onMouseMove={(e) => {
-                    if (draggingCharacter) {
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      const x = Math.max(0, Math.min(280, e.clientX - rect.left - dragCharacterOffset.x))
-                      const y = Math.max(0, Math.min(280, e.clientY - rect.top - dragCharacterOffset.y))
-
-                      const currentNode = relationshipCanvasModal.node
-                      const selectedCharacters = currentNode.relationshipData?.selectedCharacters || []
-                      const updatedCharacters = selectedCharacters.map(char =>
-                        char.id === draggingCharacter ? { ...char, position: { x, y } } : char
-                      )
-
-                      const updatedNodes = nodes.map(n =>
-                        n.id === currentNode.id ? {
-                          ...n,
-                          relationshipData: {
-                            ...n.relationshipData,
-                            selectedCharacters: updatedCharacters,
-                            relationships: n.relationshipData?.relationships || []
-                          }
-                        } : n
-                      )
-                      setNodes(updatedNodes)
-
-                      // Update modal state
-                      const updatedNode = updatedNodes.find(n => n.id === currentNode.id)
-                      if (updatedNode) {
-                        setRelationshipCanvasModal({
-                          ...relationshipCanvasModal,
-                          node: updatedNode
-                        })
-                      }
-                    }
-                  }}
-                  onMouseUp={() => {
-                    if (draggingCharacter) {
-                      setDraggingCharacter(null)
-                      saveToHistory(nodes, connections)
-                    }
-                  }}
-                >
-                  {(relationshipCanvasModal.node.relationshipData?.selectedCharacters || []).map(character => (
-                    <div
-                      key={character.id}
-                      className={`absolute w-16 h-16 select-none transition-transform ${
-                        isConnectingMode
-                          ? selectedCharacterForConnection === character.id
-                            ? 'cursor-pointer scale-110 ring-4 ring-blue-400 shadow-lg z-10'
-                            : 'cursor-pointer hover:scale-105 hover:ring-2 hover:ring-gray-300'
-                          : draggingCharacter === character.id
-                          ? 'cursor-move scale-110 z-10'
-                          : 'cursor-move hover:scale-105'
-                      }`}
-                      style={{
-                        left: Math.min(character.position.x, 280),
-                        top: Math.min(character.position.y, 280)
-                      }}
-                      title={character.name}
-                      onMouseDown={(e) => {
-                        e.preventDefault()
-
-                        // Handle relationship connection mode
-                        if (isConnectingMode) {
-                          if (selectedCharacterForConnection === null) {
-                            // First character selected
-                            setSelectedCharacterForConnection(character.id)
-                          } else if (selectedCharacterForConnection !== character.id) {
-                            // Second character selected, create relationship
-                            const fromCharacter = relationshipCanvasModal.node.relationshipData?.selectedCharacters?.find(c => c.id === selectedCharacterForConnection)
-                            const toCharacter = character
-
-                            if (fromCharacter) {
-                              setRelationshipModal({
-                                isOpen: true,
-                                fromCharacter: { id: fromCharacter.id, name: fromCharacter.name },
-                                toCharacter: { id: toCharacter.id, name: toCharacter.name }
-                              })
-                            }
-                            setSelectedCharacterForConnection(null)
-                          }
-                          return // Don't start dragging in connecting mode
-                        }
-
-                        // Regular dragging mode
-                        setDraggingCharacter(character.id)
-                        const rect = e.currentTarget.getBoundingClientRect()
-                        setDragCharacterOffset({
-                          x: e.clientX - rect.left,
-                          y: e.clientY - rect.top
-                        })
-                      }}
-                    >
-                      <div className="w-full h-full rounded-full border-2 border-border overflow-hidden bg-background shadow-md">
-                        {character.profileImageUrl ? (
-                          <img
-                            src={character.profileImageUrl}
-                            alt={character.name}
-                            className="w-full h-full object-cover pointer-events-none"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <User className="w-6 h-6 text-muted-foreground" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-xs text-center mt-1 font-medium truncate bg-background px-1 rounded shadow-sm text-foreground border border-border">
-                        {character.name}
-                      </div>
-                    </div>
-                  ))}
-
-                  {(relationshipCanvasModal.node.relationshipData?.selectedCharacters?.length || 0) === 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                      <div className="text-center">
-                        <Heart className="w-12 h-12 text-muted-foreground/50 mx-auto mb-2" />
-                        <p className="text-sm">Add characters to start mapping relationships</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => setRelationshipCanvasModal(null)}
-              >
-                Close
-              </Button>
-              <Button
-                onClick={() => {
-                  setRelationshipCanvasModal(null)
-                  toast.success('Relationship map updated!')
-                }}
-              >
-                Save Changes
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Relationship Creation Modal */}
-      {relationshipModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-background p-6 rounded-lg shadow-lg border max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">
-                {relationshipModal.editingRelationship ? 'Edit Relationship' : 'Create Relationship'}
-              </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setRelationshipModal(null)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="text-center">
-                  <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mb-1">
-                    <User className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <p className="text-sm font-medium">{relationshipModal.fromCharacter.name}</p>
-                </div>
-                <Heart className="w-6 h-6 text-red-500" />
-                <div className="text-center">
-                  {relationshipModal.toCharacter.id ? (
-                    // Show selected character
-                    <>
-                      <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mb-1">
-                        <User className="w-6 h-6 text-green-600 dark:text-green-400" />
-                      </div>
-                      <p className="text-sm font-medium">{relationshipModal.toCharacter.name}</p>
-                    </>
-                  ) : (
-                    // Show character selection dropdown
-                    <div>
-                      <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-1">
-                        <User className="w-6 h-6 text-gray-400" />
-                      </div>
-                      <select
-                        className="text-xs p-1 border rounded"
-                        onChange={(e) => {
-                          if (e.target.value && relationshipCanvasModal) {
-                            const selectedChar = relationshipCanvasModal.node.relationshipData?.selectedCharacters?.find(c => c.id === e.target.value)
-                            if (selectedChar) {
-                              setRelationshipModal({
-                                ...relationshipModal,
-                                toCharacter: { id: selectedChar.id, name: selectedChar.name }
-                              })
-                            }
-                          }
-                        }}
-                        defaultValue=""
-                      >
-                        <option value="">Select character...</option>
-                        {relationshipCanvasModal?.node.relationshipData?.selectedCharacters
-                          ?.filter(c => c.id !== relationshipModal.fromCharacter.id)
-                          .map(character => (
-                            <option key={character.id} value={character.id}>{character.name}</option>
-                          ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Relationship Type:</label>
-                <select
-                  className="w-full p-2 border rounded-md"
-                  id="relationshipType"
-                  defaultValue={relationshipModal.editingRelationship?.relationshipType || 'friends'}
-                >
-                  <option value="romantic">Romantic (Red)</option>
-                  <option value="family">Family (Blue)</option>
-                  <option value="friends">Friends (Green)</option>
-                  <option value="professional">Professional (Orange)</option>
-                  <option value="rivals">Rivals/Enemies (Purple)</option>
-                  <option value="other">Other (Gray)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Relationship Strength:</label>
-                <select
-                  className="w-full p-2 border rounded-md"
-                  id="relationshipStrength"
-                  defaultValue={relationshipModal.editingRelationship?.strength || 2}
-                >
-                  <option value={3}>Strong (Thick line)</option>
-                  <option value={2}>Medium (Normal line)</option>
-                  <option value={1}>Weak (Thin dotted line)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Label (optional):</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 'married', 'siblings', 'best friends'"
-                  className="w-full p-2 border rounded-md"
-                  id="relationshipLabel"
-                  defaultValue={relationshipModal.editingRelationship?.label || ''}
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Notes (optional):</label>
-                <textarea
-                  placeholder="Additional details about this relationship"
-                  className="w-full p-2 border rounded-md h-20 resize-none"
-                  id="relationshipNotes"
-                  defaultValue={relationshipModal.editingRelationship?.notes || ''}
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-between gap-2 mt-6">
-              {relationshipModal.editingRelationship && (
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    if (!relationshipCanvasModal || !relationshipModal.editingRelationship) return
-
-                    const currentNode = relationshipCanvasModal.node
-                    const existingRelationships = currentNode.relationshipData?.relationships || []
-                    const updatedRelationships = existingRelationships.filter(
-                      rel => rel.id !== relationshipModal.editingRelationship!.id
-                    )
-
-                    const updatedNodes = nodes.map(n =>
-                      n.id === currentNode.id ? {
-                        ...n,
-                        relationshipData: {
-                          ...n.relationshipData,
-                          selectedCharacters: n.relationshipData?.selectedCharacters || [],
-                          relationships: updatedRelationships
-                        }
-                      } : n
-                    )
-
-                    setNodes(updatedNodes)
-                    saveToHistory(updatedNodes, connections)
-
-                    // Update modal state
-                    const updatedNode = updatedNodes.find(n => n.id === currentNode.id)
-                    if (updatedNode) {
-                      setRelationshipCanvasModal({
-                        ...relationshipCanvasModal,
-                        node: updatedNode
-                      })
-                    }
-
-                    setRelationshipModal(null)
-                    toast.success('Relationship deleted!')
-                  }}
-                >
-                  Delete
-                </Button>
-              )}
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setRelationshipModal(null)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                disabled={!relationshipModal.toCharacter.id}
-                onClick={() => {
-                  if (!relationshipCanvasModal || !relationshipModal.toCharacter.id) return
-
-                  const typeSelect = document.getElementById('relationshipType') as HTMLSelectElement
-                  const strengthSelect = document.getElementById('relationshipStrength') as HTMLSelectElement
-                  const labelInput = document.getElementById('relationshipLabel') as HTMLInputElement
-                  const notesInput = document.getElementById('relationshipNotes') as HTMLTextAreaElement
-
-                  const currentNode = relationshipCanvasModal.node
-                  const existingRelationships = currentNode.relationshipData?.relationships || []
-
-                  if (relationshipModal.editingRelationship) {
-                    // Update existing relationship
-                    const updatedRelationships = existingRelationships.map(rel =>
-                      rel.id === relationshipModal.editingRelationship!.id
-                        ? {
-                            ...rel,
-                            relationshipType: typeSelect.value as 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other',
-                            strength: parseInt(strengthSelect.value) as 1 | 2 | 3,
-                            label: labelInput.value || `${typeSelect.options[typeSelect.selectedIndex].text}`,
-                            notes: notesInput.value
-                          }
-                        : rel
-                    )
-
-                    const updatedNodes = nodes.map(n =>
-                      n.id === currentNode.id ? {
-                        ...n,
-                        relationshipData: {
-                          ...n.relationshipData,
-                          selectedCharacters: n.relationshipData?.selectedCharacters || [],
-                          relationships: updatedRelationships
-                        }
-                      } : n
-                    )
-
-                    setNodes(updatedNodes)
-                    saveToHistory(updatedNodes, connections)
-
-                    // Update modal state
-                    const updatedNode = updatedNodes.find(n => n.id === currentNode.id)
-                    if (updatedNode) {
-                      setRelationshipCanvasModal({
-                        ...relationshipCanvasModal,
-                        node: updatedNode
-                      })
-                    }
-
-                    setRelationshipModal(null)
-                    toast.success('Relationship updated!')
-                  } else {
-                    // Create new relationship
-                    const newRelationship = {
-                      id: `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                      fromCharacterId: relationshipModal.fromCharacter.id,
-                      toCharacterId: relationshipModal.toCharacter.id,
-                      relationshipType: typeSelect.value as 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other',
-                      strength: parseInt(strengthSelect.value) as 1 | 2 | 3,
-                      label: labelInput.value || `${typeSelect.options[typeSelect.selectedIndex].text}`,
-                      notes: notesInput.value,
-                      isBidirectional: true
-                    }
-
-                    const updatedRelationships = [...existingRelationships, newRelationship]
-
-                    const updatedNodes = nodes.map(n =>
-                      n.id === currentNode.id ? {
-                        ...n,
-                        relationshipData: {
-                          ...n.relationshipData,
-                          selectedCharacters: n.relationshipData?.selectedCharacters || [],
-                          relationships: updatedRelationships
-                        }
-                      } : n
-                    )
-
-                    setNodes(updatedNodes)
-                    saveToHistory(updatedNodes, connections)
-
-                    // Update modal state
-                    const updatedNode = updatedNodes.find(n => n.id === currentNode.id)
-                    if (updatedNode) {
-                      setRelationshipCanvasModal({
-                        ...relationshipCanvasModal,
-                        node: updatedNode
-                      })
-                    }
-
-                    setRelationshipModal(null)
-                    toast.success('Relationship created!')
-                  }
-                }}
-              >
-                {relationshipModal.editingRelationship ? 'Update Relationship' : 'Create Relationship'}
-              </Button>
-              </div>
             </div>
           </div>
         </div>
