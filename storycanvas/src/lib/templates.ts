@@ -38,9 +38,9 @@ export const storyTemplates: StoryTemplate[] = [
         y: 200,
         text: 'Story Development',
         width: 350,
-        height: 650, // Adjusted to be just a couple px below last node
+        height: 540,
         type: 'list',
-        childIds: ['characters-folder', 'plot-folder', 'world-folder', 'themes-references-folder']
+        childIds: ['characters-folder', 'plot-folder', 'world-folder']
       },
       {
         id: 'characters-folder',
@@ -75,18 +75,6 @@ export const storyTemplates: StoryTemplate[] = [
         type: 'folder',
         parentId: 'story-development'
       },
-      {
-        id: 'themes-references-folder',
-        x: 120,
-        y: 570,
-        text: 'Themes & References',
-        content: 'Write your content here...',
-        width: 310,
-        height: 90,
-        type: 'folder',
-        parentId: 'story-development'
-      },
-
       // Image node beside the story development
       {
         id: 'cover-image',
@@ -121,12 +109,6 @@ export const storyTemplates: StoryTemplate[] = [
         id: 'plot-to-world',
         from: 'plot-folder',
         to: 'world-folder',
-        type: 'relates-to'
-      },
-      {
-        id: 'world-to-themes',
-        from: 'world-folder',
-        to: 'themes-references-folder',
         type: 'relates-to'
       },
       {
@@ -663,6 +645,395 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         type: 'character-arc'
       }
     ]
+  },
+  'world-folder': {
+    nodes: [
+      // CENTER: Map image with instruction above
+      {
+        id: 'map-instructions',
+        x: 500,
+        y: 80,
+        text: 'World Map',
+        content: 'Upload a map of your world here →',
+        width: 600,
+        height: 70,
+        type: 'text'
+      },
+      {
+        id: 'world-map-image',
+        x: 500,
+        y: 170,
+        text: 'World Map Visual',
+        width: 600,
+        height: 300,
+        type: 'image'
+      },
+
+      // LEFT COLUMN: Core world properties (extended to fill space)
+      {
+        id: 'geography-climate',
+        x: 80,
+        y: 80,
+        text: 'Geography & Climate',
+        content: 'What are the major landforms, climates, and regions?',
+        width: 380,
+        height: 180,
+        type: 'text'
+      },
+      {
+        id: 'global-culture',
+        x: 80,
+        y: 280,
+        text: 'Global Culture',
+        content: 'What unites or defines cultures across the world?',
+        width: 380,
+        height: 130,
+        type: 'text'
+      },
+      {
+        id: 'technology-magic',
+        x: 80,
+        y: 430,
+        text: 'Technology & Magic',
+        content: 'How advanced is the world, and what role does magic/tech play?',
+        width: 380,
+        height: 130,
+        type: 'text'
+      },
+      {
+        id: 'religion-beliefs',
+        x: 80,
+        y: 580,
+        text: 'Religion & Belief Systems',
+        content: 'What do people believe in, and how does it affect daily life?',
+        width: 380,
+        height: 150,
+        type: 'text'
+      },
+
+      // BOTTOM CENTER: Social & economic systems (2 rows of 2) - extended to fill space
+      {
+        id: 'trade-economy',
+        x: 500,
+        y: 490,
+        text: 'Trade & Economy',
+        content: 'What fuels prosperity or scarcity across nations?',
+        width: 290,
+        height: 160,
+        type: 'text'
+      },
+      {
+        id: 'languages-communication',
+        x: 810,
+        y: 490,
+        text: 'Languages & Communication',
+        content: 'Are there many languages? A common tongue?',
+        width: 290,
+        height: 160,
+        type: 'text'
+      },
+      {
+        id: 'global-travel',
+        x: 500,
+        y: 670,
+        text: 'Global Travel & Connection',
+        content: 'How do people move, migrate, or share ideas?',
+        width: 290,
+        height: 160,
+        type: 'text'
+      },
+      {
+        id: 'values-taboos',
+        x: 810,
+        y: 670,
+        text: 'Values & Taboos',
+        content: 'What\'s seen as sacred, shameful, or universally important?',
+        width: 290,
+        height: 160,
+        type: 'text'
+      },
+
+      // RIGHT SIDE: Power structures (History moved to bottom with max space)
+      {
+        id: 'power-structures',
+        x: 1140,
+        y: 80,
+        text: 'Power Structures',
+        content: 'Who holds authority (political, magical, religious)?',
+        width: 300,
+        height: 170,
+        type: 'text'
+      },
+      {
+        id: 'conflicts-tensions',
+        x: 1140,
+        y: 270,
+        text: 'Conflicts & Tensions',
+        content: 'What are the big global threats or rivalries?',
+        width: 300,
+        height: 170,
+        type: 'text'
+      },
+      {
+        id: 'history-origins',
+        x: 1140,
+        y: 460,
+        text: 'History & Origins',
+        content: 'What major events shaped this world?',
+        width: 300,
+        height: 370,
+        type: 'text'
+      },
+
+      // FAR RIGHT: Countries list (moved further right)
+      {
+        id: 'countries-list',
+        x: 1480,
+        y: 80,
+        text: 'Countries',
+        width: 380,
+        height: 650,
+        type: 'list',
+        childIds: ['country-1', 'country-2', 'country-3', 'country-4']
+      },
+      {
+        id: 'country-1',
+        x: 1500,
+        y: 120,
+        text: 'Country 1',
+        width: 340,
+        height: 90,
+        type: 'folder',
+        parentId: 'countries-list',
+        linkedCanvasId: 'folder-canvas-country-1'
+      },
+      {
+        id: 'country-2',
+        x: 1500,
+        y: 230,
+        text: 'Country 2',
+        width: 340,
+        height: 90,
+        type: 'folder',
+        parentId: 'countries-list',
+        linkedCanvasId: 'folder-canvas-country-2'
+      },
+      {
+        id: 'country-3',
+        x: 1500,
+        y: 340,
+        text: 'Country 3',
+        width: 340,
+        height: 90,
+        type: 'folder',
+        parentId: 'countries-list',
+        linkedCanvasId: 'folder-canvas-country-3'
+      },
+      {
+        id: 'country-4',
+        x: 1500,
+        y: 450,
+        text: 'Country 4',
+        width: 340,
+        height: 90,
+        type: 'folder',
+        parentId: 'countries-list',
+        linkedCanvasId: 'folder-canvas-country-4'
+      }
+    ],
+    connections: []
+  },
+  'country': {
+    nodes: [
+      // LEFT COLUMN: Info table anchor
+      {
+        id: 'country-info-table',
+        x: 80,
+        y: 80,
+        text: 'Country Profile',
+        width: 250,
+        height: 320,
+        type: 'table',
+        tableData: [
+          { col1: 'Name', col2: '' },
+          { col1: 'Population', col2: '' },
+          { col1: 'Capital', col2: '' },
+          { col1: 'Founded', col2: '' },
+          { col1: 'Area (sq km)', col2: '' },
+          { col1: 'Currency', col2: '' },
+          { col1: 'Main Language', col2: '' },
+          { col1: 'Government', col2: '' },
+          { col1: 'Development Level', col2: '' },
+          { col1: 'Main Export', col2: '' }
+        ]
+      },
+      {
+        id: 'country-trade',
+        x: 80,
+        y: 440,
+        text: 'Trade & Economy',
+        content: 'What are the main exports/imports? How wealthy is the nation?',
+        width: 250,
+        height: 140,
+        type: 'text'
+      },
+      {
+        id: 'culture-exports',
+        x: 80,
+        y: 600,
+        text: 'Culture Exports',
+        content: 'Music, fashion, food, or art they\'re known for abroad.',
+        width: 250,
+        height: 140,
+        type: 'text'
+      },
+      {
+        id: 'country-languages',
+        x: 80,
+        y: 760,
+        text: 'Languages & Dialects',
+        content: 'What\'s spoken here? Any regional slang or secret codes?',
+        width: 250,
+        height: 120,
+        type: 'text'
+      },
+
+      // CENTER COLUMN: Cultural foundation with tall culture node
+      {
+        id: 'local-culture',
+        x: 350,
+        y: 80,
+        text: 'Local Culture',
+        content: 'What defines the country\'s traditions, customs, festivals, and rituals?',
+        width: 240,
+        height: 200,
+        type: 'text'
+      },
+      {
+        id: 'country-geography',
+        x: 350,
+        y: 310,
+        text: 'Geography & Climate',
+        content: 'What terrain, natural resources, or weather shape life here?',
+        width: 240,
+        height: 120,
+        type: 'text'
+      },
+      {
+        id: 'country-religion',
+        x: 350,
+        y: 450,
+        text: 'Religion & Beliefs',
+        content: 'Are there dominant faiths, cults, or superstitions?',
+        width: 240,
+        height: 120,
+        type: 'text'
+      },
+      {
+        id: 'country-values',
+        x: 350,
+        y: 590,
+        text: 'Values & Taboos',
+        content: 'What\'s sacred, shameful, or central to identity?',
+        width: 240,
+        height: 120,
+        type: 'text'
+      },
+      {
+        id: 'military-defense',
+        x: 350,
+        y: 730,
+        text: 'Military & Defense',
+        content: 'What\'s their army/navy like? Are they expansionist or defensive?',
+        width: 240,
+        height: 120,
+        type: 'text'
+      },
+
+      // RIGHT COLUMN: Power structures with tall conflicts node
+      {
+        id: 'country-power',
+        x: 610,
+        y: 80,
+        text: 'Power Structures',
+        content: 'Who rules? What systems of government, monarchy, or councils exist?',
+        width: 240,
+        height: 120,
+        type: 'text'
+      },
+      {
+        id: 'major-cities',
+        x: 610,
+        y: 220,
+        text: 'Major Cities',
+        content: 'List the most important or notable urban centers.',
+        width: 240,
+        height: 120,
+        type: 'text'
+      },
+      {
+        id: 'country-tech-magic',
+        x: 610,
+        y: 360,
+        text: 'Technology & Magic',
+        content: 'What\'s unique about their level of progress or magical practices?',
+        width: 240,
+        height: 120,
+        type: 'text'
+      },
+      {
+        id: 'country-conflicts',
+        x: 610,
+        y: 500,
+        text: 'Conflicts & Tensions',
+        content: 'Rivalries, wars, rebellions, internal strife, and current political tensions.',
+        width: 240,
+        height: 200,
+        type: 'text'
+      },
+      {
+        id: 'everyday-life',
+        x: 610,
+        y: 720,
+        text: 'Everyday Life',
+        content: 'What\'s daily living like for common people vs. elites?',
+        width: 240,
+        height: 120,
+        type: 'text'
+      },
+
+      // FAR RIGHT: Map with isolated space
+      {
+        id: 'local-map-instructions',
+        x: 900,
+        y: 80,
+        text: 'Local Map',
+        content: 'Upload a map of this country/region (any shape/size) →',
+        width: 400,
+        height: 70,
+        type: 'text'
+      },
+      {
+        id: 'local-map-image',
+        x: 900,
+        y: 170,
+        text: 'Country Map',
+        width: 400,
+        height: 280,
+        type: 'image'
+      },
+      {
+        id: 'country-history',
+        x: 900,
+        y: 470,
+        text: 'History & Origins',
+        content: 'How did this country form? What key events shaped it? Founding myths, major wars, cultural shifts, and historical turning points.',
+        width: 400,
+        height: 300,
+        type: 'text'
+      }
+    ],
+    connections: []
   },
   location: {
     nodes: [
