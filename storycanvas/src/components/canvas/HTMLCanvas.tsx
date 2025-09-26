@@ -59,6 +59,10 @@ interface RelationshipConnection {
   label: string        // "married", "siblings", "best friends", etc.
   notes?: string       // additional details
   isBidirectional: boolean  // true for mutual relationships
+  // Two-way relationship support
+  reverseRelationshipType?: 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other'
+  reverseStrength?: 1 | 2 | 3
+  reverseLabel?: string
 }
 
 interface HTMLCanvasProps {
@@ -143,6 +147,9 @@ export default function HTMLCanvas({
       strength: 1 | 2 | 3
       label: string
       notes?: string
+      reverseRelationshipType?: 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other'
+      reverseStrength?: 1 | 2 | 3
+      reverseLabel?: string
     }
   } | null>(null)
 
@@ -2285,7 +2292,7 @@ export default function HTMLCanvas({
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <Heart className="w-5 h-5 text-red-500" />
-                      <h3 className="font-semibold text-sm text-foreground">{node.text}</h3>
+                      <h3 className="font-semibold text-sm" style={{ color: getNodeBorderColor(node.type || 'text') }}>{node.text}</h3>
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {selectedCharacters.length} character{selectedCharacters.length !== 1 ? 's' : ''}
@@ -2386,7 +2393,7 @@ export default function HTMLCanvas({
                             document.addEventListener('mouseup', handleMouseUp)
                           }}
                         >
-                          <div className="w-full h-full rounded-full border-2 border-gray-300 overflow-hidden bg-background shadow-sm">
+                          <div className="w-full h-full rounded-full border-2 overflow-hidden bg-background shadow-sm" style={{ borderColor: getNodeBorderColor(node.type || 'text') }}>
                             {character.profileImageUrl ? (
                               <img
                                 src={character.profileImageUrl}
@@ -2457,6 +2464,40 @@ export default function HTMLCanvas({
                         const lineColor = getLineColor(relationship.relationshipType)
                         const lineStyle = getLineStyle(relationship.strength)
 
+                        // Check if this is a two-way relationship with different types
+                        const hasTwoWay = relationship.reverseRelationshipType !== undefined
+                        const reverseLineColor = hasTwoWay ? getLineColor(relationship.reverseRelationshipType!) : lineColor
+                        const reverseLineStyle = hasTwoWay ? getLineStyle(relationship.reverseStrength || 2) : lineStyle
+
+                        // Calculate parallel line positions for two-way relationships
+                        const angle = Math.atan2(toY - fromY, toX - fromX)
+                        const offset = hasTwoWay ? 6 : 0 // pixels offset for parallel lines (increased for better visibility)
+
+                        const line1FromX = fromX + Math.sin(angle) * offset
+                        const line1FromY = fromY - Math.cos(angle) * offset
+                        const line1ToX = toX + Math.sin(angle) * offset
+                        const line1ToY = toY - Math.cos(angle) * offset
+
+                        const line2FromX = fromX - Math.sin(angle) * offset
+                        const line2FromY = fromY + Math.cos(angle) * offset
+                        const line2ToX = toX - Math.sin(angle) * offset
+                        const line2ToY = toY + Math.cos(angle) * offset
+
+                        // Calculate arrow positions
+                        const arrowSize = 8
+                        const getArrowPoints = (x1: number, y1: number, x2: number, y2: number) => {
+                          const angle = Math.atan2(y2 - y1, x2 - x1)
+                          const arrowLength = arrowSize
+                          const arrowAngle = Math.PI / 6 // 30 degrees
+
+                          const arrowX1 = x2 - arrowLength * Math.cos(angle - arrowAngle)
+                          const arrowY1 = y2 - arrowLength * Math.sin(angle - arrowAngle)
+                          const arrowX2 = x2 - arrowLength * Math.cos(angle + arrowAngle)
+                          const arrowY2 = y2 - arrowLength * Math.sin(angle + arrowAngle)
+
+                          return `${arrowX1},${arrowY1} ${x2},${y2} ${arrowX2},${arrowY2}`
+                        }
+
                         return (
                           <g key={relationship.id}>
                             {/* Invisible wider line for easier clicking */}
@@ -2465,10 +2506,11 @@ export default function HTMLCanvas({
                               y1={fromY}
                               x2={toX}
                               y2={toY}
-                              stroke="transparent"
-                              strokeWidth={Math.max(10, lineStyle.strokeWidth + 6)}
+                              stroke="none"
+                              fill="none"
+                              strokeWidth={Math.max(15, lineStyle.strokeWidth + 8)}
                               className="cursor-pointer"
-                              style={{ pointerEvents: 'all' }}
+                              style={{ pointerEvents: 'all', opacity: 0 }}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 const fromCharData = selectedCharacters.find(c => c.id === relationship.fromCharacterId)
@@ -2484,25 +2526,89 @@ export default function HTMLCanvas({
                                       relationshipType: relationship.relationshipType,
                                       strength: relationship.strength,
                                       label: relationship.label,
-                                      notes: relationship.notes || ''
+                                      notes: relationship.notes || '',
+                                      reverseRelationshipType: relationship.reverseRelationshipType,
+                                      reverseStrength: relationship.reverseStrength,
+                                      reverseLabel: relationship.reverseLabel
                                     }
                                   })
                                 }
                               }}
-                              title={`Click to edit: ${relationship.label}`}
+                              title={`Click to edit: ${relationship.label}${hasTwoWay ? ` ↔ ${relationship.reverseLabel}` : ''}`}
                             />
-                            {/* Visible relationship line */}
-                            <line
-                              x1={fromX}
-                              y1={fromY}
-                              x2={toX}
-                              y2={toY}
-                              stroke={lineColor}
-                              strokeWidth={lineStyle.strokeWidth}
-                              strokeDasharray={lineStyle.strokeDasharray}
-                              opacity={0.8}
-                              className="pointer-events-none"
-                            />
+
+                            {hasTwoWay ? (
+                              // Two-way relationship: draw two parallel lines with arrows
+                              <>
+                                {/* Forward relationship line */}
+                                <line
+                                  x1={line1FromX}
+                                  y1={line1FromY}
+                                  x2={line1ToX}
+                                  y2={line1ToY}
+                                  stroke={lineColor}
+                                  strokeWidth={lineStyle.strokeWidth}
+                                  strokeDasharray={lineStyle.strokeDasharray}
+                                  opacity={0.8}
+                                  className="pointer-events-none"
+                                />
+                                {/* Forward relationship arrow */}
+                                <polyline
+                                  points={getArrowPoints(line1FromX, line1FromY, line1ToX, line1ToY)}
+                                  fill="none"
+                                  stroke={lineColor}
+                                  strokeWidth={Math.max(1, lineStyle.strokeWidth - 1)}
+                                  opacity={0.8}
+                                  className="pointer-events-none"
+                                />
+
+                                {/* Reverse relationship line */}
+                                <line
+                                  x1={line2ToX}
+                                  y1={line2ToY}
+                                  x2={line2FromX}
+                                  y2={line2FromY}
+                                  stroke={reverseLineColor}
+                                  strokeWidth={reverseLineStyle.strokeWidth}
+                                  strokeDasharray={reverseLineStyle.strokeDasharray}
+                                  opacity={0.8}
+                                  className="pointer-events-none"
+                                />
+                                {/* Reverse relationship arrow */}
+                                <polyline
+                                  points={getArrowPoints(line2ToX, line2ToY, line2FromX, line2FromY)}
+                                  fill="none"
+                                  stroke={reverseLineColor}
+                                  strokeWidth={Math.max(1, reverseLineStyle.strokeWidth - 1)}
+                                  opacity={0.8}
+                                  className="pointer-events-none"
+                                />
+                              </>
+                            ) : (
+                              // Single relationship line with arrow
+                              <>
+                                <line
+                                  x1={fromX}
+                                  y1={fromY}
+                                  x2={toX}
+                                  y2={toY}
+                                  stroke={lineColor}
+                                  strokeWidth={lineStyle.strokeWidth}
+                                  strokeDasharray={lineStyle.strokeDasharray}
+                                  opacity={0.8}
+                                  className="pointer-events-none"
+                                />
+                                {/* Single relationship arrow */}
+                                <polyline
+                                  points={getArrowPoints(fromX, fromY, toX, toY)}
+                                  fill="none"
+                                  stroke={lineColor}
+                                  strokeWidth={Math.max(1, lineStyle.strokeWidth - 1)}
+                                  opacity={0.8}
+                                  className="pointer-events-none"
+                                />
+                              </>
+                            )}
                           </g>
                         )
                       })}
@@ -3926,7 +4032,7 @@ export default function HTMLCanvas({
       {/* Relationship Creation Modal */}
       {relationshipModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-background p-6 rounded-lg shadow-lg border max-w-md w-full mx-4">
+          <div className="bg-background p-6 rounded-lg shadow-lg border max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">
                 {relationshipModal.editingRelationship ? 'Edit Relationship' : 'Create Relationship'}
@@ -4040,6 +4146,77 @@ export default function HTMLCanvas({
                   defaultValue={relationshipModal.editingRelationship?.notes || ''}
                 />
               </div>
+
+              {/* Two-way relationship option */}
+              <div className="border-t pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    type="checkbox"
+                    id="isTwoWay"
+                    className="rounded"
+                    defaultChecked={relationshipModal.editingRelationship?.reverseRelationshipType !== undefined}
+                    onChange={(e) => {
+                      const twoWaySection = document.getElementById('twoWaySection')
+                      if (twoWaySection) {
+                        twoWaySection.style.display = e.target.checked ? 'block' : 'none'
+                      }
+                    }}
+                  />
+                  <label htmlFor="isTwoWay" className="text-sm font-medium">
+                    Two-way relationship (different feelings in each direction)
+                  </label>
+                </div>
+
+                <div
+                  id="twoWaySection"
+                  className="space-y-3 pl-6 border-l-2 border-muted"
+                  style={{ display: relationshipModal.editingRelationship?.reverseRelationshipType ? 'block' : 'none' }}
+                >
+                  <p className="text-xs text-muted-foreground">
+                    How <strong>{relationshipModal.toCharacter.name}</strong> feels about <strong>{relationshipModal.fromCharacter.name}</strong>:
+                  </p>
+
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Return Relationship Type:</label>
+                    <select
+                      className="w-full p-2 border rounded-md"
+                      id="reverseRelationshipType"
+                      defaultValue={relationshipModal.editingRelationship?.reverseRelationshipType || 'friends'}
+                    >
+                      <option value="romantic">Romantic (Red)</option>
+                      <option value="family">Family (Blue)</option>
+                      <option value="friends">Friends (Green)</option>
+                      <option value="professional">Professional (Orange)</option>
+                      <option value="rivals">Rivals/Enemies (Purple)</option>
+                      <option value="other">Other (Gray)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Return Strength:</label>
+                    <select
+                      className="w-full p-2 border rounded-md"
+                      id="reverseStrength"
+                      defaultValue={relationshipModal.editingRelationship?.reverseStrength || 2}
+                    >
+                      <option value={3}>Strong (Thick line)</option>
+                      <option value={2}>Medium (Normal line)</option>
+                      <option value={1}>Weak (Thin dotted line)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Return Label (optional):</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 'dislikes', 'ignores', 'admires'"
+                      className="w-full p-2 border rounded-md"
+                      id="reverseLabel"
+                      defaultValue={relationshipModal.editingRelationship?.reverseLabel || ''}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-between gap-2 mt-6">
@@ -4103,6 +4280,12 @@ export default function HTMLCanvas({
                   const labelInput = document.getElementById('relationshipLabel') as HTMLInputElement
                   const notesInput = document.getElementById('relationshipNotes') as HTMLTextAreaElement
 
+                  // Two-way relationship fields
+                  const isTwoWayCheckbox = document.getElementById('isTwoWay') as HTMLInputElement
+                  const reverseTypeSelect = document.getElementById('reverseRelationshipType') as HTMLSelectElement
+                  const reverseStrengthSelect = document.getElementById('reverseStrength') as HTMLSelectElement
+                  const reverseLabelInput = document.getElementById('reverseLabel') as HTMLInputElement
+
                   const currentNode = relationshipCanvasModal.node
                   const existingRelationships = currentNode.relationshipData?.relationships || []
 
@@ -4115,7 +4298,17 @@ export default function HTMLCanvas({
                             relationshipType: typeSelect.value as 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other',
                             strength: parseInt(strengthSelect.value) as 1 | 2 | 3,
                             label: labelInput.value || `${typeSelect.options[typeSelect.selectedIndex].text}`,
-                            notes: notesInput.value
+                            notes: notesInput.value,
+                            // Two-way relationship data
+                            ...(isTwoWayCheckbox.checked ? {
+                              reverseRelationshipType: reverseTypeSelect.value as 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other',
+                              reverseStrength: parseInt(reverseStrengthSelect.value) as 1 | 2 | 3,
+                              reverseLabel: reverseLabelInput.value || `${reverseTypeSelect.options[reverseTypeSelect.selectedIndex].text}`,
+                            } : {
+                              reverseRelationshipType: undefined,
+                              reverseStrength: undefined,
+                              reverseLabel: undefined
+                            })
                           }
                         : rel
                     )
@@ -4155,7 +4348,13 @@ export default function HTMLCanvas({
                       strength: parseInt(strengthSelect.value) as 1 | 2 | 3,
                       label: labelInput.value || `${typeSelect.options[typeSelect.selectedIndex].text}`,
                       notes: notesInput.value,
-                      isBidirectional: true
+                      isBidirectional: true,
+                      // Two-way relationship data
+                      ...(isTwoWayCheckbox.checked ? {
+                        reverseRelationshipType: reverseTypeSelect.value as 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other',
+                        reverseStrength: parseInt(reverseStrengthSelect.value) as 1 | 2 | 3,
+                        reverseLabel: reverseLabelInput.value || `${reverseTypeSelect.options[reverseTypeSelect.selectedIndex].text}`,
+                      } : {})
                     }
 
                     const updatedRelationships = [...existingRelationships, newRelationship]
