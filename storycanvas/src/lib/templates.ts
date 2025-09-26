@@ -35,17 +35,17 @@ export const storyTemplates: StoryTemplate[] = [
       {
         id: 'story-development',
         x: 100,
-        y: 200,
+        y: 50,
         text: 'Story Development',
         width: 350,
-        height: 540,
+        height: 505,
         type: 'list',
         childIds: ['characters-folder', 'plot-folder', 'world-folder']
       },
       {
         id: 'characters-folder',
         x: 120,
-        y: 240,
+        y: 90,
         text: 'Characters & Relationships',
         content: 'Write your content here...',
         width: 310,
@@ -56,7 +56,7 @@ export const storyTemplates: StoryTemplate[] = [
       {
         id: 'plot-folder',
         x: 120,
-        y: 350,
+        y: 200,
         text: 'Plot Structure & Events',
         content: 'Write your content here...',
         width: 310,
@@ -67,7 +67,7 @@ export const storyTemplates: StoryTemplate[] = [
       {
         id: 'world-folder',
         x: 120,
-        y: 460,
+        y: 310,
         text: 'World & Settings',
         content: 'Write your content here...',
         width: 310,
@@ -79,7 +79,7 @@ export const storyTemplates: StoryTemplate[] = [
       {
         id: 'cover-image',
         x: 500,
-        y: 200,
+        y: 50,
         text: 'Cover Concept',
         width: 300,
         height: 300,
@@ -90,11 +90,11 @@ export const storyTemplates: StoryTemplate[] = [
       {
         id: 'story-overview',
         x: 500,
-        y: 520,
+        y: 370,
         text: 'Story Overview',
         content: 'Write your story overview here...',
         width: 300,
-        height: 230,
+        height: 185,
         type: 'text'
       }
     ],
@@ -427,8 +427,8 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
       },
       {
         id: 'relationship-map',
-        x: 550,
-        y: 120,
+        x: 505,
+        y: 110,
         text: 'Relationship Map',
         width: 600,
         height: 420,
