@@ -379,7 +379,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         id: 'character-1',
         x: 120,
         y: 120,
-        text: 'Character',
+        text: 'Character 1',
         width: 320,
         height: 72,
         type: 'character',
@@ -389,7 +389,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         id: 'character-2',
         x: 120,
         y: 202,
-        text: 'Character',
+        text: 'Character 2',
         width: 320,
         height: 72,
         type: 'character',
@@ -399,7 +399,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         id: 'character-3',
         x: 120,
         y: 284,
-        text: 'Character',
+        text: 'Character 3',
         width: 320,
         height: 72,
         type: 'character',
@@ -409,7 +409,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         id: 'character-4',
         x: 120,
         y: 366,
-        text: 'Character',
+        text: 'Character 4',
         width: 320,
         height: 72,
         type: 'character',
@@ -419,11 +419,50 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         id: 'character-5',
         x: 120,
         y: 448,
-        text: 'Character',
+        text: 'Character 5',
         width: 320,
         height: 72,
         type: 'character',
         parentId: 'characters-list'
+      },
+      {
+        id: 'relationship-map',
+        x: 550,
+        y: 120,
+        text: 'Relationship Map',
+        width: 600,
+        height: 420,
+        type: 'relationship-canvas',
+        relationshipData: {
+          selectedCharacters: [
+            {
+              id: 'character-1',
+              name: 'Character 1',
+              position: { x: 240, y: 50 }
+            },
+            {
+              id: 'character-2',
+              name: 'Character 2',
+              position: { x: 100, y: 130 }
+            },
+            {
+              id: 'character-3',
+              name: 'Character 3',
+              position: { x: 380, y: 130 }
+            },
+            {
+              id: 'character-4',
+              name: 'Character 4',
+              position: { x: 170, y: 210 }
+            },
+            {
+              id: 'character-5',
+              name: 'Character 5',
+              position: { x: 310, y: 210 }
+            }
+          ],
+          relationships: []
+        }
       }
     ],
     connections: []
