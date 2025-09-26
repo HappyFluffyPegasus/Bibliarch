@@ -434,34 +434,16 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         height: 420,
         type: 'relationship-canvas',
         relationshipData: {
-          selectedCharacters: [
-            {
-              id: 'character-1',
-              name: 'Character 1',
-              position: { x: 240, y: 50 }
-            },
-            {
-              id: 'character-2',
-              name: 'Character 2',
-              position: { x: 100, y: 130 }
-            },
-            {
-              id: 'character-3',
-              name: 'Character 3',
-              position: { x: 380, y: 130 }
-            },
-            {
-              id: 'character-4',
-              name: 'Character 4',
-              position: { x: 170, y: 210 }
-            },
-            {
-              id: 'character-5',
-              name: 'Character 5',
-              position: { x: 310, y: 210 }
-            }
-          ],
-          relationships: []
+          selectedCharacters: [],
+          relationships: [],
+          autoPopulateFromList: true,
+          defaultPositions: [
+            { x: 240, y: 50 },  // Character 1
+            { x: 100, y: 130 }, // Character 2
+            { x: 380, y: 130 }, // Character 3
+            { x: 170, y: 210 }, // Character 4
+            { x: 310, y: 210 }  // Character 5
+          ]
         }
       }
     ],

@@ -922,6 +922,121 @@ export default function HTMLCanvas({
       }))
   }, [nodes])
 
+  // Real-time sync: Function to update relationship canvas when character profile pictures change
+  const syncRelationshipCanvases = useCallback((updatedNodes: Node[]) => {
+    let hasUpdates = false
+    const syncedNodes = [...updatedNodes]
+
+    // Find all relationship canvas nodes and sync them
+    updatedNodes.forEach((node, nodeIndex) => {
+      if (node.type !== 'relationship-canvas' || !node.relationshipData?.selectedCharacters) {
+        return
+      }
+
+      const updatedSelectedCharacters = node.relationshipData.selectedCharacters.map(selectedChar => {
+        // Find the current character node to sync profile picture and name
+        const currentCharacterNode = updatedNodes.find(n => n.id === selectedChar.id && n.type === 'character')
+        if (currentCharacterNode) {
+          const needsUpdate =
+            selectedChar.profileImageUrl !== currentCharacterNode.profileImageUrl ||
+            selectedChar.name !== currentCharacterNode.text
+
+          if (needsUpdate) {
+            hasUpdates = true
+            return {
+              ...selectedChar,
+              name: currentCharacterNode.text,
+              profileImageUrl: currentCharacterNode.profileImageUrl
+            }
+          }
+        }
+        return selectedChar
+      })
+
+      // Only update if there were actual changes
+      if (hasUpdates) {
+        syncedNodes[nodeIndex] = {
+          ...node,
+          relationshipData: {
+            ...node.relationshipData,
+            selectedCharacters: updatedSelectedCharacters
+          }
+        }
+      }
+    })
+
+    return hasUpdates ? syncedNodes : updatedNodes
+  }, [])
+
+  // Also sync when character nodes change (for text updates)
+  const prevNodesRef = useRef<Node[]>([])
+  useEffect(() => {
+    const prevNodes = prevNodesRef.current
+
+    // Check if any character nodes have changed text or profile pictures
+    const characterNodesChanged = nodes.some(node => {
+      if (node.type !== 'character') return false
+
+      const prevNode = prevNodes.find(n => n.id === node.id)
+      if (!prevNode) return true // new character node
+
+      return prevNode.text !== node.text || prevNode.profileImageUrl !== node.profileImageUrl
+    })
+
+    if (characterNodesChanged && prevNodes.length > 0) {
+      const syncedNodes = syncRelationshipCanvases(nodes)
+      if (syncedNodes !== nodes) {
+        setNodes(syncedNodes)
+      }
+    }
+
+    prevNodesRef.current = nodes
+  }, [nodes, syncRelationshipCanvases])
+
+  // Auto-populate relationship canvas from character list on template load
+  useEffect(() => {
+    let hasUpdates = false
+    const updatedNodes = [...nodes]
+
+    nodes.forEach((node, nodeIndex) => {
+      if (
+        node.type === 'relationship-canvas' &&
+        node.relationshipData?.autoPopulateFromList &&
+        node.relationshipData.selectedCharacters.length === 0
+      ) {
+        // Find all character nodes that have parentId matching characters-list
+        const characterListNodes = nodes.filter(n =>
+          n.type === 'character' && n.parentId === 'characters-list'
+        )
+
+        if (characterListNodes.length > 0) {
+          const defaultPositions = node.relationshipData.defaultPositions || []
+
+          const selectedCharacters = characterListNodes.map((charNode, index) => ({
+            id: charNode.id,
+            name: charNode.text,
+            profileImageUrl: charNode.profileImageUrl,
+            position: defaultPositions[index] || { x: 100 + (index * 80), y: 100 + (index * 60) }
+          }))
+
+          updatedNodes[nodeIndex] = {
+            ...node,
+            relationshipData: {
+              ...node.relationshipData,
+              selectedCharacters,
+              autoPopulateFromList: false // Disable after first population
+            }
+          }
+          hasUpdates = true
+        }
+      }
+    })
+
+    if (hasUpdates) {
+      setNodes(updatedNodes)
+    }
+  }, [nodes])
+
   const getDefaultTableData = () => {
     return [
       { col1: '', col2: '', col3: '' },
@@ -2615,7 +2730,7 @@ export default function HTMLCanvas({
                     </svg>
 
                     {selectedCharacters.length === 0 && (
-                      <div className="absolute inset-0 flex items-center justify-center text-muted-foreground bg-muted/30 rounded">
+                      <div className="absolute inset-0 flex items-center justify-center text-muted-foreground bg-white rounded">
                         <div className="text-center p-4">
                           <Heart className="w-12 h-12 text-muted-foreground/50 mx-auto mb-2" />
                           <p className="text-sm font-medium mb-1">Character Relationships</p>
@@ -3700,8 +3815,10 @@ export default function HTMLCanvas({
                     const updatedNodes = nodes.map(n =>
                       n.id === cropModal.nodeId ? { ...n, profileImageUrl: croppedImageUrl } : n
                     )
-                    setNodes(updatedNodes)
-                    saveToHistory(updatedNodes, connections)
+                    // Sync relationship canvases immediately after updating profile picture
+                    const syncedNodes = syncRelationshipCanvases(updatedNodes)
+                    setNodes(syncedNodes)
+                    saveToHistory(syncedNodes, connections)
                     setCropModal(null)
                     setIsDraggingCrop(false)
                     setIsResizingCrop(false)
@@ -4339,25 +4456,94 @@ export default function HTMLCanvas({
                     setRelationshipModal(null)
                     toast.success('Relationship updated!')
                   } else {
-                    // Create new relationship
-                    const newRelationship = {
-                      id: `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                      fromCharacterId: relationshipModal.fromCharacter.id,
-                      toCharacterId: relationshipModal.toCharacter.id,
-                      relationshipType: typeSelect.value as 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other',
-                      strength: parseInt(strengthSelect.value) as 1 | 2 | 3,
-                      label: labelInput.value || `${typeSelect.options[typeSelect.selectedIndex].text}`,
-                      notes: notesInput.value,
-                      isBidirectional: true,
-                      // Two-way relationship data
-                      ...(isTwoWayCheckbox.checked ? {
-                        reverseRelationshipType: reverseTypeSelect.value as 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other',
-                        reverseStrength: parseInt(reverseStrengthSelect.value) as 1 | 2 | 3,
-                        reverseLabel: reverseLabelInput.value || `${reverseTypeSelect.options[reverseTypeSelect.selectedIndex].text}`,
-                      } : {})
-                    }
+                    // Check for existing relationship between these characters (in either direction)
+                    const exactMatchIndex = existingRelationships.findIndex(rel =>
+                      rel.fromCharacterId === relationshipModal.fromCharacter.id && rel.toCharacterId === relationshipModal.toCharacter.id
+                    )
 
-                    const updatedRelationships = [...existingRelationships, newRelationship]
+                    const reverseMatchIndex = existingRelationships.findIndex(rel =>
+                      rel.fromCharacterId === relationshipModal.toCharacter.id && rel.toCharacterId === relationshipModal.fromCharacter.id
+                    )
+
+                    let updatedRelationships
+
+                    if (exactMatchIndex !== -1) {
+                      // Exact same direction relationship exists - overwrite it
+                      const overwrittenRelationship = {
+                        ...existingRelationships[exactMatchIndex],
+                        relationshipType: typeSelect.value as 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other',
+                        strength: parseInt(strengthSelect.value) as 1 | 2 | 3,
+                        label: labelInput.value || `${typeSelect.options[typeSelect.selectedIndex].text}`,
+                        notes: notesInput.value,
+                        // Two-way relationship data
+                        ...(isTwoWayCheckbox.checked ? {
+                          reverseRelationshipType: reverseTypeSelect.value as 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other',
+                          reverseStrength: parseInt(reverseStrengthSelect.value) as 1 | 2 | 3,
+                          reverseLabel: reverseLabelInput.value || `${reverseTypeSelect.options[reverseTypeSelect.selectedIndex].text}`,
+                        } : {
+                          // Clear reverse relationship data if not two-way
+                          reverseRelationshipType: undefined,
+                          reverseStrength: undefined,
+                          reverseLabel: undefined
+                        })
+                      }
+
+                      updatedRelationships = existingRelationships.map((rel, index) =>
+                        index === exactMatchIndex ? overwrittenRelationship : rel
+                      )
+
+                      toast.success('Relationship updated!')
+                    } else if (reverseMatchIndex !== -1) {
+                      // Reverse direction relationship exists - merge into two-way relationship
+                      const existingRel = existingRelationships[reverseMatchIndex]
+
+                      const mergedRelationship = {
+                        ...existingRel,
+                        // Swap directions so the new relationship becomes the forward direction
+                        fromCharacterId: relationshipModal.fromCharacter.id,
+                        toCharacterId: relationshipModal.toCharacter.id,
+                        relationshipType: typeSelect.value as 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other',
+                        strength: parseInt(strengthSelect.value) as 1 | 2 | 3,
+                        label: labelInput.value || `${typeSelect.options[typeSelect.selectedIndex].text}`,
+                        notes: notesInput.value,
+                        // Move existing relationship to reverse direction
+                        reverseRelationshipType: existingRel.relationshipType,
+                        reverseStrength: existingRel.strength,
+                        reverseLabel: existingRel.label,
+                        // Include additional two-way data if specified
+                        ...(isTwoWayCheckbox.checked ? {
+                          reverseRelationshipType: reverseTypeSelect.value as 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other',
+                          reverseStrength: parseInt(reverseStrengthSelect.value) as 1 | 2 | 3,
+                          reverseLabel: reverseLabelInput.value || `${reverseTypeSelect.options[reverseTypeSelect.selectedIndex].text}`
+                        } : {})
+                      }
+
+                      updatedRelationships = existingRelationships.map((rel, index) =>
+                        index === reverseMatchIndex ? mergedRelationship : rel
+                      )
+
+                      toast.success('Relationships merged into two-way relationship!')
+                    } else {
+                      // Create new relationship
+                      const newRelationship = {
+                        id: `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        fromCharacterId: relationshipModal.fromCharacter.id,
+                        toCharacterId: relationshipModal.toCharacter.id,
+                        relationshipType: typeSelect.value as 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other',
+                        strength: parseInt(strengthSelect.value) as 1 | 2 | 3,
+                        label: labelInput.value || `${typeSelect.options[typeSelect.selectedIndex].text}`,
+                        notes: notesInput.value,
+                        isBidirectional: true,
+                        // Two-way relationship data
+                        ...(isTwoWayCheckbox.checked ? {
+                          reverseRelationshipType: reverseTypeSelect.value as 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other',
+                          reverseStrength: parseInt(reverseStrengthSelect.value) as 1 | 2 | 3,
+                          reverseLabel: reverseLabelInput.value || `${reverseTypeSelect.options[reverseTypeSelect.selectedIndex].text}`,
+                        } : {})
+                      }
+
+                      updatedRelationships = [...existingRelationships, newRelationship]
+                    }
 
                     const updatedNodes = nodes.map(n =>
                       n.id === currentNode.id ? {
