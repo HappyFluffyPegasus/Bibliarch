@@ -64,6 +64,12 @@
     --connection-relates-to: #10b981;   /* Emerald 500 - Related elements */
     --connection-conflicts-with: #ef4444; /* Red 500 - Conflict relationship */
     --connection-hover: #6366f1;        /* Indigo 500 - Hover state */
+
+    /* Node styling variables - can be overridden by toggle classes */
+    --node-border-radius: 8px;          /* Default: rounded corners */
+    --node-font-weight: 400;            /* Default: normal text weight */
+    --node-padding: 12px 16px;          /* Default: compact padding */
+    --node-text-align: left;            /* Default: left aligned text */
   }
   .dark {
     --background: 222.2 84% 4.9%;
@@ -125,6 +131,12 @@
     --connection-relates-to: #34d399;     /* Emerald 400 - Related elements */
     --connection-conflicts-with: #f87171; /* Red 400 - Conflict relationship */
     --connection-hover: #818cf8;          /* Indigo 400 - Hover state */
+
+    /* Node styling variables - Dark Mode */
+    --node-border-radius: 8px;            /* Default: rounded corners */
+    --node-font-weight: 400;              /* Default: normal text weight */
+    --node-padding: 12px 16px;            /* Default: compact padding */
+    --node-text-align: left;              /* Default: left aligned text */
   }
 }
 
@@ -300,4 +312,59 @@
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
+}
+
+/* Node Styling Toggle Classes - Override CSS Variables */
+
+/* Corner Style Toggles */
+.nodes-sharp {
+  --node-border-radius: 0px;
+}
+
+.nodes-rounded {
+  --node-border-radius: 8px;
+}
+
+/* Outline Toggles */
+.nodes-outlined {
+  /* Use the existing border system - don't override colors */
+}
+
+.nodes-borderless .node-background {
+  border: none !important;
+}
+
+/* Text Weight Toggles */
+.nodes-text-normal {
+  --node-font-weight: 400;
+}
+
+.nodes-text-bold {
+  --node-font-weight: 600;
+}
+
+/* Padding Toggles */
+.nodes-padding-compact {
+  --node-padding: 8px 12px;
+}
+
+.nodes-padding-spacious {
+  --node-padding: 16px 20px;
+}
+
+/* Text Alignment Toggles */
+.nodes-align-left {
+  --node-text-align: left;
+}
+
+.nodes-align-center {
+  --node-text-align: center;
+}
+
+/* Apply styling variables to all nodes */
+.node-background {
+  border-radius: var(--node-border-radius) !important;
+  padding: var(--node-padding) !important;
+  font-weight: var(--node-font-weight) !important;
+  text-align: var(--node-text-align) !important;
 }

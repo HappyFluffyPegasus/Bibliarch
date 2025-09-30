@@ -3,10 +3,11 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, ArrowUp, ArrowDown, Table, Heart } from 'lucide-react'
+import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, ArrowUp, ArrowDown, Table, Heart, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 import { PaletteSelector } from '@/components/ui/palette-selector'
 import { ColorFilter } from '@/components/ui/color-filter'
+import { NodeStylePanel } from '@/components/ui/node-style-panel'
 import { PerformanceOptimizer } from '@/lib/performance-utils'
 import { useColorContext } from '@/components/providers/color-provider'
 
@@ -25,6 +26,11 @@ interface Node {
   profileImageUrl?: string // For character nodes profile pictures
   attributes?: any
   tableData?: { col1: string; col2: string; col3: string }[] // For table nodes
+  // Event node properties
+  title?: string // Event title (for event nodes)
+  summary?: string // Event summary/description (for event nodes)
+  durationText?: string // Free form duration text (for event nodes)
+  sequenceOrder?: number // Optional sequence ordering (for event nodes)
   // Container properties for list nodes
   parentId?: string // If this node is inside a container
   childIds?: string[] // If this node is a container (for list nodes)
@@ -65,6 +71,14 @@ interface RelationshipConnection {
   reverseLabel?: string
 }
 
+interface NodeStylePreferences {
+  corners: 'sharp' | 'rounded'
+  outlines: 'visible' | 'hidden'
+  textWeight: 'normal' | 'bold'
+  padding: 'compact' | 'spacious'
+  textAlign: 'left' | 'center'
+}
+
 interface HTMLCanvasProps {
   storyId: string
   initialNodes?: Node[]
@@ -89,10 +103,24 @@ export default function HTMLCanvas({
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
   const [showHelp, setShowHelp] = useState(true)
+  const [showStylePanel, setShowStylePanel] = useState(false)
   const [visibleNodeIds, setVisibleNodeIds] = useState<string[]>([])
   const [viewportNodes, setViewportNodes] = useState<Node[]>([])
   const [isMoving, setIsMoving] = useState(false)
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null)
+
+  // Node style preferences state
+  const [nodeStylePreferences, setNodeStylePreferences] = useState<NodeStylePreferences>(() => {
+    // Load from localStorage on init
+    const saved = localStorage.getItem('storycanvas-node-styles')
+    return saved ? JSON.parse(saved) : {
+      corners: 'rounded',
+      outlines: 'visible',
+      textWeight: 'normal',
+      padding: 'compact',
+      textAlign: 'left'
+    }
+  })
   const [paletteRefresh, setPaletteRefresh] = useState(0) // Force re-render when palette changes
   const [draggedNode, setDraggedNode] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
@@ -219,7 +247,24 @@ export default function HTMLCanvas({
       const scrollHeight = element.scrollHeight
 
       let newHeight
-      if (isTitle) {
+      if (currentNode?.type === 'event') {
+        // Special handling for event nodes with their 3-section layout
+        if (isTitle) {
+          // For event title - get title height and add other sections
+          const titleHeight = Math.max(24, scrollHeight)
+          const titleSectionHeight = titleHeight + 16 // title + padding
+          const summaryMinHeight = 100 // minimum summary area
+          const durationSectionHeight = 40 // duration input area
+          newHeight = Math.max(280, titleSectionHeight + summaryMinHeight + durationSectionHeight)
+        } else {
+          // For event summary - calculate based on content size
+          const contentHeight = Math.max(64, scrollHeight)
+          const titleSectionHeight = 50 // title area with icon
+          const durationSectionHeight = 40 // duration input area
+          const padding = 20
+          newHeight = Math.max(280, titleSectionHeight + contentHeight + durationSectionHeight + padding)
+        }
+      } else if (isTitle) {
         // For title elements - just add minimal padding
         const titleHeight = Math.max(24, scrollHeight)
         newHeight = Math.max(120, titleHeight + 96) // Title + content area minimum
@@ -241,6 +286,16 @@ export default function HTMLCanvas({
         if (currentNode.type === 'list') {
           return prevNodes
         }
+
+        // For event nodes, enforce absolute minimum dimensions to prevent scaling down below preset size
+        if (currentNode.type === 'event') {
+          const safeHeight = Math.max(280, newHeight, currentNode.height) // Never go smaller than 280px OR current size
+          const safeWidth = Math.max(220, currentNode.width) // Never go smaller than 220px
+          return prevNodes.map(n =>
+            n.id === nodeId ? { ...n, height: safeHeight, width: safeWidth } : n
+          )
+        }
+
         return prevNodes.map(n =>
           n.id === nodeId ? { ...n, height: newHeight } : n
         )
@@ -252,7 +307,7 @@ export default function HTMLCanvas({
 
   // Debounced resize function to prevent conflicts and race conditions
   const debouncedResizeRef = useRef<Record<string, NodeJS.Timeout>>({})
-  const debouncedAutoResize = useCallback((nodeId: string, element: HTMLElement | null, isTitle = false, delay = 250) => {
+  const debouncedAutoResize = useCallback((nodeId: string, element: HTMLElement | null, isTitle = false, delay = 500) => {
     // Clear any existing timeout for this node
     if (debouncedResizeRef.current[nodeId]) {
       clearTimeout(debouncedResizeRef.current[nodeId])
@@ -273,8 +328,8 @@ export default function HTMLCanvas({
       // Initial load - auto-size all nodes once
       const timer = setTimeout(() => {
         nodes.forEach(node => {
-          // Skip auto-resize for image and character nodes - they maintain their fixed sizes
-          if (node.type === 'image' || node.type === 'character') {
+          // Skip auto-resize for image, character, and location nodes - they maintain their fixed sizes
+          if (node.type === 'image' || node.type === 'character' || node.type === 'location') {
             return
           }
 
@@ -450,6 +505,20 @@ export default function HTMLCanvas({
         if (contentElement && !contentElement.textContent && node.content) {
           contentElement.textContent = node.content
         }
+
+        // Initialize event node title if empty
+        if (node.type === 'event') {
+          const eventTitleElement = document.querySelector(`[data-node-id="${node.id}"] [data-content-type="title"]`) as HTMLElement
+          if (eventTitleElement && !eventTitleElement.textContent && node.title) {
+            eventTitleElement.textContent = node.title
+          }
+
+          // Initialize event node summary if empty
+          const eventSummaryElement = document.querySelector(`[data-node-id="${node.id}"] [data-content-type="summary"]`) as HTMLElement
+          if (eventSummaryElement && !eventSummaryElement.textContent && node.summary) {
+            eventSummaryElement.textContent = node.summary
+          }
+        }
       })
     }, 50)
 
@@ -514,6 +583,38 @@ export default function HTMLCanvas({
     }
   }, [history, historyIndex])
 
+  // Node style preferences update function
+  const updateNodeStylePreference = useCallback((key: keyof NodeStylePreferences, value: string) => {
+    setNodeStylePreferences(prev => {
+      const newPrefs = { ...prev, [key]: value }
+      // Save to localStorage
+      localStorage.setItem('storycanvas-node-styles', JSON.stringify(newPrefs))
+      return newPrefs
+    })
+  }, [])
+
+  // Generate CSS classes based on current style preferences
+  const getNodeStyleClasses = useCallback(() => {
+    const classes = []
+
+    // Add corner style class
+    classes.push(nodeStylePreferences.corners === 'sharp' ? 'nodes-sharp' : 'nodes-rounded')
+
+    // Add outline style class
+    classes.push(nodeStylePreferences.outlines === 'visible' ? 'nodes-outlined' : 'nodes-borderless')
+
+    // Add text weight class
+    classes.push(nodeStylePreferences.textWeight === 'bold' ? 'nodes-text-bold' : 'nodes-text-normal')
+
+    // Add padding class
+    classes.push(nodeStylePreferences.padding === 'spacious' ? 'nodes-padding-spacious' : 'nodes-padding-compact')
+
+    // Add text alignment class
+    classes.push(nodeStylePreferences.textAlign === 'center' ? 'nodes-align-center' : 'nodes-align-left')
+
+    return classes.join(' ')
+  }, [nodeStylePreferences])
+
   // Keyboard shortcuts for undo/redo and delete
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -533,6 +634,7 @@ export default function HTMLCanvas({
       } else if (e.key === 'Escape') {
         e.preventDefault()
         setSelectedId(null)
+        setConnectingFrom(null) // Cancel any pending connections
         setTool('pan')
       }
     }
@@ -540,6 +642,11 @@ export default function HTMLCanvas({
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [undo, redo, selectedId])
+
+  // Cancel connecting mode when tool changes
+  useEffect(() => {
+    setConnectingFrom(null)
+  }, [tool])
 
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
     // Pan tool doesn't create nodes, only pans
@@ -560,13 +667,14 @@ export default function HTMLCanvas({
       y: Math.max(0, y - 60),
       text: getDefaultText(tool),
       content: getDefaultContent(tool),
-      width: tool === 'list' ? 320 : tool === 'image' ? 300 : tool === 'character' ? 320 : tool === 'table' ? 280 : tool === 'relationship-canvas' ? 600 : 200,  // Relationship canvas large
-      height: tool === 'list' ? 240 : tool === 'image' ? 200 : tool === 'character' ? 72 : tool === 'table' ? 200 : tool === 'relationship-canvas' ? 400 : 120, // Relationship canvas tall
+      width: tool === 'list' ? 320 : tool === 'image' ? 300 : tool === 'character' ? 320 : tool === 'location' ? 320 : tool === 'event' ? 220 : tool === 'table' ? 280 : tool === 'relationship-canvas' ? 600 : 200,  // Event nodes portrait: 220px wide
+      height: tool === 'list' ? 240 : tool === 'image' ? 200 : tool === 'character' ? 72 : tool === 'location' ? 72 : tool === 'event' ? 280 : tool === 'table' ? 200 : tool === 'relationship-canvas' ? 400 : 120, // Event nodes portrait: 280px tall
       type: tool,
       // Don't set color - let it use dynamic theme colors
       ...(tool === 'list' ? { childIds: [], layoutMode: 'single-column' as const } : {}),
       ...(tool === 'table' ? { tableData: getDefaultTableData() } : {}),
-      ...(tool === 'relationship-canvas' ? { relationshipData: { selectedCharacters: [], relationships: [] } } : {})
+      ...(tool === 'relationship-canvas' ? { relationshipData: { selectedCharacters: [], relationships: [] } } : {}),
+      ...(tool === 'event' ? { title: 'New Event', summary: 'Describe what happens in this event...', durationText: '' } : {})
     }
 
     const newNodes = [...nodes, newNode]
@@ -627,8 +735,20 @@ export default function HTMLCanvas({
       const resizingNodeObj = nodes.find(n => n.id === resizingNode)
       if (!resizingNodeObj) return
 
-      let newWidth = Math.max(120, resizeStartSize.width + deltaX)
-      let newHeight = Math.max(80, resizeStartSize.height + deltaY)
+      // Set minimum dimensions based on node type
+      let minWidth = 120
+      let minHeight = 80
+
+      if (resizingNodeObj.type === 'event') {
+        minWidth = 220  // Event nodes minimum width
+        minHeight = 280 // Event nodes minimum height
+      } else if (resizingNodeObj.type === 'character') {
+        minWidth = 320  // Character nodes minimum width
+        minHeight = 72  // Character nodes minimum height
+      }
+
+      let newWidth = Math.max(minWidth, resizeStartSize.width + deltaX)
+      let newHeight = Math.max(minHeight, resizeStartSize.height + deltaY)
 
       // Apply node-type specific resize behavior
       if (resizingNodeObj.type === 'image') {
@@ -779,7 +899,7 @@ export default function HTMLCanvas({
       const draggedNodeObj = nodes.find(n => n.id === draggingNode)
       let droppedIntoList = false
 
-      if (draggedNodeObj && (draggedNodeObj.type === 'folder' || draggedNodeObj.type === 'character') && !draggedNodeObj.parentId) {
+      if (draggedNodeObj && (draggedNodeObj.type === 'folder' || draggedNodeObj.type === 'character' || draggedNodeObj.type === 'location' || draggedNodeObj.type === 'event') && !draggedNodeObj.parentId) {
         // Find if dropped onto any list container
         const listContainers = nodes.filter(n => n.type === 'list')
         for (const listNode of listContainers) {
@@ -1046,17 +1166,6 @@ export default function HTMLCanvas({
   }
 
   const getNodeColor = (nodeType: string, customColor?: string, nodeId?: string) => {
-    if (customColor) return customColor
-
-    // For folder nodes, optionally show their custom palette color
-    if (nodeType === 'folder' && nodeId) {
-      const folderPalette = colorContext.getFolderPalette(nodeId)
-      if (folderPalette) {
-        // Show the folder's custom color on the outside
-        return folderPalette.colors.nodeDefault
-      }
-    }
-
     // Get the current active palette from color context
     const currentPalette = colorContext.getCurrentPalette()
 
@@ -1137,6 +1246,35 @@ export default function HTMLCanvas({
         node: node
       })
       return
+    }
+
+    // Handle timeline connections when event tool is selected
+    if (tool === 'event' && node.type === 'event') {
+      if (!connectingFrom) {
+        // First click: start timeline connection
+        setConnectingFrom(node.id)
+        toast.info(`Click another event to create timeline connection`)
+        return
+      } else if (connectingFrom === node.id) {
+        // Same node: cancel connection
+        setConnectingFrom(null)
+        toast.info('Timeline connection cancelled')
+        return
+      } else {
+        // Second click: create timeline connection between events
+        const newConnection: Connection = {
+          id: `timeline-${Date.now()}`,
+          from: connectingFrom,
+          to: node.id,
+          type: 'leads-to' // Timeline sequence connection
+        }
+        const newConnections = [...connections, newConnection]
+        setConnections(newConnections)
+        saveToHistory(nodes, newConnections)
+        setConnectingFrom(null)
+        toast.success('Timeline connection created!')
+        return
+      }
     }
 
     // Handle connection tool
@@ -1256,7 +1394,7 @@ export default function HTMLCanvas({
       if (childCount > 0 && node.childIds) {
         const childNodes = nodes.filter(n => node.childIds?.includes(n.id))
         totalChildHeight = childNodes.reduce((sum, childNode) => {
-          const nodeHeight = childNode.type === 'character' ? 72 : 140 // Character nodes are 72px, folders are 140px
+          const nodeHeight = childNode.type === 'character' ? 72 : childNode.type === 'event' ? 280 : 140 // Character=72px, Event=280px, Folder=140px
           return sum + nodeHeight + uniformSpacing
         }, 0)
       }
@@ -1288,6 +1426,24 @@ export default function HTMLCanvas({
       return {
         width: characterWidth,
         height: characterHeight
+      }
+    } else if (node.type === 'location') {
+      // Location nodes: same compact height as character nodes but with location icon
+      const locationHeight = 72 // Height for icon + name (same as character)
+      const locationWidth = node.width || 600 // Much wider default to match character nodes
+
+      return {
+        width: locationWidth,
+        height: locationHeight
+      }
+    } else if (node.type === 'event') {
+      // Event nodes: portrait storyboard-style layout with minimum dimensions
+      const eventWidth = Math.max(220, node.width || 220) // Minimum 220px width
+      const eventHeight = Math.max(280, node.height || 280) // Minimum 280px height
+
+      return {
+        width: eventWidth,
+        height: eventHeight
       }
     }
 
@@ -1369,10 +1525,10 @@ export default function HTMLCanvas({
     const targetNode = nodes.find(n => n.id === targetNodeId)
     const draggedNodeObj = nodes.find(n => n.id === draggedNodeId)
     
-    // Only allow folder nodes to be added to list containers
+    // Only allow folder, character, location, and event nodes to be added to list containers
     if (targetNode?.type === 'list' && draggedNodeObj && draggedNodeId !== targetNodeId && !draggedNodeObj.parentId) {
-      if (draggedNodeObj.type !== 'folder') {
-        toast.error('Lists can only contain folder nodes. Convert this node to a folder first.')
+      if (draggedNodeObj.type !== 'folder' && draggedNodeObj.type !== 'character' && draggedNodeObj.type !== 'location' && draggedNodeObj.type !== 'event') {
+        toast.error('Lists can only contain folder, character, location, and event nodes.')
         setDraggedNode(null)
         setDropTarget(null)
         return
@@ -1709,7 +1865,7 @@ export default function HTMLCanvas({
             variant={tool === 'event' ? 'default' : 'outline'}
             onClick={() => setTool('event')}
             className={`h-12 w-14 p-0 ${tool === 'event' ? 'bg-pink-600 text-white' : ''}`}
-            title="Add Event - Click canvas to create"
+            title="Add Event - Click canvas to create | Click events to connect timeline"
           >
             <Calendar className="w-7 h-7" />
           </Button>
@@ -1955,10 +2111,19 @@ export default function HTMLCanvas({
 
       {/* Canvas Area */}
       <div className="flex-1 relative overflow-auto" style={{ backgroundColor: 'var(--color-canvas-bg, hsl(var(--background)))' }}>
-        {/* Help Panel */}
+        {/* Top-right buttons when help is shown */}
         {showHelp && (
-          <div className="fixed top-16 right-4 z-50 max-w-xs sm:max-w-sm">
-            <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs sm:text-sm shadow-lg">
+          <div className="fixed top-16 right-4 z-50 flex gap-2 items-start">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowStylePanel(!showStylePanel)}
+              className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
+              title="Node Style Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+            <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs sm:text-sm shadow-lg max-w-xs sm:max-w-sm">
               <div className="flex items-center justify-between mb-1">
                 <h4 className="font-medium text-xs sm:text-sm text-card-foreground">How to use:</h4>
                 <Button 
@@ -1973,9 +2138,12 @@ export default function HTMLCanvas({
               <div className="text-xs text-muted-foreground space-y-1">
                 <div><strong>Pan:</strong> Click & drag, or use trackpad/scroll</div>
                 <div><strong>Zoom:</strong> Ctrl + scroll wheel</div>
-                <div><strong>Select:</strong> Click nodes to select, click again to edit</div>
+                <div><strong>Select:</strong> Only tool for editing text - click nodes to select and edit</div>
                 <div><strong>Move:</strong> Drag selected nodes to reposition them</div>
                 <div><strong>Create:</strong> Select a tool then click on canvas</div>
+                {tool === 'event' && (
+                  <div><strong>Timeline:</strong> Click events to connect them in sequence</div>
+                )}
                 <div><strong>Navigate:</strong> Click arrow (→) on folder/character nodes to enter</div>
                 <div><strong>Organize:</strong> Drag nodes into list containers (📦)</div>
                 <div><strong>Delete:</strong> Select node and press Delete or Backspace</div>
@@ -1991,9 +2159,18 @@ export default function HTMLCanvas({
           </div>
         )}
         
-        {/* Help toggle when hidden */}
+        {/* Top-right buttons when help is hidden */}
         {!showHelp && (
-          <div className="fixed top-16 right-4 z-50">
+          <div className="fixed top-16 right-4 z-50 flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowStylePanel(!showStylePanel)}
+              className="h-8 w-8 p-0 text-xs shadow-lg"
+              title="Node Style Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -2006,14 +2183,39 @@ export default function HTMLCanvas({
           </div>
         )}
 
-        <div 
+        {/* Style Panel Popup */}
+        {showStylePanel && (
+          <div className={`fixed top-16 z-50 w-64 ${showHelp ? 'right-80 sm:right-96' : 'right-[calc(3rem+2px)]'}`}>
+            <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-medium text-foreground flex items-center gap-2">
+                  🎨 Node Style
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowStylePanel(false)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <NodeStylePanel
+                preferences={nodeStylePreferences}
+                onUpdate={updateNodeStylePreference}
+              />
+            </Card>
+          </div>
+        )}
+
+        <div
           ref={canvasRef}
           className={`canvas-grid relative ${
             tool === 'pan' ? 'cursor-grab' :
             tool === 'select' ? 'cursor-default' :
             tool === 'relationships' ? 'cursor-pointer' :
             'cursor-crosshair'
-          } ${isPanning ? 'cursor-grabbing' : ''}`}
+          } ${isPanning ? 'cursor-grabbing' : ''} ${getNodeStyleClasses()}`}
           onClick={handleCanvasClick}
           onMouseDown={handleCanvasMouseDown}
           onMouseMove={handleCanvasMouseMove}
@@ -2266,7 +2468,7 @@ export default function HTMLCanvas({
                 <div
                   key={node.id}
                   data-node-id={node.id}
-                  className={`absolute cursor-move hover:shadow-lg shadow-sm ${
+                  className={`absolute cursor-move ${tool !== 'pan' ? 'hover:shadow-lg' : ''} shadow-sm ${
                     selectedId === node.id ? 'ring-2 ring-primary' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
@@ -2362,6 +2564,418 @@ export default function HTMLCanvas({
               )
             }
 
+            // Render location nodes with character-like layout but no profile picture
+            if (node.type === 'location') {
+              return (
+                <div
+                  key={node.id}
+                  data-node-id={node.id}
+                  className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${tool !== 'pan' ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
+                    selectedId === node.id ? 'ring-2 ring-primary' : ''
+                  } ${
+                    connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
+                  } ${
+                    isDropTarget ? 'ring-2 ring-green-500 bg-green-50' : ''
+                  } ${
+                    renderSettings.skipAnimations ? '' : 'transition-all'
+                  }`}
+                  style={{
+                    left: draggingNode === node.id ? dragPosition.x : node.x,
+                    top: draggingNode === node.id ? dragPosition.y : node.y,
+                    width: node.width,
+                    height: node.height,
+                    backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
+                    borderColor: selectedId === node.id ? 'hsl(var(--primary))' : getNodeBorderColor(node.type || 'text')
+                  }}
+                  onClick={(e) => handleNodeClick(node, e)}
+                  onDoubleClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    // Handle double-click navigation for location nodes
+                    if (onNavigateToCanvas) {
+                      onNavigateToCanvas(node.id, 'location')
+                    }
+                  }}
+                  onMouseDown={(e) => {
+                    // Check if user is clicking on text content areas that should be editable
+                    const target = e.target as HTMLElement
+                    const isTextElement = target.contentEditable === 'true' ||
+                                         target.tagName === 'INPUT' ||
+                                         target.tagName === 'TEXTAREA' ||
+                                         target.closest('[contenteditable="true"]')
+
+                    // Only start drag if NOT clicking on editable text
+                    if (!isTextElement) {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setDragStartPos({ x: e.clientX, y: e.clientY })
+                      setIsDragReady(node.id)
+
+                      const rect = canvasRef.current?.getBoundingClientRect()
+                      if (rect) {
+                        const mouseX = e.clientX - rect.left
+                        const mouseY = e.clientY - rect.top
+                        setDragOffset({
+                          x: mouseX - node.x,
+                          y: mouseY - node.y
+                        })
+                      }
+                    }
+                  }}
+                >
+                  {/* Location node layout similar to character but without profile picture */}
+                  <div className="flex h-full items-center">
+                    {/* Location icon area (instead of profile picture) */}
+                    <div className="flex-shrink-0 w-16 h-16 ml-2 mr-3 rounded border-2 flex items-center justify-center" style={{
+                      backgroundColor: getNodeColor(node.type || 'location', node.color, node.id),
+                      borderColor: getNodeBorderColor(node.type || 'location')
+                    }}>
+                      <MapPin className="w-8 h-8" style={{ color: getNodeBorderColor(node.type || 'location') }} />
+                    </div>
+
+                    {/* Location name */}
+                    <div className="flex-1 min-w-0 pr-2">
+                      <div
+                        contentEditable={tool === 'select'}
+                        suppressContentEditableWarning={true}
+                        data-content-type="title"
+                        className="bg-transparent border-none outline-none font-medium text-base cursor-text rounded px-1"
+                        style={{
+                          color: getTextColor(getNodeColor(node.type, node.color, node.id)),
+                          caretColor: getTextColor(getNodeColor(node.type, node.color, node.id))
+                        }}
+                        onBlur={(e) => {
+                          const newText = e.currentTarget.textContent || ''
+                          const updatedNodes = nodes.map(n =>
+                            n.id === node.id ? { ...n, text: newText } : n
+                          )
+                          setNodes(updatedNodes)
+                          saveToHistory(updatedNodes, connections)
+                        }}
+                        onClick={(e) => {
+                          if (tool === 'select') {
+                            e.stopPropagation()
+                            e.currentTarget.focus()
+                          }
+                        }}
+                        spellCheck={false}
+                        data-placeholder="Location name..."
+                      >
+                        {node.text || ''}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Resize handles for location nodes */}
+                  {selectedId === node.id && (
+                    <>
+                      {/* Right edge resize handle (width only) */}
+                      <div
+                        className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-8 bg-primary/70 rounded-sm cursor-e-resize hover:bg-primary/90"
+                        onMouseDown={(e) => {
+                          e.stopPropagation()
+                          setResizingNode(node.id)
+                          setResizeStartSize({ width: node.width, height: node.height })
+                          setResizeStartPos({ x: e.clientX, y: e.clientY })
+                        }}
+                      />
+                    </>
+                  )}
+                </div>
+              )
+            }
+
+            // Render event nodes with storyboard-style layout
+            if (node.type === 'event') {
+              return (
+                <div
+                  key={node.id}
+                  data-node-id={node.id}
+                  className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${tool !== 'pan' ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
+                    selectedId === node.id ? 'ring-2 ring-primary' : ''
+                  } ${
+                    connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
+                  } ${
+                    isDropTarget ? 'ring-2 ring-green-500 bg-green-50' : ''
+                  } ${
+                    renderSettings.skipAnimations ? '' : 'transition-all'
+                  }`}
+                  style={{
+                    left: draggingNode === node.id ? dragPosition.x : node.x,
+                    top: draggingNode === node.id ? dragPosition.y : node.y,
+                    width: node.width,
+                    height: node.height,
+                    backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
+                    borderColor: selectedId === node.id ? 'hsl(var(--primary))' : getNodeBorderColor(node.type || 'text')
+                  }}
+                  onClick={(e) => handleNodeClick(node, e)}
+                  onDoubleClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    // Prevent double-click navigation for event nodes
+                  }}
+                  onMouseDown={(e) => {
+                    // Check if user is clicking on text content areas that should be editable
+                    const target = e.target as HTMLElement
+                    const isTextElement = target.contentEditable === 'true' ||
+                                         target.tagName === 'INPUT' ||
+                                         target.tagName === 'TEXTAREA' ||
+                                         target.closest('[contenteditable="true"]')
+
+                    // Only start drag if NOT clicking on editable text
+                    if (!isTextElement) {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setDragStartPos({ x: e.clientX, y: e.clientY })
+                      setIsDragReady(node.id)
+
+                      const rect = canvasRef.current?.getBoundingClientRect()
+                      if (rect) {
+                        const mouseX = e.clientX - rect.left
+                        const mouseY = e.clientY - rect.top
+                        setDragOffset({
+                          x: mouseX - node.x,
+                          y: mouseY - node.y
+                        })
+                      }
+                    }
+                  }}
+                >
+                  {/* Event node storyboard layout */}
+                  <div className="flex flex-col h-full">
+                    {/* Title area with icon */}
+                    <div className="flex items-center px-3 py-2 bg-opacity-50 border-b" style={{
+                      borderColor: getNodeBorderColor(node.type || 'event')
+                    }}>
+                      <Calendar className="w-4 h-4 mr-2 flex-shrink-0" style={{
+                        color: getNodeBorderColor(node.type || 'event')
+                      }} />
+                      <div
+                        contentEditable={tool === 'select'}
+                        suppressContentEditableWarning={true}
+                        data-content-type="title"
+                        className="bg-transparent border-none outline-none font-semibold text-sm cursor-text rounded px-1 flex-1"
+                        style={{
+                          color: getTextColor(getNodeColor(node.type, node.color, node.id)),
+                          caretColor: getTextColor(getNodeColor(node.type, node.color, node.id)),
+                          pointerEvents: tool === 'event' ? 'none' : 'auto',
+                          userSelect: tool === 'event' ? 'none' : 'auto'
+                        }}
+                        onPaste={(e) => {
+                          const target = e.currentTarget as HTMLElement
+                          if (target) {
+                            debouncedAutoResize(node.id, target, true)
+                          }
+                        }}
+                        onInput={(e) => {
+                          const newTitle = e.currentTarget.textContent || ''
+                          // Save cursor position before state update
+                          const selection = window.getSelection()
+                          let cursorOffset = 0
+                          if (selection && selection.rangeCount > 0) {
+                            const range = selection.getRangeAt(0)
+                            cursorOffset = range.startOffset
+                          }
+
+                          const updatedNodes = nodes.map(n =>
+                            n.id === node.id ? { ...n, title: newTitle } : n
+                          )
+                          setNodes(updatedNodes)
+
+                          // Restore cursor position after state update
+                          setTimeout(() => {
+                            const element = e.currentTarget
+                            if (element && document.activeElement === element) {
+                              // Try to restore cursor position
+                              try {
+                                const textNode = element.firstChild
+                                if (textNode && textNode.nodeType === Node.TEXT_NODE && textNode.textContent) {
+                                  const newRange = document.createRange()
+                                  const newSelection = window.getSelection()
+                                  const safeOffset = Math.min(cursorOffset, textNode.textContent.length)
+                                  newRange.setStart(textNode, safeOffset)
+                                  newRange.setEnd(textNode, safeOffset)
+                                  if (newSelection) {
+                                    newSelection.removeAllRanges()
+                                    newSelection.addRange(newRange)
+                                  }
+                                } else if (element.textContent) {
+                                  // Fallback: set cursor at end
+                                  const range = document.createRange()
+                                  range.selectNodeContents(element)
+                                  range.collapse(false)
+                                  const selection = window.getSelection()
+                                  if (selection) {
+                                    selection.removeAllRanges()
+                                    selection.addRange(range)
+                                  }
+                                }
+                              } catch (error) {
+                                // Ignore cursor restoration errors
+                                console.warn('Cursor restoration failed:', error)
+                              }
+                            }
+                          }, 0)
+
+                          // Auto-resize
+                          const target = e.currentTarget as HTMLElement
+                          if (target) {
+                            debouncedAutoResize(node.id, target, true)
+                          }
+                        }}
+                        onBlur={() => {
+                          saveToHistory(nodes, connections)
+                        }}
+                        onClick={(e) => {
+                          if (tool === 'select') {
+                            e.stopPropagation()
+                            e.currentTarget.focus()
+                          }
+                        }}
+                        spellCheck={false}
+                        data-placeholder="Event Title"
+                      />
+                    </div>
+
+                    {/* Summary area - main content */}
+                    <div className="flex-1 px-3 py-2 overflow-hidden">
+                      <div
+                        contentEditable={tool === 'select'}
+                        suppressContentEditableWarning={true}
+                        data-content-type="summary"
+                        className="bg-transparent border-none outline-none text-sm cursor-text rounded px-1 h-full overflow-hidden leading-relaxed resize-none"
+                        style={{
+                          color: getTextColor(getNodeColor(node.type, node.color, node.id)),
+                          caretColor: getTextColor(getNodeColor(node.type, node.color, node.id)),
+                          pointerEvents: tool === 'event' ? 'none' : 'auto',
+                          userSelect: tool === 'event' ? 'none' : 'auto'
+                        }}
+                        onPaste={(e) => {
+                          const target = e.currentTarget as HTMLElement
+                          if (target) {
+                            debouncedAutoResize(node.id, target, false)
+                          }
+                        }}
+                        onInput={(e) => {
+                          const newSummary = e.currentTarget.textContent || ''
+                          // Save cursor position before state update
+                          const selection = window.getSelection()
+                          let cursorOffset = 0
+                          if (selection && selection.rangeCount > 0) {
+                            const range = selection.getRangeAt(0)
+                            cursorOffset = range.startOffset
+                          }
+
+                          const updatedNodes = nodes.map(n =>
+                            n.id === node.id ? { ...n, summary: newSummary } : n
+                          )
+                          setNodes(updatedNodes)
+
+                          // Restore cursor position after state update
+                          setTimeout(() => {
+                            const element = e.currentTarget
+                            if (element && document.activeElement === element) {
+                              // Try to restore cursor position
+                              try {
+                                const textNode = element.firstChild
+                                if (textNode && textNode.nodeType === Node.TEXT_NODE && textNode.textContent) {
+                                  const newRange = document.createRange()
+                                  const newSelection = window.getSelection()
+                                  const safeOffset = Math.min(cursorOffset, textNode.textContent.length)
+                                  newRange.setStart(textNode, safeOffset)
+                                  newRange.setEnd(textNode, safeOffset)
+                                  if (newSelection) {
+                                    newSelection.removeAllRanges()
+                                    newSelection.addRange(newRange)
+                                  }
+                                } else if (element.textContent) {
+                                  // Fallback: set cursor at end
+                                  const range = document.createRange()
+                                  range.selectNodeContents(element)
+                                  range.collapse(false)
+                                  const selection = window.getSelection()
+                                  if (selection) {
+                                    selection.removeAllRanges()
+                                    selection.addRange(range)
+                                  }
+                                }
+                              } catch (error) {
+                                // Ignore cursor restoration errors
+                                console.warn('Cursor restoration failed:', error)
+                              }
+                            }
+                          }, 0)
+
+                          // Auto-resize
+                          const target = e.currentTarget as HTMLElement
+                          if (target) {
+                            debouncedAutoResize(node.id, target, false)
+                          }
+                        }}
+                        onBlur={() => {
+                          saveToHistory(nodes, connections)
+                        }}
+                        onClick={(e) => {
+                          if (tool === 'select') {
+                            e.stopPropagation()
+                            e.currentTarget.focus()
+                          }
+                        }}
+                        spellCheck={false}
+                        data-placeholder="Describe what happens in this event..."
+                      />
+                    </div>
+
+                    {/* Duration input area */}
+                    <div className="px-2 py-2 border-t" style={{
+                      borderColor: getNodeBorderColor(node.type || 'event')
+                    }}>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs whitespace-nowrap" style={{ color: getTextColor(getNodeColor(node.type, node.color, node.id)) }}>
+                          Duration:
+                        </span>
+                        <input
+                          type="text"
+                          className="text-xs bg-transparent border border-gray-300 rounded px-1 py-0.5 flex-1 min-w-0 outline-none focus:border-primary"
+                          style={{
+                            color: getTextColor(getNodeColor(node.type, node.color, node.id)),
+                            borderColor: getNodeBorderColor(node.type || 'event')
+                          }}
+                          value={node.durationText || ''}
+                          onChange={(e) => {
+                            e.stopPropagation()
+                            const updatedNodes = nodes.map(n =>
+                              n.id === node.id ? { ...n, durationText: e.target.value } : n
+                            )
+                            setNodes(updatedNodes)
+                            saveToHistory(updatedNodes, connections)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onFocus={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Resize handles for event nodes */}
+                  {selectedId === node.id && (
+                    <>
+                      <div
+                        className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-sm cursor-se-resize hover:bg-primary/80 border border-background"
+                        onMouseDown={(e) => {
+                          e.stopPropagation()
+                          setResizingNode(node.id)
+                          setResizeStartSize({ width: node.width, height: node.height })
+                          setResizeStartPos({ x: e.clientX, y: e.clientY })
+                        }}
+                      />
+                    </>
+                  )}
+                </div>
+              )
+            }
+
             // Render relationship-canvas nodes
             if (node.type === 'relationship-canvas') {
               const selectedCharacters = node.relationshipData?.selectedCharacters || []
@@ -2370,7 +2984,7 @@ export default function HTMLCanvas({
                 <div
                   key={node.id}
                   data-node-id={node.id}
-                  className={`absolute cursor-move hover:shadow-lg shadow-sm border-2 rounded-lg ${
+                  className={`absolute cursor-move ${tool !== 'pan' ? 'hover:shadow-lg' : ''} shadow-sm border-2 rounded-lg ${
                     selectedId === node.id ? 'ring-2 ring-primary' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
@@ -2749,7 +3363,7 @@ export default function HTMLCanvas({
                 <div
                   key={node.id}
                   data-node-id={node.id}
-                  className={`absolute border-2 rounded-lg overflow-hidden cursor-move hover:shadow-lg shadow-sm node-background ${
+                  className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${tool !== 'pan' ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
                     selectedId === node.id ? 'ring-2 ring-primary' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
@@ -2859,10 +3473,10 @@ export default function HTMLCanvas({
                     {/* Character name area */}
                     <div className="flex-1 pr-8 min-w-0 flex items-center">
                       <div
-                        contentEditable
+                        contentEditable={tool === 'select'}
                         suppressContentEditableWarning={true}
                         data-content-type="title"
-                        className="font-medium text-sm outline-none bg-transparent border-none cursor-text hover:bg-muted/20 rounded px-1 w-full"
+                        className="font-medium text-sm outline-none bg-transparent border-none cursor-text rounded px-1 w-full"
                         style={{
                           color: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
                           caretColor: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
@@ -2879,8 +3493,10 @@ export default function HTMLCanvas({
                           saveToHistory(updatedNodes, connections)
                         }}
                         onClick={(e) => {
-                          e.stopPropagation()
-                          e.currentTarget.focus()
+                          if (tool === 'select') {
+                            e.stopPropagation()
+                            e.currentTarget.focus()
+                          }
                         }}
                         spellCheck={false}
                         data-placeholder="Character name..."
@@ -2891,7 +3507,7 @@ export default function HTMLCanvas({
 
                     {/* Navigation arrow - clickable */}
                     <div
-                      className="absolute bottom-1 right-1 p-1 cursor-pointer hover:bg-black/10 rounded"
+                      className="absolute bottom-1 right-1 p-1 cursor-pointer ${tool !== 'pan' ? 'hover:bg-black/10' : ''} rounded"
                       onClick={async (e) => {
                         e.stopPropagation()
                         // Single click navigation for character nodes
@@ -2944,7 +3560,7 @@ export default function HTMLCanvas({
               key={node.id}
               data-node-id={node.id}
               draggable={node.type !== 'list'}
-              className={`absolute border-2 rounded-lg p-3 cursor-move hover:shadow-lg shadow-sm node-background ${
+              className={`absolute border-2 rounded-lg p-3 cursor-move ${tool !== 'pan' ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
                 selectedId === node.id ? 'ring-2 ring-primary' : ''
               } ${
                 connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
@@ -3006,13 +3622,15 @@ export default function HTMLCanvas({
                     {getNodeIcon(node.type)}
                   </div>
                   <div
-                    contentEditable
+                    contentEditable={tool === 'select'}
                     suppressContentEditableWarning={true}
                     data-content-type="title"
-                    className="flex-1 font-medium text-sm outline-none bg-transparent border-none cursor-text hover:bg-muted/20 rounded px-1"
+                    className="flex-1 font-medium text-sm outline-none bg-transparent border-none cursor-text rounded px-1"
                     style={{
                       color: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
-                      caretColor: getTextColor(getNodeColor(node.type || 'text', node.color, node.id))
+                      caretColor: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
+                      pointerEvents: tool === 'event' ? 'none' : 'auto',
+                      userSelect: tool === 'event' ? 'none' : 'auto'
                     }}
                     onInput={(e) => {
                       const newText = e.currentTarget.textContent || ''
@@ -3069,9 +3687,11 @@ export default function HTMLCanvas({
                       saveToHistory(nodes, connections)
                     }}
                     onClick={(e) => {
-                      e.stopPropagation()
-                      // Focus the text editing area when clicked
-                      e.currentTarget.focus()
+                      if (tool === 'select') {
+                        e.stopPropagation()
+                        // Focus the text editing area when clicked
+                        e.currentTarget.focus()
+                      }
                     }}
                     onFocus={(e) => {
                       // Let the browser handle cursor positioning naturally
@@ -3094,7 +3714,7 @@ export default function HTMLCanvas({
                       <div className="space-y-1">
                         {childNodes.map((childNode, index) => {
                           // Determine height based on node type
-                          const childHeight = childNode.type === 'character' ? '72px' : '140px'
+                          const childHeight = childNode.type === 'character' ? '72px' : childNode.type === 'event' ? '100px' : '140px'
 
                           return (
                           <div
@@ -3215,10 +3835,10 @@ export default function HTMLCanvas({
                                     {/* Character name */}
                                     <div className="flex-1 min-w-0 flex items-center">
                                       <div
-                                        contentEditable
+                                        contentEditable={tool === 'select'}
                                         suppressContentEditableWarning={true}
                                         data-content-type="title"
-                                        className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text hover:bg-muted/20 rounded px-1 whitespace-nowrap overflow-hidden"
+                                        className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text rounded px-1 whitespace-nowrap overflow-hidden"
                                         style={{
                                           color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id)),
                                           caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id))
@@ -3232,8 +3852,10 @@ export default function HTMLCanvas({
                                           saveToHistory(updatedNodes, connections)
                                         }}
                                         onClick={(e) => {
-                                          e.stopPropagation()
-                                          e.currentTarget.focus()
+                                          if (tool === 'select') {
+                                            e.stopPropagation()
+                                            e.currentTarget.focus()
+                                          }
                                         }}
                                         spellCheck={false}
                                         data-placeholder="Character name..."
@@ -3256,7 +3878,7 @@ export default function HTMLCanvas({
 
                                     {/* Navigation arrow */}
                                     <div
-                                      className="flex-shrink-0 p-1 cursor-pointer hover:bg-black/10 rounded"
+                                      className="flex-shrink-0 p-1 cursor-pointer ${tool !== 'pan' ? 'hover:bg-black/10' : ''} rounded"
                                       onClick={async (e) => {
                                         e.stopPropagation()
 
@@ -3316,6 +3938,186 @@ export default function HTMLCanvas({
                                     </div>
                                   </div>
                                 </>
+                              ) : childNode.type === 'location' ? (
+                                <>
+                                  <div className="flex items-center gap-3 p-2 h-full">
+                                    {/* Location icon */}
+                                    <div className="flex-shrink-0 w-12 h-12 rounded-md flex items-center justify-center" style={{
+                                      backgroundColor: getNodeColor(childNode.type || 'location', childNode.color, childNode.id)
+                                    }}>
+                                      <MapPin className="w-6 h-6" style={{ color: getNodeBorderColor(childNode.type || 'location') }} />
+                                    </div>
+
+                                    {/* Location name */}
+                                    <div className="flex-1 min-w-0 flex items-center">
+                                      <div
+                                        contentEditable={tool === 'select'}
+                                        suppressContentEditableWarning={true}
+                                        data-content-type="title"
+                                        className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text rounded px-1 whitespace-nowrap overflow-hidden"
+                                        style={{
+                                          color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id)),
+                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id))
+                                        }}
+                                        onBlur={(e) => {
+                                          const newText = e.currentTarget.textContent || ''
+                                          const updatedNodes = nodes.map(n =>
+                                            n.id === childNode.id ? { ...n, text: newText } : n
+                                          )
+                                          setNodes(updatedNodes)
+                                          saveToHistory(updatedNodes, connections)
+                                        }}
+                                        onClick={(e) => {
+                                          if (tool === 'select') {
+                                            e.stopPropagation()
+                                            e.currentTarget.focus()
+                                          }
+                                        }}
+                                        spellCheck={false}
+                                        data-placeholder="Location name..."
+                                      >
+                                        {childNode.text || ''}
+                                      </div>
+                                    </div>
+
+                                    {/* Remove button */}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        removeFromContainer(childNode.id)
+                                      }}
+                                      className="text-red-500 hover:text-red-700 w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 flex-shrink-0"
+                                      title="Remove from container"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+
+                                    {/* Navigation arrow */}
+                                    <div
+                                      className="flex-shrink-0 p-1 cursor-pointer ${tool !== 'pan' ? 'hover:bg-black/10' : ''} rounded"
+                                      onClick={async (e) => {
+                                        e.stopPropagation()
+
+                                        const currentNode = nodes.find(n => n.id === childNode.id)
+                                        if (!currentNode || !onNavigateToCanvas) {
+                                          return
+                                        }
+
+                                        const nodeTitle = currentNode.text || 'Location'
+
+                                        if (currentNode.linkedCanvasId) {
+                                          colorContext.setCurrentFolderId(currentNode.id)
+                                          const folderPalette = colorContext.getFolderPalette(currentNode.id)
+                                          if (folderPalette) {
+                                            colorContext.applyPalette(folderPalette)
+                                          }
+                                          onNavigateToCanvas(currentNode.linkedCanvasId, nodeTitle)
+                                        } else {
+                                          // Create new linkedCanvasId
+                                          const linkedCanvasId = `location-canvas-${currentNode.id}`
+
+                                          const updatedNodes = nodes.map(n =>
+                                            n.id === currentNode.id ? { ...n, linkedCanvasId } : n
+                                          )
+
+                                          setNodes(updatedNodes)
+                                          saveToHistory(updatedNodes, connections)
+
+                                          // Save in background without blocking navigation
+                                          if (onSave) {
+                                            onSave(updatedNodes, connections)
+                                          }
+
+                                          colorContext.setCurrentFolderId(currentNode.id)
+                                          const folderPalette = colorContext.getFolderPalette(currentNode.id)
+                                          if (folderPalette) {
+                                            colorContext.applyPalette(folderPalette)
+                                          }
+
+                                          onNavigateToCanvas(linkedCanvasId, nodeTitle)
+                                        }
+                                      }}
+                                      title="Open location details"
+                                    >
+                                      <span className="text-lg font-bold" style={{ color: getNodeBorderColor('location') }}>→</span>
+                                    </div>
+                                  </div>
+                                </>
+                              ) : childNode.type === 'event' ? (
+                                <>
+                                  <div className="flex flex-col h-full">
+                                    {/* Event title with icon */}
+                                    <div className="flex items-center gap-2 p-2 border-b" style={{
+                                      borderColor: getNodeBorderColor(childNode.type || 'event')
+                                    }}>
+                                      <Calendar className="w-4 h-4 flex-shrink-0" style={{
+                                        color: getNodeBorderColor(childNode.type || 'event')
+                                      }} />
+                                      <div
+                                        contentEditable={tool === 'select'}
+                                        suppressContentEditableWarning={true}
+                                        data-content-type="title"
+                                        className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text rounded px-1 whitespace-nowrap overflow-hidden"
+                                        style={{
+                                          color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id)),
+                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id))
+                                        }}
+                                        onBlur={(e) => {
+                                          const newTitle = e.currentTarget.textContent || ''
+                                          const updatedNodes = nodes.map(n =>
+                                            n.id === childNode.id ? { ...n, title: newTitle } : n
+                                          )
+                                          setNodes(updatedNodes)
+                                          saveToHistory(updatedNodes, connections)
+                                        }}
+                                        onClick={(e) => {
+                                          if (tool === 'select') {
+                                            e.stopPropagation()
+                                            e.currentTarget.focus()
+                                          }
+                                        }}
+                                        spellCheck={false}
+                                        data-placeholder="Event Title"
+                                      >
+                                        {childNode.title || 'New Event'}
+                                      </div>
+
+                                      {/* Remove button */}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          removeFromContainer(childNode.id)
+                                        }}
+                                        className="text-red-500 hover:text-red-700 w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 flex-shrink-0"
+                                        title="Remove from container"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </button>
+                                    </div>
+
+                                    {/* Event summary area */}
+                                    <div className="flex-1 px-2 py-1 text-xs leading-relaxed overflow-hidden">
+                                      <div
+                                        className="text-gray-600 line-clamp-2"
+                                        style={{ color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id)) }}
+                                      >
+                                        {childNode.summary || 'Event summary...'}
+                                      </div>
+                                    </div>
+
+                                    {/* Duration display */}
+                                    <div className="px-2 py-1 border-t text-center" style={{
+                                      borderColor: getNodeBorderColor(childNode.type || 'event')
+                                    }}>
+                                      <div
+                                        className="text-xs font-medium"
+                                        style={{ color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id)) }}
+                                      >
+                                        {childNode.durationText || ''}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </>
                               ) : (
                                 <>
                                   {/* Header with title and controls for folder nodes */}
@@ -3325,10 +4127,10 @@ export default function HTMLCanvas({
                                     {getNodeIcon(childNode.type)}
                                   </div>
                                   <div
-                                    contentEditable
+                                    contentEditable={tool === 'select'}
                                     suppressContentEditableWarning={true}
                                     data-content-type="title"
-                                    className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text min-w-0 hover:bg-muted/20 rounded px-1"
+                                    className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text min-w-0 rounded px-1"
                                     style={{
                                       color: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id)),
                                       caretColor: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id))
@@ -3346,8 +4148,10 @@ export default function HTMLCanvas({
                                       saveToHistory(updatedNodes, connections)
                                     }}
                                     onClick={(e) => {
-                                      e.stopPropagation()
-                                      e.currentTarget.focus()
+                                      if (tool === 'select') {
+                                        e.stopPropagation()
+                                        e.currentTarget.focus()
+                                      }
                                     }}
                                     onFocus={(e) => {
                                       // Let the browser handle cursor positioning naturally
@@ -3374,10 +4178,10 @@ export default function HTMLCanvas({
                               {/* Content area */}
                               <div className="px-2 pb-2">
                                 <div
-                                  contentEditable
+                                  contentEditable={tool === 'select'}
                                   suppressContentEditableWarning={true}
                                   data-content-type="content"
-                                  className="w-full bg-transparent border-none outline-none text-sm min-h-[3.5rem] max-h-full overflow-auto cursor-text leading-relaxed hover:bg-muted/10 rounded px-1"
+                                  className="w-full bg-transparent border-none outline-none text-sm min-h-[3.5rem] max-h-full overflow-auto cursor-text leading-relaxed rounded px-1"
                                   style={{
                                     color: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id)),
                                     caretColor: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id))
@@ -3393,8 +4197,10 @@ export default function HTMLCanvas({
                                     saveToHistory(nodes, connections)
                                   }}
                                   onClick={(e) => {
-                                    e.stopPropagation()
-                                    e.currentTarget.focus()
+                                    if (tool === 'select') {
+                                      e.stopPropagation()
+                                      e.currentTarget.focus()
+                                    }
                                   }}
                                   spellCheck={false}
                                   data-placeholder="Write your content here..."
@@ -3404,11 +4210,8 @@ export default function HTMLCanvas({
 
                               {/* Folder indicator */}
                               <div className="absolute bottom-1 right-1 flex items-center gap-1">
-                                {colorContext.getFolderPalette(childNode.id) && (
-                                  <span className="text-xs" title="Has custom color palette">🎨</span>
-                                )}
                                 <div
-                                  className="p-1 cursor-pointer hover:bg-black/10 rounded"
+                                  className="p-1 cursor-pointer ${tool !== 'pan' ? 'hover:bg-black/10' : ''} rounded"
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     // CRITICAL: Get the most up-to-date node from the nodes array
@@ -3462,20 +4265,22 @@ export default function HTMLCanvas({
                     ) : (
                       <div className="text-center py-4" style={{ color: 'color-mix(in srgb, var(--node-border-default, hsl(var(--border))) 75%, transparent)' }}>
                         <div className="text-sm mb-1">Empty List</div>
-                        <div className="text-xs">Drag folder or character nodes here to organize them</div>
+                        <div className="text-xs">Drag folder, character, location, or event nodes here to organize them</div>
                       </div>
                     )}
                   </div>
                 ) : (
                   // Text/other node content
                   <div
-                    contentEditable
+                    contentEditable={tool === 'select'}
                     suppressContentEditableWarning={true}
                     data-content-type="content"
-                    className="w-full bg-transparent border-none outline-none text-sm min-h-[4rem] max-h-full overflow-auto cursor-text leading-relaxed hover:bg-muted/10 rounded px-1"
+                    className="w-full bg-transparent border-none outline-none text-sm min-h-[4rem] max-h-full overflow-auto cursor-text leading-relaxed rounded px-1"
                     style={{
                       color: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
-                      caretColor: getTextColor(getNodeColor(node.type || 'text', node.color, node.id))
+                      caretColor: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
+                      pointerEvents: tool === 'event' ? 'none' : 'auto',
+                      userSelect: tool === 'event' ? 'none' : 'auto'
                     }}
                     onInput={(e) => {
                       const newContent = e.currentTarget.textContent || ''
@@ -3507,9 +4312,11 @@ export default function HTMLCanvas({
                       saveToHistory(nodes, connections)
                     }}
                     onClick={(e) => {
-                      e.stopPropagation()
-                      // Focus the text editing area when clicked
-                      e.currentTarget.focus()
+                      if (tool === 'select') {
+                        e.stopPropagation()
+                        // Focus the text editing area when clicked
+                        e.currentTarget.focus()
+                      }
                     }}
                     onFocus={(e) => {
                       // Let the browser handle cursor positioning naturally
@@ -3526,11 +4333,8 @@ export default function HTMLCanvas({
               {/* Special node indicators */}
               {node.type === 'folder' && (
                 <div className="absolute bottom-1 right-1 flex items-center gap-1">
-                  {colorContext.getFolderPalette(node.id) && (
-                    <span className="text-xs" title="Has custom color palette">🎨</span>
-                  )}
                   <div
-                    className="p-1 cursor-pointer hover:bg-black/10 rounded"
+                    className="p-1 cursor-pointer ${tool !== 'pan' ? 'hover:bg-black/10' : ''} rounded"
                     onClick={async (e) => {
                       e.stopPropagation()
                       // Single click navigation for folder nodes
@@ -3636,6 +4440,99 @@ export default function HTMLCanvas({
             )
           })}
 
+          {/* Connection Lines Overlay - Behind nodes */}
+          <svg
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              width: '2000px',
+              height: '1500px',
+              zIndex: 1
+            }}
+          >
+            {connections.map(connection => {
+              const fromNode = nodes.find(n => n.id === connection.from)
+              const toNode = nodes.find(n => n.id === connection.to)
+
+              if (!fromNode || !toNode) return null
+
+              // Only render timeline connections, not regular connections
+              const isTimelineConnection = connection.id.startsWith('timeline-')
+              if (!isTimelineConnection) return null // Skip non-timeline connections
+
+              // Calculate center points
+              const fromCenterX = fromNode.x + fromNode.width / 2
+              const fromCenterY = fromNode.y + fromNode.height / 2
+              const toCenterX = toNode.x + toNode.width / 2
+              const toCenterY = toNode.y + toNode.height / 2
+
+              // Calculate angle between centers
+              const angle = Math.atan2(toCenterY - fromCenterY, toCenterX - fromCenterX)
+
+              // Function to find intersection point with rectangle edge
+              const getEdgeIntersection = (nodeX: number, nodeY: number, nodeWidth: number, nodeHeight: number, angle: number, fromCenter: boolean) => {
+                const centerX = nodeX + nodeWidth / 2
+                const centerY = nodeY + nodeHeight / 2
+
+                // Calculate intersection with each edge
+                const cosAngle = Math.cos(angle)
+                const sinAngle = Math.sin(angle)
+
+                // Distances from center to edges
+                const halfWidth = nodeWidth / 2
+                const halfHeight = nodeHeight / 2
+
+                // Check which edge the line intersects
+                let intersectionX, intersectionY
+
+                if (Math.abs(cosAngle) > Math.abs(sinAngle)) {
+                  // Intersects left or right edge
+                  if (cosAngle > 0) {
+                    // Right edge
+                    intersectionX = nodeX + nodeWidth
+                    intersectionY = centerY + (halfWidth * sinAngle / cosAngle)
+                  } else {
+                    // Left edge
+                    intersectionX = nodeX
+                    intersectionY = centerY - (halfWidth * sinAngle / cosAngle)
+                  }
+                } else {
+                  // Intersects top or bottom edge
+                  if (sinAngle > 0) {
+                    // Bottom edge
+                    intersectionY = nodeY + nodeHeight
+                    intersectionX = centerX + (halfHeight * cosAngle / sinAngle)
+                  } else {
+                    // Top edge
+                    intersectionY = nodeY
+                    intersectionX = centerX - (halfHeight * cosAngle / sinAngle)
+                  }
+                }
+
+                return { x: intersectionX, y: intersectionY }
+              }
+
+              // Calculate connection points on node edges
+              const fromPoint = getEdgeIntersection(fromNode.x, fromNode.y, fromNode.width, fromNode.height, angle, true)
+              const toPoint = getEdgeIntersection(toNode.x, toNode.y, toNode.width, toNode.height, angle + Math.PI, false)
+
+              const strokeColor = getNodeBorderColor('event') // Follow color palette system
+              const strokeWidth = 3
+
+              return (
+                <g key={connection.id}>
+                  {/* Connection line */}
+                  <line
+                    x1={fromPoint.x}
+                    y1={fromPoint.y}
+                    x2={toPoint.x}
+                    y2={toPoint.y}
+                    stroke={strokeColor}
+                    strokeWidth={strokeWidth}
+                  />
+                </g>
+              )
+            })}
+          </svg>
 
           {/* Empty state */}
           {nodes.filter(node => visibleNodeIds.includes(node.id)).length === 0 && (

@@ -27,7 +27,9 @@
       "Bash(done)",
       "Bash(git checkout:*)",
       "Bash(del:*)",
-      "Bash(robocopy:*)"
+      "Bash(robocopy:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)"
     ],
     "deny": [],
     "ask": []
