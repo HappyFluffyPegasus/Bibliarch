@@ -75,7 +75,6 @@ interface NodeStylePreferences {
   corners: 'sharp' | 'rounded'
   outlines: 'visible' | 'hidden'
   textWeight: 'normal' | 'bold'
-  padding: 'compact' | 'spacious'
   textAlign: 'left' | 'center'
 }
 
@@ -117,7 +116,6 @@ export default function HTMLCanvas({
       corners: 'rounded',
       outlines: 'visible',
       textWeight: 'normal',
-      padding: 'compact',
       textAlign: 'left'
     }
   })
@@ -605,9 +603,6 @@ export default function HTMLCanvas({
 
     // Add text weight class
     classes.push(nodeStylePreferences.textWeight === 'bold' ? 'nodes-text-bold' : 'nodes-text-normal')
-
-    // Add padding class
-    classes.push(nodeStylePreferences.padding === 'spacious' ? 'nodes-padding-spacious' : 'nodes-padding-compact')
 
     // Add text alignment class
     classes.push(nodeStylePreferences.textAlign === 'center' ? 'nodes-align-center' : 'nodes-align-left')

@@ -8,7 +8,6 @@ interface NodeStylePreferences {
   corners: 'sharp' | 'rounded'
   outlines: 'visible' | 'hidden'
   textWeight: 'normal' | 'bold'
-  padding: 'compact' | 'spacious'
   textAlign: 'left' | 'center'
 }
 
@@ -87,17 +86,6 @@ export function NodeStylePanel({ preferences, onUpdate }: NodeStylePanelProps) {
           icons={[
             <span className="text-xs font-normal">A</span>,
             <Bold className="w-3 h-3" />
-          ]}
-        />
-
-        <StyleToggle
-          label="Padding"
-          options={['compact', 'spacious']}
-          current={preferences.padding}
-          onChange={(value) => onUpdate('padding', value)}
-          icons={[
-            <Minimize className="w-3 h-3" />,
-            <Maximize className="w-3 h-3" />
           ]}
         />
 

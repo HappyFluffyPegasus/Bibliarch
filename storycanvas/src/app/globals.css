@@ -343,14 +343,6 @@
   --node-font-weight: 600;
 }
 
-/* Padding Toggles */
-.nodes-padding-compact {
-  --node-padding: 8px 12px;
-}
-
-.nodes-padding-spacious {
-  --node-padding: 16px 20px;
-}
 
 /* Text Alignment Toggles */
 .nodes-align-left {
