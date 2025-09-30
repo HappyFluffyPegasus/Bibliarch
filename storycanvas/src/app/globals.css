@@ -361,6 +361,26 @@
   --node-text-align: center;
 }
 
+/* Center alignment: limit text space equally on both sides for all title patterns */
+
+/* Pattern 1: Folder nodes in lists (existing working pattern) */
+.nodes-align-center .flex.items-center.gap-2.flex-1.min-w-0 > div[contenteditable] {
+  margin-left: 0; /* No left margin - icon already provides left spacing */
+  margin-right: calc(1.25rem + 0.5rem); /* Match icon + gap width on right */
+}
+
+/* Pattern 2: Most common - contenteditable titles with data-content-type="title" */
+.nodes-align-center div[contenteditable][data-content-type="title"] {
+  margin-left: 0; /* No left margin - icon already provides left spacing */
+  margin-right: calc(1.25rem + 0.5rem); /* Match icon + gap width on right */
+}
+
+/* Pattern 3: h3 elements in node headers (like relationship canvas) */
+.nodes-align-center .flex.items-center.gap-2 > h3 {
+  margin-left: 0; /* No left margin - icon already provides left spacing */
+  margin-right: calc(1.25rem + 0.5rem); /* Match icon + gap width on right */
+}
+
 /* Apply styling variables to all nodes */
 .node-background {
   border-radius: var(--node-border-radius) !important;
