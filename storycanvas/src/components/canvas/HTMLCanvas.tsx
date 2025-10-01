@@ -1160,25 +1160,132 @@ export default function HTMLCanvas({
     ]
   }
 
-  const getNodeColor = (nodeType: string, customColor?: string, nodeId?: string) => {
+  // Helper function to lighten a color
+  const lightenColor = (color: string, amount: number = 0.3): string => {
+    // Convert hex to RGB
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null
+    }
+
+    const rgb = hexToRgb(color)
+    if (!rgb) return color
+
+    // Lighten by mixing with white
+    const r = Math.round(rgb.r + (255 - rgb.r) * amount)
+    const g = Math.round(rgb.g + (255 - rgb.g) * amount)
+    const b = Math.round(rgb.b + (255 - rgb.b) * amount)
+
+    // Convert back to hex
+    const toHex = (n: number) => {
+      const hex = n.toString(16)
+      return hex.length === 1 ? '0' + hex : hex
+    }
+
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+  }
+
+  // Helper function to darken a color and increase saturation
+  const darkenColor = (color: string, amount: number = 0.3): string => {
+    // Convert hex to RGB
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null
+    }
+
+    const rgb = hexToRgb(color)
+    if (!rgb) return color
+
+    // Convert RGB to HSL
+    const r = rgb.r / 255
+    const g = rgb.g / 255
+    const b = rgb.b / 255
+
+    const max = Math.max(r, g, b)
+    const min = Math.min(r, g, b)
+    let h = 0, s = 0, l = (max + min) / 2
+
+    if (max !== min) {
+      const d = max - min
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break
+        case g: h = ((b - r) / d + 2) / 6; break
+        case b: h = ((r - g) / d + 4) / 6; break
+      }
+    }
+
+    // Reduce saturation slightly and darken
+    s = s * 0.85
+    l = l * (1 - amount)
+
+    // Convert back to RGB
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1
+      if (t > 1) t -= 1
+      if (t < 1/6) return p + (q - p) * 6 * t
+      if (t < 1/2) return q
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6
+      return p
+    }
+
+    let r2, g2, b2
+    if (s === 0) {
+      r2 = g2 = b2 = l
+    } else {
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+      const p = 2 * l - q
+      r2 = hue2rgb(p, q, h + 1/3)
+      g2 = hue2rgb(p, q, h)
+      b2 = hue2rgb(p, q, h - 1/3)
+    }
+
+    // Convert back to hex
+    const toHex = (n: number) => {
+      const hex = Math.round(n * 255).toString(16)
+      return hex.length === 1 ? '0' + hex : hex
+    }
+
+    return `#${toHex(r2)}${toHex(g2)}${toHex(b2)}`
+  }
+
+  const getNodeColor = (nodeType: string, customColor?: string, nodeId?: string, isChildInList: boolean = false) => {
     // Get the current active palette from color context
     const currentPalette = colorContext.getCurrentPalette()
 
+    let baseColor: string
+
     if (currentPalette && currentPalette.colors && currentPalette.colors.nodeDefault) {
-      return currentPalette.colors.nodeDefault
+      baseColor = currentPalette.colors.nodeDefault
+    } else {
+      // Try getting the color from CSS variables (applied by palette system)
+      const paletteBase = getComputedStyle(document.documentElement)
+        .getPropertyValue('--color-node-default')
+        .trim()
+
+      if (paletteBase && paletteBase !== '#ffffff' && paletteBase !== 'white' && paletteBase !== '') {
+        baseColor = paletteBase
+      } else {
+        // Hard fallback - use a nice blue color instead of white
+        baseColor = '#e0f2fe' // Light blue instead of white
+      }
     }
 
-    // Try getting the color from CSS variables (applied by palette system)
-    const paletteBase = getComputedStyle(document.documentElement)
-      .getPropertyValue('--color-node-default')
-      .trim()
-
-    if (paletteBase && paletteBase !== '#ffffff' && paletteBase !== 'white' && paletteBase !== '') {
-      return paletteBase
+    // If this is a child node inside a list container, lighten the color
+    if (isChildInList) {
+      return lightenColor(baseColor, 0.2)
     }
 
-    // Hard fallback - use a nice blue color instead of white
-    return '#e0f2fe' // Light blue instead of white
+    return baseColor
   }
 
   const getNodeBorderColor = (nodeType: string) => {
@@ -2365,7 +2472,7 @@ export default function HTMLCanvas({
                     />
                   ) : (
                     <div
-                      className="w-full h-full cursor-pointer flex items-center justify-center text-sm"
+                      className={`w-full h-full cursor-pointer flex items-center justify-center text-sm node-background ${getNodeStyleClasses()}`}
                       style={{
                         backgroundColor: getNodeColor('image', node.color, node.id),
                         border: `2px solid ${getNodeBorderColor('image')}`,
@@ -3724,8 +3831,8 @@ export default function HTMLCanvas({
                             <div
                               className="relative bg-card rounded-lg border-2 cursor-move transition-all duration-200 w-full h-full node-background"
                               style={{
-                                borderColor: getNodeBorderColor(childNode.type || 'folder'),
-                                backgroundColor: getNodeColor(childNode.type || 'folder', childNode.color, childNode.id),
+                                borderColor: darkenColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id, false), 0.2),
+                                backgroundColor: getNodeColor(childNode.type || 'folder', childNode.color, childNode.id, false),
                               }}
               onClick={(e) => {
                                 e.stopPropagation()
@@ -3938,7 +4045,7 @@ export default function HTMLCanvas({
                                   <div className="flex items-center gap-3 p-2 h-full">
                                     {/* Location icon */}
                                     <div className="flex-shrink-0 w-12 h-12 rounded-md flex items-center justify-center" style={{
-                                      backgroundColor: getNodeColor(childNode.type || 'location', childNode.color, childNode.id)
+                                      backgroundColor: getNodeColor(childNode.type || 'location', childNode.color, childNode.id, false)
                                     }}>
                                       <MapPin className="w-6 h-6" style={{ color: getNodeBorderColor(childNode.type || 'location') }} />
                                     </div>

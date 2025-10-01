@@ -20,6 +20,7 @@ export interface ColorPalette {
     // Canvas specific
     canvasBackground: string
     nodeDefault: string
+    nodeNested: string        // Lighter version of nodeDefault for nodes inside containers
     nodeText: string
     connectionDefault: string
     
@@ -141,6 +142,7 @@ export class PaletteGenerator {
           
           canvasBackground: ColorUtils.hslToHex(baseHue, saturation * 0.3, 85), // Light blue accent for background
           nodeDefault: ColorUtils.hslToHex(accentHue, 60, 85),              // Lighter yellow for nodes in light theme
+          nodeNested: ColorUtils.hslToHex(accentHue, 40, 92),               // Even lighter version for nested nodes
           nodeText: complementaryColor,                                      // Complementary for node text
           connectionDefault: complementaryColor,                             // Complementary for connections
           
@@ -169,7 +171,8 @@ export class PaletteGenerator {
           selected: ColorUtils.hslToHex(complementaryHue, saturation * 0.6, 30), // More saturated complementary
           
           canvasBackground: accentColor,                                          // Light blue accent for background
-          nodeDefault: ColorUtils.hslToHex(accentHue, 70, 40),                   // Darker yellow for nodes in dark theme  
+          nodeDefault: ColorUtils.hslToHex(accentHue, 70, 40),                   // Darker yellow for nodes in dark theme
+          nodeNested: ColorUtils.hslToHex(accentHue, 50, 50),                    // Lighter version for nested nodes
           nodeText: complementaryColor,                                           // Complementary for node text
           connectionDefault: accentColor,                                         // Light blue accent for connections
           
@@ -417,6 +420,7 @@ export class ColorPaletteManager {
     root.style.setProperty('--color-selected', palette.colors.selected)
     root.style.setProperty('--color-canvas-bg', palette.colors.canvasBackground)
     root.style.setProperty('--color-node-default', palette.colors.nodeDefault)
+    root.style.setProperty('--color-node-nested', palette.colors.nodeNested)
     root.style.setProperty('--color-node-text', palette.colors.nodeText)
     root.style.setProperty('--color-connection-default', palette.colors.connectionDefault)
     root.style.setProperty('--color-success', palette.colors.success)

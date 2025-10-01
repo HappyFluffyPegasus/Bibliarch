@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Square, Circle, Eye, EyeOff, Sun, Moon, Bold, AlignLeft, AlignCenter, Minimize, Maximize } from 'lucide-react'
+import { Square, Circle, Eye, EyeOff, Bold, AlignLeft, AlignCenter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface NodeStylePreferences {
