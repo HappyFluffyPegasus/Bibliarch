@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Plus, LogOut, Sparkles, FileText, Clock, Layout } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
-import { PaletteSelector } from '@/components/ui/palette-selector'
 import { OnboardingModal } from '@/components/onboarding/OnboardingModal'
 import { storyTemplates } from '@/lib/templates'
 import { ensureDatabaseSetup } from '@/lib/database-init'
@@ -203,7 +202,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50/80 to-blue-50/80 dark:from-gray-950 dark:to-gray-900">
       <OnboardingModal />
       
       {/* Header */}
@@ -220,14 +219,6 @@ export default function DashboardPage() {
             <span className="text-sm text-muted-foreground">
               Welcome back, <span className="font-medium">{username}</span>
             </span>
-            <PaletteSelector
-              mode="advanced"
-              scope="global"
-              onPaletteChange={(palette) => {
-                // Global palette change affects the entire website (silently)
-                console.log('Applied global palette:', palette.name)
-              }}
-            />
             <ThemeToggle />
             <form action={signOut}>
               <Button variant="ghost" size="sm" type="submit">
@@ -338,8 +329,8 @@ export default function DashboardPage() {
               <Card
                 key={template.id}
                 className={`cursor-pointer transition-all ${
-                  selectedTemplate === template.id 
-                    ? 'ring-2 ring-purple-600 bg-purple-50 dark:bg-purple-950/20' 
+                  selectedTemplate === template.id
+                    ? 'ring-2 ring-purple-600 bg-purple-50 dark:bg-purple-950/20'
                     : 'hover:border-purple-400'
                 }`}
                 onClick={() => setSelectedTemplate(template.id)}

@@ -604,6 +604,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         tableData: [
           { col1: 'Name', col2: '' },
           { col1: 'Age', col2: '' },
+          { col1: 'Birthday', col2: '' },
           { col1: 'Height', col2: '' },
           { col1: 'Weight', col2: '' },
           { col1: 'Role', col2: '' },

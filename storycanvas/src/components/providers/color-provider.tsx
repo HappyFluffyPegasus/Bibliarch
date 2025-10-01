@@ -100,34 +100,30 @@ export function ColorProvider({ children, projectId }: ColorProviderProps) {
     }
   }, [])
 
-  // Get the effective palette for the current context (hierarchical)
+  // Get the effective palette for the current context (global only - no folder-specific palettes)
   const getCurrentPalette = useCallback((): ColorPalette | null => {
-    // 1. Check if we're in a folder with a custom palette
-    if (currentFolderId) {
-      const folderPalette = folderPalettes[currentFolderId] || ColorPaletteManager.getFolderPalette(currentFolderId)
-      if (folderPalette) return folderPalette
-    }
-
-    // 2. Fall back to project palette
+    // 1. Use project palette if set
     if (projectPalette) return projectPalette
 
-    // 3. Fall back to global theme default palette
+    // 2. Fall back to global theme default palette
     return ColorPaletteManager.getAllPalettes().find(p =>
       p.theme === globalTheme && p.isDefault
     ) || null
-  }, [currentFolderId, projectPalette, globalTheme, folderPalettes])
+  }, [projectPalette, globalTheme])
 
   const applyPalette = useCallback((palette: ColorPalette) => {
     ColorPaletteManager.applyPalette(palette)
   }, [])
 
-  // Apply default palette when context changes
+  // Only apply palette on initial load and theme changes
+  // DO NOT auto-apply on folder context changes to prevent overwriting user selections
   useEffect(() => {
     const currentPalette = getCurrentPalette()
     if (currentPalette) {
       applyPalette(currentPalette)
     }
-  }, [globalTheme, projectPalette, currentFolderId, getCurrentPalette, applyPalette])
+  }, [globalTheme, projectPalette, getCurrentPalette, applyPalette])
+  // Removed currentFolderId from dependencies to prevent auto-application on navigation
 
   const contextValue: ColorContextValue = useMemo(() => ({
     globalTheme,

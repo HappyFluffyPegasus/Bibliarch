@@ -1,22 +1,22 @@
 'use client'
 
 import React from 'react'
-import { Square, Circle, Eye, EyeOff, Bold, AlignLeft, AlignCenter } from 'lucide-react'
+import { Square, Circle, Sparkles, Moon, Sun, Blend, Type, Bold, AlignLeft, AlignCenter, AlignRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface NodeStylePreferences {
-  corners: 'sharp' | 'rounded'
-  outlines: 'visible' | 'hidden'
-  textWeight: 'normal' | 'bold'
-  textAlign: 'left' | 'center'
+  corners: 'sharp' | 'rounded' | 'very-rounded'
+  outlines: 'dark' | 'light' | 'mixed'
+  textColor: 'dark' | 'mixed' | 'light'
+  textAlign: 'left' | 'center' | 'right'
 }
 
 interface StyleToggleProps {
   label: string
-  options: [string, string]
+  options: [string, string, string]
   current: string
   onChange: (value: string) => void
-  icons?: [React.ReactNode, React.ReactNode]
+  icons?: [React.ReactNode, React.ReactNode, React.ReactNode]
 }
 
 function StyleToggle({ label, options, current, onChange, icons }: StyleToggleProps) {
@@ -42,6 +42,15 @@ function StyleToggle({ label, options, current, onChange, icons }: StyleTogglePr
         >
           {icons ? icons[1] : options[1].charAt(0).toUpperCase()}
         </Button>
+        <Button
+          size="sm"
+          variant={current === options[2] ? "default" : "outline"}
+          onClick={() => onChange(options[2])}
+          className="h-6 w-6 p-0"
+          title={`${label}: ${options[2]}`}
+        >
+          {icons ? icons[2] : options[2].charAt(0).toUpperCase()}
+        </Button>
       </div>
     </div>
   )
@@ -57,46 +66,50 @@ export function NodeStylePanel({ preferences, onUpdate }: NodeStylePanelProps) {
     <div className="space-y-1">
         <StyleToggle
           label="Corners"
-          options={['sharp', 'rounded']}
+          options={['sharp', 'rounded', 'very-rounded']}
           current={preferences.corners}
           onChange={(value) => onUpdate('corners', value)}
           icons={[
-            <Square className="w-3 h-3" />,
-            <Circle className="w-3 h-3" />
+            <Square className="w-3 h-3" key="sharp" />,
+            <Circle className="w-3 h-3" key="rounded" />,
+            <Sparkles className="w-3 h-3" key="very-rounded" />
           ]}
         />
 
         <StyleToggle
           label="Outline"
-          options={['visible', 'hidden']}
+          options={['dark', 'mixed', 'light']}
           current={preferences.outlines}
           onChange={(value) => onUpdate('outlines', value)}
           icons={[
-            <Eye className="w-3 h-3" />,
-            <EyeOff className="w-3 h-3" />
+            <Moon className="w-3 h-3" key="dark" />,
+            <Blend className="w-3 h-3" key="mixed" />,
+            <Sun className="w-3 h-3" key="light" />
           ]}
         />
 
 
         <StyleToggle
-          label="Text"
-          options={['normal', 'bold']}
-          current={preferences.textWeight}
-          onChange={(value) => onUpdate('textWeight', value)}
+          label="Text Color"
+          options={['dark', 'mixed', 'light']}
+          current={preferences.textColor}
+          onChange={(value) => onUpdate('textColor', value)}
           icons={[
-            <span className="text-xs font-normal">A</span>,
-            <Bold className="w-3 h-3" />
+            <Moon className="w-3 h-3" key="dark" />,
+            <Blend className="w-3 h-3" key="mixed" />,
+            <Sun className="w-3 h-3" key="light" />
           ]}
         />
 
         <StyleToggle
           label="Align"
-          options={['left', 'center']}
+          options={['left', 'center', 'right']}
           current={preferences.textAlign}
           onChange={(value) => onUpdate('textAlign', value)}
           icons={[
-            <AlignLeft className="w-3 h-3" />,
-            <AlignCenter className="w-3 h-3" />
+            <AlignLeft className="w-3 h-3" key="left" />,
+            <AlignCenter className="w-3 h-3" key="center" />,
+            <AlignRight className="w-3 h-3" key="right" />
           ]}
         />
     </div>

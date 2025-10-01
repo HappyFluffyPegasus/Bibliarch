@@ -72,10 +72,10 @@ interface RelationshipConnection {
 }
 
 interface NodeStylePreferences {
-  corners: 'sharp' | 'rounded'
-  outlines: 'visible' | 'hidden'
-  textWeight: 'normal' | 'bold'
-  textAlign: 'left' | 'center'
+  corners: 'sharp' | 'rounded' | 'very-rounded'
+  outlines: 'dark' | 'light' | 'mixed'
+  textColor: 'dark' | 'mixed' | 'light'
+  textAlign: 'left' | 'center' | 'right'
 }
 
 interface HTMLCanvasProps {
@@ -114,8 +114,8 @@ export default function HTMLCanvas({
     const saved = localStorage.getItem('storycanvas-node-styles')
     return saved ? JSON.parse(saved) : {
       corners: 'rounded',
-      outlines: 'visible',
-      textWeight: 'normal',
+      outlines: 'mixed',
+      textColor: 'mixed',
       textAlign: 'left'
     }
   })
@@ -617,16 +617,31 @@ export default function HTMLCanvas({
     const classes = []
 
     // Add corner style class
-    classes.push(nodeStylePreferences.corners === 'sharp' ? 'nodes-sharp' : 'nodes-rounded')
+    if (nodeStylePreferences.corners === 'sharp') {
+      classes.push('nodes-sharp')
+    } else if (nodeStylePreferences.corners === 'very-rounded') {
+      classes.push('nodes-very-rounded')
+    } else {
+      classes.push('nodes-rounded')
+    }
 
     // Add outline style class
-    classes.push(nodeStylePreferences.outlines === 'visible' ? 'nodes-outlined' : 'nodes-borderless')
-
-    // Add text weight class
-    classes.push(nodeStylePreferences.textWeight === 'bold' ? 'nodes-text-bold' : 'nodes-text-normal')
+    if (nodeStylePreferences.outlines === 'dark') {
+      classes.push('nodes-outlines-dark')
+    } else if (nodeStylePreferences.outlines === 'light') {
+      classes.push('nodes-outlines-light')
+    } else {
+      classes.push('nodes-outlines-mixed')
+    }
 
     // Add text alignment class
-    classes.push(nodeStylePreferences.textAlign === 'center' ? 'nodes-align-center' : 'nodes-align-left')
+    if (nodeStylePreferences.textAlign === 'center') {
+      classes.push('nodes-align-center')
+    } else if (nodeStylePreferences.textAlign === 'right') {
+      classes.push('nodes-align-right')
+    } else {
+      classes.push('nodes-align-left')
+    }
 
     return classes.join(' ')
   }, [nodeStylePreferences])
@@ -1328,53 +1343,104 @@ export default function HTMLCanvas({
     return baseColor
   }
 
-  const getNodeBorderColor = (nodeType: string) => {
+  const getNodeBorderColor = (nodeType: string, isChildInList: boolean = false) => {
     // Use palette border color for all nodes
     const paletteBorder = getComputedStyle(document.documentElement)
       .getPropertyValue('--color-border')
       .trim() || 'hsl(var(--border))'
-    
-    return paletteBorder
-  }
 
-  // Helper function to get text color from palette
-  const getTextColor = (backgroundColor: string) => {
-    // Use palette text color
-    const paletteTextColor = getComputedStyle(document.documentElement)
-      .getPropertyValue('--color-node-text')
-      .trim()
-    
-    if (paletteTextColor) {
-      return paletteTextColor
+    // Get outline mode from preferences
+    const outlineMode = nodeStylePreferences.outlines
+
+    // Dark mode: always use default border color
+    if (outlineMode === 'dark') {
+      return paletteBorder
     }
 
-    // Fallback to luminance calculation
-    const hexToRgb = (hex: string) => {
-      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
-      return result ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16)
-      } : null
+    // Light mode: always use lighter border (same as child nodes)
+    if (outlineMode === 'light') {
+      return darkenColor(getNodeColor(nodeType, undefined, undefined, false), 0.2)
     }
 
-    const getLuminance = (r: number, g: number, b: number) => {
-      const [rs, gs, bs] = [r, g, b].map(c => {
-        c = c / 255
-        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
-      })
-      return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs
-    }
-
-    if (backgroundColor.startsWith('#')) {
-      const rgb = hexToRgb(backgroundColor)
-      if (rgb) {
-        const luminance = getLuminance(rgb.r, rgb.g, rgb.b)
-        return luminance > 0.5 ? '#000000' : '#ffffff'
+    // Mixed mode: child nodes use light borders, standalone use dark
+    if (outlineMode === 'mixed') {
+      if (isChildInList) {
+        return darkenColor(getNodeColor(nodeType, undefined, undefined, false), 0.2)
+      } else {
+        return paletteBorder
       }
     }
 
-    return '#000000'
+    return paletteBorder
+  }
+
+  // Helper function to get text color from palette with text weight mode support
+  const getTextColor = (backgroundColor: string, isChildInList: boolean = false) => {
+    // Use palette text color as base
+    const paletteTextColor = getComputedStyle(document.documentElement)
+      .getPropertyValue('--color-node-text')
+      .trim()
+
+    let baseTextColor = paletteTextColor || '#000000'
+
+    // Fallback to luminance calculation if no palette text color
+    if (!paletteTextColor) {
+      const hexToRgb = (hex: string) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : null
+      }
+
+      const getLuminance = (r: number, g: number, b: number) => {
+        const [rs, gs, bs] = [r, g, b].map(c => {
+          c = c / 255
+          return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+        })
+        return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs
+      }
+
+      if (backgroundColor.startsWith('#')) {
+        const rgb = hexToRgb(backgroundColor)
+        if (rgb) {
+          const luminance = getLuminance(rgb.r, rgb.g, rgb.b)
+          baseTextColor = luminance > 0.5 ? '#000000' : '#ffffff'
+        }
+      }
+    }
+
+    // Apply text color mode logic (similar to outline modes)
+    const textColorMode = nodeStylePreferences.textColor
+
+    // Dark mode: always use default dark palette text color
+    if (textColorMode === 'dark') {
+      return baseTextColor
+    }
+
+    // Light mode: always use lighter text (same as light borders)
+    if (textColorMode === 'light') {
+      const nodeColor = getNodeColor('text', undefined, undefined, false)
+      return darkenColor(nodeColor, 0.2)
+    }
+
+    // Mixed mode: child nodes use light text, standalone use dark
+    if (textColorMode === 'mixed') {
+      if (isChildInList) {
+        const nodeColor = getNodeColor('text', undefined, undefined, false)
+        return darkenColor(nodeColor, 0.2)
+      } else {
+        return baseTextColor
+      }
+    }
+
+    return baseTextColor
+  }
+
+  // Helper function to get icon color - matches text color logic
+  const getIconColor = (nodeType: string, backgroundColor: string, isChildInList: boolean = false) => {
+    return getTextColor(backgroundColor, isChildInList)
   }
 
   const handleNodeClick = (node: Node, e: React.MouseEvent) => {
@@ -1953,7 +2019,7 @@ export default function HTMLCanvas({
   return (
     <div className="w-full h-full overflow-hidden flex bg-background">
       {/* Left Sidebar */}
-      <div className="w-20 bg-card border-r border-border flex flex-col items-center py-4 gap-3 z-20 max-h-screen hover-scrollable">
+      <div className="w-20 bg-card border-r border-gray-600 dark:border-gray-600 flex flex-col items-center py-4 gap-3 z-20 max-h-screen hover-scrollable">
         {/* Navigation Tools */}
         <div className="flex flex-col gap-1">
           <Button 
@@ -2214,8 +2280,8 @@ export default function HTMLCanvas({
         <div className="flex flex-col items-center gap-1">
           <PaletteSelector
             mode="advanced"
-            scope={colorContext.currentFolderId ? "folder" : "project"}
-            contextId={colorContext.currentFolderId || storyId}
+            scope="project"
+            contextId={storyId}
             onColorSelect={(color) => {
               if (selectedId) {
                 handleColorChange(selectedId, color)
@@ -2224,21 +2290,15 @@ export default function HTMLCanvas({
               }
             }}
             onPaletteChange={(palette) => {
-              // Apply palette based on current context
-              if (colorContext.currentFolderId) {
-                // We're in a folder - set folder palette
-                colorContext.setFolderPalette(colorContext.currentFolderId, palette)
-              } else {
-                // We're at project level - set project palette
-                colorContext.setProjectPalette(storyId, palette)
-              }
-              
-              // Apply the palette immediately
+              // Apply palette globally to entire project (all sections)
+              colorContext.setProjectPalette(storyId, palette)
+
+              // Apply the palette immediately to all sections
               colorContext.applyPalette(palette)
-              
+
               // Reset all nodes to use the new theme colors
               resetAllNodesToThemeColors()
-              
+
               // Force re-render to update node colors
               setPaletteRefresh(prev => prev + 1)
             }}
@@ -2768,11 +2828,8 @@ export default function HTMLCanvas({
                   {/* Location node layout similar to character but without profile picture */}
                   <div className="flex h-full items-center">
                     {/* Location icon area (instead of profile picture) */}
-                    <div className="flex-shrink-0 w-16 h-16 ml-2 mr-3 rounded border-2 flex items-center justify-center" style={{
-                      backgroundColor: getNodeColor(node.type || 'location', node.color, node.id),
-                      borderColor: getNodeBorderColor(node.type || 'location')
-                    }}>
-                      <MapPin className="w-8 h-8" style={{ color: getNodeBorderColor(node.type || 'location') }} />
+                    <div className="flex-shrink-0 mr-3 flex items-center justify-center" style={{ marginLeft: '0px' }}>
+                      <MapPin className="w-6 h-6" style={{ color: getIconColor(node.type || 'location', getNodeColor(node.type || 'location', node.color, node.id)) }} />
                     </div>
 
                     {/* Location name */}
@@ -3165,7 +3222,7 @@ export default function HTMLCanvas({
                       <Heart className="w-5 h-5 text-red-500" />
                       <h3 className="font-semibold text-sm" style={{ color: getNodeBorderColor(node.type || 'text') }}>{node.text}</h3>
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs" style={{ color: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)) }}>
                       {selectedCharacters.length} character{selectedCharacters.length !== 1 ? 's' : ''}
                     </div>
                   </div>
@@ -3274,10 +3331,10 @@ export default function HTMLCanvas({
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
                                 <User
-                                  className="text-muted-foreground"
                                   style={{
                                     width: profileSize * 0.3,
-                                    height: profileSize * 0.3
+                                    height: profileSize * 0.3,
+                                    color: getIconColor(node.type || 'text', getNodeColor(node.type || 'text', node.color, node.id))
                                   }}
                                 />
                               </div>
@@ -3562,7 +3619,12 @@ export default function HTMLCanvas({
                   <div className="flex h-full items-center">
                     {/* Profile picture area */}
                     <div
-                      className="profile-picture-area flex-shrink-0 w-16 h-16 ml-2 mr-3 bg-muted rounded border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer hover:bg-muted/80"
+                      className="profile-picture-area flex-shrink-0 w-14 h-14 mr-3 rounded-md overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity border-2"
+                      style={{
+                        marginLeft: '-5px',
+                        backgroundColor: getNodeColor(node.type || 'character', node.color, node.id),
+                        borderColor: getNodeBorderColor(node.type || 'character')
+                      }}
                       onClick={(e) => {
                         console.log('Character profile picture clicked (standalone)')
                         e.stopPropagation()
@@ -3605,10 +3667,10 @@ export default function HTMLCanvas({
                         <img
                           src={node.profileImageUrl}
                           alt="Character profile"
-                          className="w-full h-full object-cover rounded"
+                          className="w-full h-full object-cover"
                         />
                       ) : (
-                        <User className="w-8 h-8 text-muted-foreground" />
+                        <User className="w-8 h-8" style={{ color: getIconColor(node.type || 'character', getNodeColor(node.type || 'character', node.color, node.id)) }} />
                       )}
                     </div>
 
@@ -3673,7 +3735,7 @@ export default function HTMLCanvas({
                       }}
                       title="Open character development"
                     >
-                      <span className="text-2xl font-bold" style={{ color: getNodeBorderColor('character') }}>→</span>
+                      <span className="text-2xl font-bold" style={{ color: getIconColor('character', getNodeColor('character', node.color, node.id)) }}>→</span>
                     </div>
                   </div>
 
@@ -3760,7 +3822,7 @@ export default function HTMLCanvas({
               {node.type !== 'image' && (
               <div className="flex items-center justify-between mb-2 gap-2">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div style={{ color: getNodeBorderColor(node.type || 'text') }}>
+                  <div style={{ color: getIconColor(node.type || 'text', getNodeColor(node.type || 'text', node.color, node.id)) }}>
                     {getNodeIcon(node.type)}
                   </div>
                   <div
@@ -3871,7 +3933,7 @@ export default function HTMLCanvas({
                             <div
                               className="relative bg-card rounded-lg border-2 cursor-move transition-all duration-200 w-full h-full node-background"
                               style={{
-                                borderColor: darkenColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id, false), 0.2),
+                                borderColor: getNodeBorderColor(childNode.type || 'folder', true),
                                 backgroundColor: getNodeColor(childNode.type || 'folder', childNode.color, childNode.id, false),
                               }}
               onClick={(e) => {
@@ -3922,7 +3984,11 @@ export default function HTMLCanvas({
                                   <div className="flex items-center gap-3 p-2 h-full">
                                     {/* Profile picture */}
                                     <div
-                                      className="profile-picture-area flex-shrink-0 w-12 h-12 bg-muted rounded-md overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                                      className="profile-picture-area flex-shrink-0 w-12 h-12 rounded-md overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border-2"
+                                      style={{
+                                        backgroundColor: getNodeColor(childNode.type || 'character', childNode.color, childNode.id, false),
+                                        borderColor: getNodeBorderColor(childNode.type || 'character', true)
+                                      }}
                                       onClick={(e) => {
                                         console.log('Character profile picture clicked (in list)')
                                         e.stopPropagation()
@@ -3969,7 +4035,7 @@ export default function HTMLCanvas({
                                         />
                                       ) : (
                                         <div className="w-full h-full flex items-center justify-center">
-                                          <User className="w-6 h-6 text-muted-foreground" />
+                                          <User className="w-6 h-6" style={{ color: getIconColor(childNode.type || 'character', getNodeColor(childNode.type || 'character', childNode.color, childNode.id), true) }} />
                                         </div>
                                       )}
                                     </div>
@@ -3982,8 +4048,8 @@ export default function HTMLCanvas({
                                         data-content-type="title"
                                         className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text rounded px-1 whitespace-nowrap overflow-hidden"
                                         style={{
-                                          color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id)),
-                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id))
+                                          color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
+                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true)
                                         }}
                                         onBlur={(e) => {
                                           const newText = e.currentTarget.textContent || ''
@@ -4013,7 +4079,7 @@ export default function HTMLCanvas({
                                         removeFromContainer(childNode.id)
                                       }}
                                       className="w-6 h-6 flex items-center justify-center rounded flex-shrink-0"
-                                      style={{ color: getNodeBorderColor(childNode.type || 'folder') }}
+                                      style={{ color: getIconColor(childNode.type || 'character', getNodeColor(childNode.type || 'character', childNode.color, childNode.id), true) }}
                                       title="Remove from container"
                                     >
                                       <X className="w-4 h-4" />
@@ -4043,10 +4109,6 @@ export default function HTMLCanvas({
                                         if (currentNode.linkedCanvasId) {
                                           console.log('EXISTING linkedCanvasId found:', currentNode.linkedCanvasId)
                                           colorContext.setCurrentFolderId(currentNode.id)
-                                          const folderPalette = colorContext.getFolderPalette(currentNode.id)
-                                          if (folderPalette) {
-                                            colorContext.applyPalette(folderPalette)
-                                          }
                                           console.log('Navigating to EXISTING canvas:', currentNode.linkedCanvasId, 'with title:', nodeTitle)
                                           onNavigateToCanvas(currentNode.linkedCanvasId, nodeTitle)
                                         } else {
@@ -4077,7 +4139,7 @@ export default function HTMLCanvas({
                                       }}
                                       title="Open character development"
                                     >
-                                      <span className="text-2xl font-bold" style={{ color: getNodeBorderColor('character') }}>→</span>
+                                      <span className="text-2xl font-bold" style={{ color: getIconColor('character', getNodeColor('character', childNode.color, childNode.id), true) }}>→</span>
                                     </div>
                                   </div>
                                 </>
@@ -4085,10 +4147,8 @@ export default function HTMLCanvas({
                                 <>
                                   <div className="flex items-center gap-3 p-2 h-full">
                                     {/* Location icon */}
-                                    <div className="flex-shrink-0 w-12 h-12 rounded-md flex items-center justify-center" style={{
-                                      backgroundColor: getNodeColor(childNode.type || 'location', childNode.color, childNode.id, false)
-                                    }}>
-                                      <MapPin className="w-6 h-6" style={{ color: getNodeBorderColor(childNode.type || 'location') }} />
+                                    <div className="flex-shrink-0 flex items-center justify-center">
+                                      <MapPin className="w-6 h-6" style={{ color: getIconColor(childNode.type || 'location', getNodeColor(childNode.type || 'location', childNode.color, childNode.id), true) }} />
                                     </div>
 
                                     {/* Location name */}
@@ -4099,8 +4159,8 @@ export default function HTMLCanvas({
                                         data-content-type="title"
                                         className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text rounded px-1 whitespace-nowrap overflow-hidden"
                                         style={{
-                                          color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id)),
-                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id))
+                                          color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
+                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true)
                                         }}
                                         onBlur={(e) => {
                                           const newText = e.currentTarget.textContent || ''
@@ -4130,7 +4190,7 @@ export default function HTMLCanvas({
                                         removeFromContainer(childNode.id)
                                       }}
                                       className="w-6 h-6 flex items-center justify-center rounded flex-shrink-0"
-                                      style={{ color: getNodeBorderColor(childNode.type || 'folder') }}
+                                      style={{ color: getIconColor(childNode.type || 'location', getNodeColor(childNode.type || 'location', childNode.color, childNode.id), true) }}
                                       title="Remove from container"
                                     >
                                       <X className="w-4 h-4" />
@@ -4151,10 +4211,6 @@ export default function HTMLCanvas({
 
                                         if (currentNode.linkedCanvasId) {
                                           colorContext.setCurrentFolderId(currentNode.id)
-                                          const folderPalette = colorContext.getFolderPalette(currentNode.id)
-                                          if (folderPalette) {
-                                            colorContext.applyPalette(folderPalette)
-                                          }
                                           onNavigateToCanvas(currentNode.linkedCanvasId, nodeTitle)
                                         } else {
                                           // Create new linkedCanvasId
@@ -4173,29 +4229,25 @@ export default function HTMLCanvas({
                                           }
 
                                           colorContext.setCurrentFolderId(currentNode.id)
-                                          const folderPalette = colorContext.getFolderPalette(currentNode.id)
-                                          if (folderPalette) {
-                                            colorContext.applyPalette(folderPalette)
-                                          }
 
                                           onNavigateToCanvas(linkedCanvasId, nodeTitle)
                                         }
                                       }}
                                       title="Open location details"
                                     >
-                                      <span className="text-lg font-bold" style={{ color: getNodeBorderColor('location') }}>→</span>
+                                      <span className="text-lg font-bold" style={{ color: getIconColor('location', getNodeColor('location', childNode.color, childNode.id), true) }}>→</span>
                                     </div>
                                   </div>
-                                </>
+</>
                               ) : childNode.type === 'event' ? (
                                 <>
                                   <div className="flex flex-col h-full">
                                     {/* Event title with icon */}
                                     <div className="flex items-center gap-2 p-2 border-b" style={{
-                                      borderColor: getNodeBorderColor(childNode.type || 'event')
+                                      borderColor: getNodeBorderColor(childNode.type || 'event', true)
                                     }}>
                                       <Calendar className="w-4 h-4 flex-shrink-0" style={{
-                                        color: getNodeBorderColor(childNode.type || 'event')
+                                        color: getIconColor(childNode.type || 'event', getNodeColor(childNode.type || 'event', childNode.color, childNode.id), true)
                                       }} />
                                       <div
                                         contentEditable={tool === 'select'}
@@ -4203,8 +4255,8 @@ export default function HTMLCanvas({
                                         data-content-type="title"
                                         className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text rounded px-1 whitespace-nowrap overflow-hidden"
                                         style={{
-                                          color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id)),
-                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id))
+                                          color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
+                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true)
                                         }}
                                         onBlur={(e) => {
                                           const newTitle = e.currentTarget.textContent || ''
@@ -4233,7 +4285,7 @@ export default function HTMLCanvas({
                                           removeFromContainer(childNode.id)
                                         }}
                                         className="w-6 h-6 flex items-center justify-center rounded flex-shrink-0"
-                                        style={{ color: getNodeBorderColor(childNode.type || 'folder') }}
+                                        style={{ color: getIconColor(childNode.type || 'event', getNodeColor(childNode.type || 'event', childNode.color, childNode.id), true) }}
                                         title="Remove from container"
                                       >
                                         <X className="w-4 h-4" />
@@ -4243,8 +4295,8 @@ export default function HTMLCanvas({
                                     {/* Event summary area */}
                                     <div className="flex-1 px-2 py-1 text-xs leading-relaxed overflow-hidden">
                                       <div
-                                        className="text-gray-600 line-clamp-2"
-                                        style={{ color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id)) }}
+                                        className="line-clamp-2"
+                                        style={{ color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true) }}
                                       >
                                         {childNode.summary || 'Event summary...'}
                                       </div>
@@ -4252,11 +4304,11 @@ export default function HTMLCanvas({
 
                                     {/* Duration display */}
                                     <div className="px-2 py-1 border-t text-center" style={{
-                                      borderColor: getNodeBorderColor(childNode.type || 'event')
+                                      borderColor: getNodeBorderColor(childNode.type || 'event', true)
                                     }}>
                                       <div
                                         className="text-xs font-medium"
-                                        style={{ color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id)) }}
+                                        style={{ color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true) }}
                                       >
                                         {childNode.durationText || ''}
                                       </div>
@@ -4268,7 +4320,7 @@ export default function HTMLCanvas({
                                   {/* Header with title and controls for folder nodes */}
                                   <div className="flex items-center justify-between p-2 pb-1">
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                                  <div style={{ color: getNodeBorderColor(childNode.type || 'folder') }}>
+                                  <div style={{ color: getIconColor(childNode.type || 'folder', getNodeColor(childNode.type || 'folder', childNode.color, childNode.id), true) }}>
                                     {getNodeIcon(childNode.type)}
                                   </div>
                                   <div
@@ -4277,8 +4329,8 @@ export default function HTMLCanvas({
                                     data-content-type="title"
                                     className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text min-w-0 rounded px-1"
                                     style={{
-                                      color: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id)),
-                                      caretColor: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id))
+                                      color: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id), true),
+                                      caretColor: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id), true)
                                     }}
                                     onInput={(e) => {
                                       // Don't update state immediately to avoid cursor jumping
@@ -4314,7 +4366,7 @@ export default function HTMLCanvas({
                                     removeFromContainer(childNode.id)
                                   }}
                                   className="w-6 h-6 flex items-center justify-center rounded"
-                                  style={{ color: getNodeBorderColor(childNode.type || 'folder') }}
+                                  style={{ color: getIconColor(childNode.type || 'folder', getNodeColor(childNode.type || 'folder', childNode.color, childNode.id), true) }}
                                   title="Remove from container"
                                 >
                                   <X className="w-4 h-4" />
@@ -4370,11 +4422,6 @@ export default function HTMLCanvas({
                                     if (currentNode.linkedCanvasId) {
                                       // Switch to folder color context when entering a folder
                                       colorContext.setCurrentFolderId(currentNode.id)
-                                      // Apply folder palette if it exists
-                                      const folderPalette = colorContext.getFolderPalette(currentNode.id)
-                                      if (folderPalette) {
-                                        colorContext.applyPalette(folderPalette)
-                                      }
                                       onNavigateToCanvas(currentNode.linkedCanvasId, nodeTitle)
                                     } else {
                                       // Create new linkedCanvasId
@@ -4399,7 +4446,7 @@ export default function HTMLCanvas({
                                   }}
                                   title="Open folder"
                                 >
-                                  <span className="text-2xl font-bold" style={{ color: getNodeBorderColor('folder') }}>→</span>
+                                  <span className="text-2xl font-bold" style={{ color: getIconColor('folder', getNodeColor('folder', childNode.color, childNode.id), true) }}>→</span>
                                 </div>
                               </div>
                                 </>
@@ -4487,11 +4534,6 @@ export default function HTMLCanvas({
                       if (node.linkedCanvasId && onNavigateToCanvas) {
                         // Switch to folder color context when entering a folder
                         colorContext.setCurrentFolderId(node.id)
-                        // Apply folder palette if it exists
-                        const folderPalette = colorContext.getFolderPalette(node.id)
-                        if (folderPalette) {
-                          colorContext.applyPalette(folderPalette)
-                        }
                         onNavigateToCanvas(node.linkedCanvasId, node.text)
                       } else if (!node.linkedCanvasId && onNavigateToCanvas) {
                         const linkedCanvasId = `folder-canvas-${node.id}`
@@ -4513,7 +4555,7 @@ export default function HTMLCanvas({
                     }}
                     title="Open folder"
                   >
-                    <span className="text-2xl font-bold" style={{ color: getNodeBorderColor('folder') }}>→</span>
+                    <span className="text-2xl font-bold" style={{ color: getIconColor('folder', getNodeColor('folder', node.color, node.id)) }}>→</span>
                   </div>
                 </div>
               )}

@@ -687,46 +687,85 @@ export default function StoryPage({ params }: PageProps) {
   return (
     <div className="h-screen max-h-screen overflow-hidden flex flex-col bg-gray-50 dark:bg-gray-950">
       {/* Header */}
-      <header className="border-b bg-white dark:bg-gray-900 px-4 py-3">
-        {/* Simple Navigation Bar */}
-        {canvasPath.length > 0 && (
-          <div className="flex items-center gap-3 text-sm mb-2 bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-md">
-            {/* Back Button - Simple, just goes back one level */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleNavigateBack}
-              className="h-7 px-2"
-            >
-              <ArrowLeft className="w-3 h-3 mr-1" />
-              Back
-            </Button>
-
-            <div className="h-4 w-px bg-gray-300 dark:bg-gray-700" />
-
-            {/* Current Location Display - NO CLICK HANDLERS */}
-            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-              <span className="text-xs opacity-60">You are in:</span>
-              <span className="font-semibold text-purple-600 dark:text-purple-400">
-                {canvasPath[canvasPath.length - 1]?.title}
-              </span>
-            </div>
-          </div>
-        )}
-        
+      <header className="border-b border-gray-600 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            {canvasPath.length === 0 && (
+            {canvasPath.length === 0 ? (
               <Link href="/dashboard">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back
                 </Button>
               </Link>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleNavigateBack}
+                className="h-8"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
             )}
-            
-            {/* Editable title - only on main canvas */}
-            {currentCanvasId === 'main' && isEditingTitle ? (
+
+            {/* Breadcrumb navigation */}
+            {canvasPath.length > 0 ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <button
+                  onClick={async () => {
+                    // Save current canvas
+                    if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+                      await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+                    }
+                    // Reset folder context and navigate to main
+                    colorContext.setCurrentFolderId(null)
+                    setCanvasPath([])
+                    setCurrentCanvasId('main')
+                    toast.success('Returning to main canvas', { icon: '🏠', duration: 2000 })
+                  }}
+                  className="hover:text-foreground transition-colors cursor-pointer"
+                >
+                  {story.title}
+                </button>
+                {canvasPath.map((pathItem, index) => (
+                  <React.Fragment key={pathItem.id}>
+                    <ChevronRight className="w-4 h-4" />
+                    <button
+                      onClick={async () => {
+                        if (index === canvasPath.length - 1) return // Already at this location
+
+                        // Save current canvas
+                        if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+                          await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+                        }
+
+                        // Navigate to clicked path level
+                        const newPath = canvasPath.slice(0, index + 1)
+
+                        // Extract folder ID from the canvas ID (remove prefixes like 'folder-canvas-')
+                        const folderId = pathItem.id.replace(/^(folder-canvas-|character-canvas-|location-canvas-)/, '')
+                        colorContext.setCurrentFolderId(folderId)
+
+                        setCanvasPath(newPath)
+                        setCurrentCanvasId(pathItem.id)
+                        toast.success(`Navigating to: ${pathItem.title}`, { icon: '📂', duration: 2000 })
+                      }}
+                      className={`transition-colors ${
+                        index === canvasPath.length - 1
+                          ? "text-foreground font-medium cursor-default"
+                          : "hover:text-foreground cursor-pointer"
+                      }`}
+                    >
+                      {pathItem.title}
+                    </button>
+                  </React.Fragment>
+                ))}
+              </div>
+            ) : (
+              <>
+                {/* Editable title - only on main canvas */}
+                {isEditingTitle ? (
             <div className="flex items-center gap-2">
               <Input
                 value={editedTitle}
@@ -755,19 +794,17 @@ export default function StoryPage({ params }: PageProps) {
                 <X className="w-4 h-4" />
               </Button>
             </div>
-          ) : currentCanvasId === 'main' ? (
-            <button
-              onClick={() => setIsEditingTitle(true)}
-              className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 px-2 py-1 rounded transition-colors"
-            >
-              <h1 className="text-lg font-semibold">{story.title}</h1>
-              <Edit2 className="w-4 h-4 text-gray-400" />
-            </button>
-          ) : (
-            <h1 className="text-lg font-semibold px-2 py-1">
-              {canvasPath[canvasPath.length - 1]?.title || 'Section'}
-            </h1>
-          )}
+                ) : (
+                  <button
+                    onClick={() => setIsEditingTitle(true)}
+                    className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 px-2 py-1 rounded transition-colors"
+                  >
+                    <h1 className="text-lg font-semibold">{story.title}</h1>
+                    <Edit2 className="w-4 h-4 text-gray-400" />
+                  </button>
+                )}
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-4">
