@@ -1244,4 +1244,93 @@ const handleNodeMouseDown = (node: Node, e: React.MouseEvent) => {
 
 ---
 
+## 🎯 **Latest Session Updates** (October 1, 2025)
+
+### **Child Node Visual Enhancement in List Containers** ✅ **COMPLETED**
+
+#### **Issue 22: Enhanced Border Styling for List Container Children** ✅ **COMPLETED**
+- **Problem**: Child nodes in list containers needed visual distinction from standalone nodes
+- **Solution**: Implemented darker, desaturated border colors while maintaining background color
+
+**🎨 Visual Design Specifications**:
+- **Background Color**: Base palette color (unchanged from standalone nodes)
+- **Border Color**: Base palette color with transformations:
+  - Darkened by 20%
+  - Desaturated by 15%
+
+**🔧 Technical Implementation Details**:
+
+1. **Color Transformation Functions**:
+   ```typescript
+   // lightenColor() - Mixes color with white
+   // Input: hex color, amount (0.0 to 1.0)
+   // Output: lighter hex color
+
+   // darkenColor() - HSL-based darkening with desaturation
+   // Process:
+   // 1. Convert hex → RGB → HSL
+   // 2. saturation = saturation × 0.85 (reduce by 15%)
+   // 3. lightness = lightness × 0.8 (darken by 20%)
+   // 4. Convert HSL → RGB → hex
+   ```
+
+2. **Border Color Formula**:
+   - Start with base palette color (e.g., `#e0f2fe` for text nodes)
+   - Convert to HSL color space
+   - Apply transformations: `s × 0.85`, `l × 0.8`
+   - Convert back to hex for CSS
+
+3. **Code Implementation**:
+   - **File Modified**: `src/components/canvas/HTMLCanvas.tsx`
+   - **Functions Added**:
+     - `lightenColor(color, amount)` - RGB-based lightening
+     - `darkenColor(color, amount)` - HSL-based darkening with desaturation
+   - **Updated Rendering**: Child nodes in list containers (lines 3833-3835)
+     - Border: `darkenColor(baseColor, 0.2)`
+     - Background: `baseColor`
+
+4. **Node Types Affected**:
+   - Folder nodes in lists
+   - Character nodes in lists
+   - Location nodes in lists
+   - Event nodes in lists
+
+**📊 Color Transformation Example**:
+```
+Base Color:     #e0f2fe (light blue)
+                ↓
+Convert to HSL: H=198°, S=82%, L=94%
+                ↓
+Apply formula:  S=82%×0.85=70%, L=94%×0.8=75%
+                ↓
+Result Border:  ~#a8d5ef (darker, less saturated blue)
+```
+
+**✨ User Experience Improvements**:
+1. **Visual Hierarchy**: Child nodes clearly distinguished from standalone nodes
+2. **Consistent Backgrounds**: Interior color matches palette for familiarity
+3. **Subtle Contrast**: Darker borders provide definition without overwhelming
+4. **Muted Elegance**: Desaturation creates sophisticated, professional appearance
+5. **Palette Compatibility**: Works seamlessly with all color palettes
+
+**🎯 Design Rationale**:
+- Maintaining background color keeps content area familiar and readable
+- Darker borders create visual containment within list containers
+- Desaturation prevents borders from competing with content
+- 20% darkening provides noticeable but not harsh contrast
+- 15% desaturation achieves refined, professional aesthetic
+
+#### **Current Status Summary**:
+- ✅ **Color Functions**: lightenColor() and darkenColor() implemented
+- ✅ **Border Styling**: Darker, desaturated borders on child nodes
+- ✅ **Background Preservation**: Base palette colors maintained
+- ✅ **All Node Types**: Applied to folder, character, location, event nodes
+- ✅ **Palette Integration**: Works with dynamic color palette system
+
+#### **Files Modified**:
+- `src/components/canvas/HTMLCanvas.tsx` - Color functions and child node styling
+- Git commit: a055c13 - "Add lighter background colors and darker desaturated borders for child nodes in lists"
+
+---
+
 *This document serves as a comprehensive record of all achievements, current status, and future direction for the StoryCanvas project.*

@@ -227,12 +227,12 @@
 
 /* Canvas styles that adapt to color palette */
 .canvas-grid {
-  background-image: radial-gradient(circle, var(--color-border, #e2e8f0) 1px, transparent 1px);
+  background-image: radial-gradient(circle, var(--canvas-dot-color, #e2e8f0) 1px, transparent 1px);
   background-size: 20px 20px;
 }
 
 .dark .canvas-grid {
-  background-image: radial-gradient(circle, var(--color-border, #334155) 1px, transparent 1px);
+  background-image: radial-gradient(circle, var(--canvas-dot-color, #334155) 1px, transparent 1px);
   background-size: 20px 20px;
 }
 

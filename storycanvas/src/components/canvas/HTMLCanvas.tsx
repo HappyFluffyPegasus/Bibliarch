@@ -349,6 +349,27 @@ export default function HTMLCanvas({
     }
   }, [nodes.length, autoResizeNode, hasInitialized]) // Only on initial load
 
+  // Set canvas dot color using same transformation as child node borders
+  useEffect(() => {
+    const currentPalette = colorContext.getCurrentPalette()
+    let canvasBackgroundColor = '#e0f2fe' // fallback
+
+    if (currentPalette && currentPalette.colors && currentPalette.colors.canvasBackground) {
+      canvasBackgroundColor = currentPalette.colors.canvasBackground
+    } else {
+      const paletteCanvasBg = getComputedStyle(document.documentElement)
+        .getPropertyValue('--color-canvas-background')
+        .trim()
+      if (paletteCanvasBg && paletteCanvasBg !== '#ffffff' && paletteCanvasBg !== 'white' && paletteCanvasBg !== '') {
+        canvasBackgroundColor = paletteCanvasBg
+      }
+    }
+
+    // Apply transformation: darken by 30%, fully saturated
+    const dotColor = darkenColor(canvasBackgroundColor, 0.3)
+    document.documentElement.style.setProperty('--canvas-dot-color', dotColor)
+  }, [colorContext])
+
   // Handle crop dragging and resizing with global mouse events
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -1224,9 +1245,28 @@ export default function HTMLCanvas({
       }
     }
 
-    // Reduce saturation slightly and darken
-    s = s * 0.85
-    l = l * (1 - amount)
+    // Apply transformations based on usage
+    if (amount === 0.3) {
+      // For dots: Use adaptive darkening based on original lightness
+      // Very light colors (>90% lightness) need more aggressive darkening
+      // Target a consistent mid-tone for visibility
+      if (l > 0.9) {
+        // Very light backgrounds: darken to ~50% lightness for good contrast
+        l = 0.5
+      } else if (l > 0.8) {
+        // Light backgrounds: darken to ~45% lightness
+        l = 0.45
+      } else {
+        // Normal backgrounds: use standard 30% darkening
+        l = l * 0.7
+      }
+      // High saturation for vibrancy, but not overpowering
+      s = Math.min(1.0, s * 2.5) // Boost saturation significantly but cap at 100%
+    } else {
+      // For borders (amount=0.2): desaturate by 15%
+      s = s * 0.85
+      l = l * (1 - amount)
+    }
 
     // Convert back to RGB
     const hue2rgb = (p: number, q: number, t: number) => {
@@ -2247,7 +2287,7 @@ export default function HTMLCanvas({
                   <div><strong>Timeline:</strong> Click events to connect them in sequence</div>
                 )}
                 <div><strong>Navigate:</strong> Click arrow (→) on folder/character nodes to enter</div>
-                <div><strong>Organize:</strong> Drag nodes into list containers (📦)</div>
+                <div><strong>Organize:</strong> Drag nodes into list containers</div>
                 <div><strong>Delete:</strong> Select node and press Delete or Backspace</div>
                 <div><strong>Undo/Redo:</strong> Ctrl+Z / Ctrl+Y</div>
                 <div><strong>Cancel:</strong> Press Escape to deselect</div>
@@ -3972,7 +4012,8 @@ export default function HTMLCanvas({
                                         e.stopPropagation()
                                         removeFromContainer(childNode.id)
                                       }}
-                                      className="text-red-500 hover:text-red-700 w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 flex-shrink-0"
+                                      className="w-6 h-6 flex items-center justify-center rounded flex-shrink-0"
+                                      style={{ color: getNodeBorderColor(childNode.type || 'folder') }}
                                       title="Remove from container"
                                     >
                                       <X className="w-4 h-4" />
@@ -4088,7 +4129,8 @@ export default function HTMLCanvas({
                                         e.stopPropagation()
                                         removeFromContainer(childNode.id)
                                       }}
-                                      className="text-red-500 hover:text-red-700 w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 flex-shrink-0"
+                                      className="w-6 h-6 flex items-center justify-center rounded flex-shrink-0"
+                                      style={{ color: getNodeBorderColor(childNode.type || 'folder') }}
                                       title="Remove from container"
                                     >
                                       <X className="w-4 h-4" />
@@ -4190,7 +4232,8 @@ export default function HTMLCanvas({
                                           e.stopPropagation()
                                           removeFromContainer(childNode.id)
                                         }}
-                                        className="text-red-500 hover:text-red-700 w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 flex-shrink-0"
+                                        className="w-6 h-6 flex items-center justify-center rounded flex-shrink-0"
+                                        style={{ color: getNodeBorderColor(childNode.type || 'folder') }}
                                         title="Remove from container"
                                       >
                                         <X className="w-4 h-4" />
@@ -4270,7 +4313,8 @@ export default function HTMLCanvas({
                                     e.stopPropagation()
                                     removeFromContainer(childNode.id)
                                   }}
-                                  className="text-red-500 hover:text-red-700 w-6 h-6 flex items-center justify-center rounded hover:bg-red-50"
+                                  className="w-6 h-6 flex items-center justify-center rounded"
+                                  style={{ color: getNodeBorderColor(childNode.type || 'folder') }}
                                   title="Remove from container"
                                 >
                                   <X className="w-4 h-4" />
@@ -4471,11 +4515,6 @@ export default function HTMLCanvas({
                   >
                     <span className="text-2xl font-bold" style={{ color: getNodeBorderColor('folder') }}>→</span>
                   </div>
-                </div>
-              )}
-              {node.type === 'list' && (
-                <div className="absolute bottom-1 right-1">
-                  <span className="text-xs font-medium" style={{ color: getNodeBorderColor('list') }}>📦</span>
                 </div>
               )}
 
