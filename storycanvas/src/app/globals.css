@@ -333,16 +333,22 @@
 .nodes-outlines-dark {
   /* Use default dark border color for all nodes */
   --outline-mode: dark;
+  /* Resize handles use lighter color to contrast with dark borders */
+  --resize-handle-color: color-mix(in srgb, var(--node-border-default) 50%, white);
 }
 
 .nodes-outlines-light {
   /* Use lighter border color for all nodes (20% lighter, 15% less saturated) */
   --outline-mode: light;
+  /* Resize handles use darker color to contrast with light borders */
+  --resize-handle-color: var(--node-border-default);
 }
 
 .nodes-outlines-mixed {
   /* Default mixed mode: standalone nodes use dark borders, child nodes use light borders */
   --outline-mode: mixed;
+  /* Resize handles use lighter color like child nodes */
+  --resize-handle-color: color-mix(in srgb, var(--node-border-default) 50%, white);
 }
 
 /* Text Weight Toggles */

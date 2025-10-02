@@ -486,12 +486,18 @@ export default function HTMLCanvas({
     }
   }, [initialNodes, initialConnections])
 
-  // Update visible nodes when nodes change
+  // Update visible nodes when nodes change - memoized to prevent infinite loops
+  const nodeIdsSnapshot = useMemo(() =>
+    nodes.map(node => node.id).join(','),
+    [nodes]
+  )
+
   useEffect(() => {
     if (visibleNodeIds.length === 0 || visibleNodeIds.length === nodes.length) {
       setVisibleNodeIds(nodes.map(node => node.id))
     }
-  }, [nodes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodeIdsSnapshot])
 
   // Sync node content with DOM elements to preserve cursor position
   // DISABLED: This was causing cursor jumping issues during typing
@@ -1038,6 +1044,8 @@ export default function HTMLCanvas({
       setResizingNode(null)
       setResizeStartSize({ width: 0, height: 0 })
       setResizeStartPos({ x: 0, y: 0 })
+      // Re-enable text selection after resize
+      document.body.style.userSelect = ''
       toast.success('Node resized')
     }
     
@@ -1378,35 +1386,68 @@ export default function HTMLCanvas({
     return baseColor
   }
 
-  const getNodeBorderColor = (nodeType: string, isChildInList: boolean = false) => {
-    // Use palette border color for all nodes
-    const paletteBorder = getComputedStyle(document.documentElement)
+  // ====================
+  // BORDER COLOR SYSTEM - Two distinct colors for clarity
+  // ====================
+
+  // DARK BORDER: Strong, prominent border from the color palette
+  const getDarkBorderColor = () => {
+    return getComputedStyle(document.documentElement)
       .getPropertyValue('--color-border')
       .trim() || 'hsl(var(--border))'
+  }
 
-    // Get outline mode from preferences
+  // LIGHT BORDER: Subtle, colored border derived from node's background color
+  // Note: "darkenColor" with 0.2 actually darkens/saturates the node color to create a visible border
+  const getLightBorderColor = (nodeType: string) => {
+    const nodeColor = getNodeColor(nodeType, undefined, undefined, false)
+    const borderColor = darkenColor(nodeColor, 0.2)
+    console.log(`Light border for ${nodeType}: node=${nodeColor}, border=${borderColor}`)
+    return borderColor
+  }
+
+  // ====================
+  // NODE BORDER COLOR - Uses dark or light based on outline mode
+  // ====================
+  const getNodeBorderColor = (nodeType: string, isChildInList: boolean = false) => {
     const outlineMode = nodeStylePreferences.outlines
 
-    // Dark mode: always use default border color
+    // Dark mode: always use DARK border
     if (outlineMode === 'dark') {
-      return paletteBorder
+      return getDarkBorderColor()
     }
 
-    // Light mode: always use lighter border (same as child nodes)
+    // Light mode: always use LIGHT border
     if (outlineMode === 'light') {
-      return darkenColor(getNodeColor(nodeType, undefined, undefined, false), 0.2)
+      return getLightBorderColor(nodeType)
     }
 
-    // Mixed mode: child nodes use light borders, standalone use dark
+    // Mixed mode: child nodes use LIGHT, standalone use DARK
     if (outlineMode === 'mixed') {
-      if (isChildInList) {
-        return darkenColor(getNodeColor(nodeType, undefined, undefined, false), 0.2)
-      } else {
-        return paletteBorder
-      }
+      return isChildInList ? getLightBorderColor(nodeType) : getDarkBorderColor()
     }
 
-    return paletteBorder
+    return getDarkBorderColor()
+  }
+
+  // ====================
+  // RESIZE HANDLE COLOR - Uses OPPOSITE of node border for contrast
+  // ====================
+  const getResizeHandleColor = (nodeType: string) => {
+    const outlineMode = nodeStylePreferences.outlines
+
+    // Light mode: nodes use LIGHT borders, so handles use DARK
+    if (outlineMode === 'light') {
+      return getDarkBorderColor()
+    }
+
+    // Dark mode: nodes use DARK borders, so handles use LIGHT
+    // Mixed mode: nodes use DARK borders, so handles use LIGHT
+    if (outlineMode === 'dark' || outlineMode === 'mixed') {
+      return getLightBorderColor(nodeType)
+    }
+
+    return getDarkBorderColor()
   }
 
   // Helper function to get text color from palette with text weight mode support
@@ -2470,7 +2511,7 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute cursor-move ${
-                    selectedId === node.id ? 'ring-2 ring-primary' : ''
+                    selectedId === node.id ? 'ring-2' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   }`}
@@ -2661,9 +2702,13 @@ export default function HTMLCanvas({
                   {/* Add corner resize handle for image nodes when selected */}
                   {selectedId === node.id && (
                     <div
-                      className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-sm cursor-se-resize hover:bg-primary/80 border border-background"
+                      className="absolute -bottom-1 -right-1 w-3 h-3 rounded-sm cursor-se-resize border border-background"
+                      style={{ backgroundColor: getResizeHandleColor(node.type || 'text') }}
                       onMouseDown={(e) => {
+                        e.preventDefault() // Prevent text selection during resize
                         e.stopPropagation()
+                        // Disable text selection during resize
+                        document.body.style.userSelect = 'none'
                         setResizingNode(node.id)
                         setResizeStartSize({ width: node.width, height: node.height })
                         setResizeStartPos({ x: e.clientX, y: e.clientY })
@@ -2682,11 +2727,12 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm ${
-                    selectedId === node.id ? 'ring-2 ring-primary' : ''
+                    selectedId === node.id ? 'ring-2' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   }`}
                   style={{
+                    ...(selectedId === node.id ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {}),
                     left: draggingNode === node.id ? dragPosition.x : node.x,
                     top: draggingNode === node.id ? dragPosition.y : node.y,
                     width: node.width,
@@ -2784,7 +2830,7 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
-                    selectedId === node.id ? 'ring-2 ring-primary' : ''
+                    selectedId === node.id ? 'ring-2' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   } ${
@@ -2798,7 +2844,8 @@ export default function HTMLCanvas({
                     width: node.width,
                     height: node.height,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
-                    borderColor: selectedId === node.id ? 'hsl(var(--primary))' : getNodeBorderColor(node.type || 'text')
+                    borderColor: selectedId === node.id ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
+                    ...(selectedId === node.id ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onDoubleClick={(e) => {
@@ -2892,7 +2939,8 @@ export default function HTMLCanvas({
                     <>
                       {/* Right edge resize handle (width only) */}
                       <div
-                        className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-8 bg-primary/70 rounded-sm cursor-e-resize hover:bg-primary/90"
+                        className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-8 rounded-sm cursor-e-resize"
+                        style={{ backgroundColor: getResizeHandleColor(node.type || 'text') }}
                         onMouseDown={(e) => {
                           e.stopPropagation()
                           setResizingNode(node.id)
@@ -2913,7 +2961,7 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
-                    selectedId === node.id ? 'ring-2 ring-primary' : ''
+                    selectedId === node.id ? 'ring-2' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   } ${
@@ -2927,7 +2975,8 @@ export default function HTMLCanvas({
                     width: node.width,
                     height: node.height,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
-                    borderColor: selectedId === node.id ? 'hsl(var(--primary))' : getNodeBorderColor(node.type || 'text')
+                    borderColor: selectedId === node.id ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
+                    ...(selectedId === node.id ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onDoubleClick={(e) => {
@@ -3217,7 +3266,7 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm border-2 rounded-lg ${
-                    selectedId === node.id ? 'ring-2 ring-primary' : ''
+                    selectedId === node.id ? 'ring-2' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   }`}
@@ -3227,7 +3276,8 @@ export default function HTMLCanvas({
                     width: node.width,
                     height: node.height,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
-                    borderColor: selectedId === node.id ? 'hsl(var(--primary))' : getNodeBorderColor(node.type || 'text'),
+                    borderColor: selectedId === node.id ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
+                    ...(selectedId === node.id ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {}),
                     padding: '12px',
                     overflow: 'hidden'
                   }}
@@ -3595,7 +3645,7 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
-                    selectedId === node.id ? 'ring-2 ring-primary' : ''
+                    selectedId === node.id ? 'ring-2' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   } ${
@@ -3609,7 +3659,8 @@ export default function HTMLCanvas({
                     width: node.width,
                     height: node.height,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
-                    borderColor: selectedId === node.id ? 'hsl(var(--primary))' : getNodeBorderColor(node.type || 'text')
+                    borderColor: selectedId === node.id ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
+                    ...(selectedId === node.id ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onDoubleClick={(e) => {
@@ -3792,7 +3843,8 @@ export default function HTMLCanvas({
                     <>
                       {/* Right edge resize handle (width only) */}
                       <div
-                        className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-8 bg-primary/70 rounded-sm cursor-e-resize hover:bg-primary/90"
+                        className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-8 rounded-sm cursor-e-resize"
+                        style={{ backgroundColor: getResizeHandleColor(node.type || 'text') }}
                         onMouseDown={(e) => {
                           e.stopPropagation()
                           setResizingNode(node.id)
@@ -3813,7 +3865,7 @@ export default function HTMLCanvas({
               data-node-id={node.id}
               draggable={node.type !== 'list'}
               className={`absolute border-2 rounded-lg p-3 cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
-                selectedId === node.id ? 'ring-2 ring-primary' : ''
+                selectedId === node.id ? 'ring-2' : ''
               } ${
                 connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
               } ${
@@ -3827,7 +3879,8 @@ export default function HTMLCanvas({
                 width: node.width,
                 height: node.height,
                 backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
-                borderColor: selectedId === node.id ? 'hsl(var(--primary))' : getNodeBorderColor(node.type || 'text')
+                borderColor: selectedId === node.id ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
+                ...(selectedId === node.id ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
               }}
               onClick={(e) => handleNodeClick(node, e)}
               onDoubleClick={(e) => {
@@ -4647,9 +4700,13 @@ export default function HTMLCanvas({
                   {/* Right edge resize handle (width only) */}
                   {node.type !== 'image' && (
                     <div
-                      className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-8 bg-primary/70 rounded-sm cursor-e-resize hover:bg-primary/90"
+                      className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-8 rounded-sm cursor-e-resize"
+                      style={{ backgroundColor: getResizeHandleColor(node.type || 'text') }}
                       onMouseDown={(e) => {
+                        e.preventDefault() // Prevent text selection during resize
                         e.stopPropagation()
+                        // Disable text selection during resize
+                        document.body.style.userSelect = 'none'
                         setResizingNode(node.id)
                         setResizeStartSize({ width: node.width, height: node.height })
                         setResizeStartPos({ x: e.clientX, y: e.clientY })
@@ -4661,9 +4718,13 @@ export default function HTMLCanvas({
                   {/* Bottom edge resize handle (height only) */}
                   {node.type !== 'image' && (
                     <div
-                      className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-8 h-2 bg-primary/70 rounded-sm cursor-s-resize hover:bg-primary/90"
+                      className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-8 h-2 rounded-sm cursor-s-resize"
+                      style={{ backgroundColor: getResizeHandleColor(node.type || 'text') }}
                       onMouseDown={(e) => {
+                        e.preventDefault() // Prevent text selection during resize
                         e.stopPropagation()
+                        // Disable text selection during resize
+                        document.body.style.userSelect = 'none'
                         setResizingNode(node.id)
                         setResizeStartSize({ width: node.width, height: node.height })
                         setResizeStartPos({ x: e.clientX, y: e.clientY })
@@ -4673,12 +4734,6 @@ export default function HTMLCanvas({
                   )}
 
 
-                  {/* List container resize indicator */}
-                  {node.type === 'list' && (
-                    <div className="absolute -top-6 left-0 text-xs text-primary bg-background border border-primary rounded px-1">
-                      Scales children
-                    </div>
-                  )}
                 </>
               )}
 
