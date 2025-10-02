@@ -108,6 +108,9 @@ export default function HTMLCanvas({
   const [isMoving, setIsMoving] = useState(false)
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null)
 
+  // Mode tracking: 'moving' (default) or 'typing' (when text is focused)
+  const [interactionMode, setInteractionMode] = useState<'moving' | 'typing'>('moving')
+
   // Node style preferences state
   const [nodeStylePreferences, setNodeStylePreferences] = useState<NodeStylePreferences>(() => {
     // Load from localStorage on init
@@ -680,8 +683,15 @@ export default function HTMLCanvas({
   }, [tool])
 
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
-    // Pan tool doesn't create nodes, only pans
-    if (tool === 'pan' || tool === 'select' || isPanning) return
+    // Select tool: deselect nodes when clicking empty canvas, switch to moving mode
+    if (tool === 'select') {
+      setSelectedId(null)
+      setInteractionMode('moving')
+      return
+    }
+
+    // Don't create nodes while panning
+    if (isPanning) return
     
     // Only create nodes when a creation tool is selected
     if (!['text', 'character', 'event', 'location', 'folder', 'list', 'image', 'table', 'relationship-canvas'].includes(tool)) return
@@ -717,7 +727,8 @@ export default function HTMLCanvas({
   }, [tool, isPanning, nodes, connections, saveToHistory])
 
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
-    if (tool === 'pan' && e.target === canvasRef.current && !isDraggingCharacter) {
+    // Enable panning in select mode when clicking on empty canvas (not on nodes)
+    if (tool === 'select' && e.target === canvasRef.current && !isDraggingCharacter) {
       setIsPanning(true)
       setIsMoving(true)
       setLastPanPoint({ x: e.clientX, y: e.clientY })
@@ -738,12 +749,32 @@ export default function HTMLCanvas({
 
       setLastPanPoint({ x: e.clientX, y: e.clientY })
     } else if (isDragReady && !draggingNode && !isDraggingCharacter) {
-      // Check if mouse moved enough to start dragging (very small threshold for immediate response)
+      // In typing mode, disable node dragging completely - only allow text selection
+      if (interactionMode === 'typing') {
+        setIsDragReady(null)
+        return
+      }
+
+      // Check if user is currently selecting text - if so, don't start dragging
+      const selection = window.getSelection()
+      const hasTextSelection = selection && selection.toString().length > 0
+
+      if (hasTextSelection) {
+        // User is selecting text, cancel drag ready state
+        setIsDragReady(null)
+        return
+      }
+
+      // Check if mouse moved enough to start dragging (smaller threshold in moving mode)
       const deltaX = e.clientX - dragStartPos.x
       const deltaY = e.clientY - dragStartPos.y
       const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
 
-      if (distance > 2) { // Reduced threshold for more responsive dragging
+      // In moving mode, use a responsive threshold
+      const dragThreshold = 3
+
+      if (distance > dragThreshold) {
+        // Start dragging the node
         setDraggingNode(isDragReady)
         setIsDragReady(null)
         setIsMoving(true)
@@ -877,9 +908,12 @@ export default function HTMLCanvas({
         const widthScale = newWidth / resizeStartSize.width
         const heightScale = newHeight / resizeStartSize.height
 
-        // Update child nodes proportionally (but don't allow individual child scaling)
+        // Update child nodes proportionally and update the list container size
         const updatedNodes = nodes.map(node => {
-          if (resizingNodeObj.childIds?.includes(node.id)) {
+          if (node.id === resizingNode) {
+            // Update the list container size
+            return { ...node, width: newWidth, height: newHeight }
+          } else if (resizingNodeObj.childIds?.includes(node.id)) {
             // Scale child nodes proportionally to the list container
             return {
               ...node,
@@ -891,6 +925,7 @@ export default function HTMLCanvas({
           return node
         })
         setNodes(updatedNodes)
+        return // Early return since we've already updated nodes
       }
       // Text, character, event, location, folder nodes: freely scalable width and height
       // (no special restrictions)
@@ -1662,6 +1697,10 @@ export default function HTMLCanvas({
     }
   }
 
+  // Stable callback for ColorFilter to prevent re-render loops
+  const handleFilterChange = useCallback((visibleIds: string[]) => {
+    setVisibleNodeIds(visibleIds)
+  }, [])
 
   const handleDeleteNode = (nodeId: string) => {
     const newNodes = nodes.filter(node => node.id !== nodeId)
@@ -2022,24 +2061,12 @@ export default function HTMLCanvas({
       <div className="w-20 bg-card border-r border-gray-600 dark:border-gray-600 flex flex-col items-center py-4 gap-3 z-20 max-h-screen hover-scrollable">
         {/* Navigation Tools */}
         <div className="flex flex-col gap-1">
-          <Button 
-            size="sm" 
-            variant={tool === 'pan' ? 'default' : 'outline'}
-            onClick={() => {
-              setTool('pan')
-              setSelectedId(null)
-            }}
-            className={`h-12 w-14 p-0 ${tool === 'pan' ? 'bg-blue-600 text-white' : ''}`}
-            title="Pan Tool - Move around the canvas"
-          >
-            <Hand className="w-7 h-7" />
-          </Button>
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant={tool === 'select' ? 'default' : 'outline'}
             onClick={() => setTool('select')}
             className={`h-12 w-14 p-0 ${tool === 'select' ? 'bg-green-600 text-white' : ''}`}
-            title="Select Tool - Click and interact with nodes"
+            title="Select Tool - Click nodes to interact, drag canvas to pan"
           >
             <MousePointer className="w-7 h-7" />
           </Button>
@@ -2204,21 +2231,6 @@ export default function HTMLCanvas({
         <div className="w-8 h-px bg-border my-2" />
 
         {/* Canvas Controls */}
-        <div className="flex flex-col gap-1">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={() => resizeCanvasAndRepositionNodes(2000, 1500, 'plot structure')}
-            className="h-11 w-14 p-0"
-            title="Center nodes on canvas"
-          >
-            <Move className="w-5 h-5" />
-          </Button>
-        </div>
-
-        {/* Divider */}
-        <div className="w-8 h-px bg-border my-2" />
-
         {/* Layer Controls */}
         <div className="flex flex-col gap-1">
           <Button
@@ -2305,7 +2317,7 @@ export default function HTMLCanvas({
           />
           <ColorFilter
             nodes={nodes}
-            onFilterChange={setVisibleNodeIds}
+            onFilterChange={handleFilterChange}
           />
 
         </div>
@@ -2413,8 +2425,7 @@ export default function HTMLCanvas({
         <div
           ref={canvasRef}
           className={`canvas-grid relative ${
-            tool === 'pan' ? 'cursor-grab' :
-            tool === 'select' ? 'cursor-default' :
+            tool === 'select' ? 'cursor-grab' :
             tool === 'relationships' ? 'cursor-pointer' :
             'cursor-crosshair'
           } ${isPanning ? 'cursor-grabbing' : ''} ${getNodeStyleClasses()}`}
@@ -2670,7 +2681,7 @@ export default function HTMLCanvas({
                 <div
                   key={node.id}
                   data-node-id={node.id}
-                  className={`absolute cursor-move ${tool !== 'pan' ? 'hover:shadow-lg' : ''} shadow-sm ${
+                  className={`absolute cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm ${
                     selectedId === node.id ? 'ring-2 ring-primary' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
@@ -2772,7 +2783,7 @@ export default function HTMLCanvas({
                 <div
                   key={node.id}
                   data-node-id={node.id}
-                  className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${tool !== 'pan' ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
+                  className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
                     selectedId === node.id ? 'ring-2 ring-primary' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
@@ -2806,22 +2817,33 @@ export default function HTMLCanvas({
                                          target.tagName === 'TEXTAREA' ||
                                          target.closest('[contenteditable="true"]')
 
-                    // Only start drag if NOT clicking on editable text
-                    if (!isTextElement) {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setDragStartPos({ x: e.clientX, y: e.clientY })
-                      setIsDragReady(node.id)
+                    if (isTextElement) {
+                      // Switch to typing mode when clicking on text
+                      setInteractionMode('typing')
+                      // Deselect node when entering typing mode
+                      setSelectedId(null)
+                      // Allow default text selection behavior, don't interfere at all
+                      e.stopPropagation() // Still stop propagation to canvas
+                      return
+                    }
 
-                      const rect = canvasRef.current?.getBoundingClientRect()
-                      if (rect) {
-                        const mouseX = e.clientX - rect.left
-                        const mouseY = e.clientY - rect.top
-                        setDragOffset({
-                          x: mouseX - node.x,
-                          y: mouseY - node.y
-                        })
-                      }
+                    // Not on text - in moving mode
+                    setInteractionMode('moving')
+                    e.preventDefault()
+                    e.stopPropagation()
+
+                    // Set up drag tracking
+                    setDragStartPos({ x: e.clientX, y: e.clientY })
+                    setIsDragReady(node.id)
+
+                    const rect = canvasRef.current?.getBoundingClientRect()
+                    if (rect) {
+                      const mouseX = e.clientX - rect.left
+                      const mouseY = e.clientY - rect.top
+                      setDragOffset({
+                        x: mouseX - node.x,
+                        y: mouseY - node.y
+                      })
                     }
                   }}
                 >
@@ -2890,7 +2912,7 @@ export default function HTMLCanvas({
                 <div
                   key={node.id}
                   data-node-id={node.id}
-                  className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${tool !== 'pan' ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
+                  className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
                     selectedId === node.id ? 'ring-2 ring-primary' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
@@ -2921,22 +2943,33 @@ export default function HTMLCanvas({
                                          target.tagName === 'TEXTAREA' ||
                                          target.closest('[contenteditable="true"]')
 
-                    // Only start drag if NOT clicking on editable text
-                    if (!isTextElement) {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setDragStartPos({ x: e.clientX, y: e.clientY })
-                      setIsDragReady(node.id)
+                    if (isTextElement) {
+                      // Switch to typing mode when clicking on text
+                      setInteractionMode('typing')
+                      // Deselect node when entering typing mode
+                      setSelectedId(null)
+                      // Allow default text selection behavior, don't interfere at all
+                      e.stopPropagation() // Still stop propagation to canvas
+                      return
+                    }
 
-                      const rect = canvasRef.current?.getBoundingClientRect()
-                      if (rect) {
-                        const mouseX = e.clientX - rect.left
-                        const mouseY = e.clientY - rect.top
-                        setDragOffset({
-                          x: mouseX - node.x,
-                          y: mouseY - node.y
-                        })
-                      }
+                    // Not on text - in moving mode
+                    setInteractionMode('moving')
+                    e.preventDefault()
+                    e.stopPropagation()
+
+                    // Set up drag tracking
+                    setDragStartPos({ x: e.clientX, y: e.clientY })
+                    setIsDragReady(node.id)
+
+                    const rect = canvasRef.current?.getBoundingClientRect()
+                    if (rect) {
+                      const mouseX = e.clientX - rect.left
+                      const mouseY = e.clientY - rect.top
+                      setDragOffset({
+                        x: mouseX - node.x,
+                        y: mouseY - node.y
+                      })
                     }
                   }}
                 >
@@ -3183,7 +3216,7 @@ export default function HTMLCanvas({
                 <div
                   key={node.id}
                   data-node-id={node.id}
-                  className={`absolute cursor-move ${tool !== 'pan' ? 'hover:shadow-lg' : ''} shadow-sm border-2 rounded-lg ${
+                  className={`absolute cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm border-2 rounded-lg ${
                     selectedId === node.id ? 'ring-2 ring-primary' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
@@ -3290,21 +3323,20 @@ export default function HTMLCanvas({
                               const newX = Math.max(0, Math.min(node.width - profileSize - 20, initialX + deltaX))
                               const newY = Math.max(0, Math.min(node.height - profileSize - 100, initialY + deltaY))
 
-                              const updatedCharacters = selectedCharacters.map(char =>
-                                char.id === character.id ? { ...char, position: { x: newX, y: newY } } : char
-                              )
-
-                              const updatedNodes = nodes.map(n =>
-                                n.id === node.id ? {
-                                  ...n,
-                                  relationshipData: {
-                                    ...n.relationshipData,
-                                    selectedCharacters: updatedCharacters,
-                                    relationships: n.relationshipData?.relationships || []
-                                  }
-                                } : n
-                              )
-                              setNodes(updatedNodes)
+                              setNodes(prevNodes => {
+                                return prevNodes.map(n =>
+                                  n.id === node.id ? {
+                                    ...n,
+                                    relationshipData: {
+                                      ...n.relationshipData,
+                                      selectedCharacters: n.relationshipData?.selectedCharacters.map(char =>
+                                        char.id === character.id ? { ...char, position: { x: newX, y: newY } } : char
+                                      ) || [],
+                                      relationships: n.relationshipData?.relationships || []
+                                    }
+                                  } : n
+                                )
+                              })
                             }
 
                             const handleMouseUp = () => {
@@ -3562,7 +3594,7 @@ export default function HTMLCanvas({
                 <div
                   key={node.id}
                   data-node-id={node.id}
-                  className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${tool !== 'pan' ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
+                  className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
                     selectedId === node.id ? 'ring-2 ring-primary' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
@@ -3596,22 +3628,38 @@ export default function HTMLCanvas({
                     // Check if user is clicking on profile picture area
                     const isProfilePicture = target.closest('.profile-picture-area')
 
-                    // Only start drag if NOT clicking on editable text OR profile picture
-                    if (!isTextElement && !isProfilePicture) {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setDragStartPos({ x: e.clientX, y: e.clientY })
-                      setIsDragReady(node.id)
+                    // Don't interfere with profile picture clicks
+                    if (isProfilePicture) {
+                      return
+                    }
 
-                      const rect = canvasRef.current?.getBoundingClientRect()
-                      if (rect) {
-                        const mouseX = e.clientX - rect.left
-                        const mouseY = e.clientY - rect.top
-                        setDragOffset({
-                          x: mouseX - node.x,
-                          y: mouseY - node.y
-                        })
-                      }
+                    if (isTextElement) {
+                      // Switch to typing mode when clicking on text
+                      setInteractionMode('typing')
+                      // Deselect node when entering typing mode
+                      setSelectedId(null)
+                      // Allow default text selection behavior, don't interfere at all
+                      e.stopPropagation() // Still stop propagation to canvas
+                      return
+                    }
+
+                    // Not on text - in moving mode
+                    setInteractionMode('moving')
+                    e.preventDefault()
+                    e.stopPropagation()
+
+                    // Set up drag tracking
+                    setDragStartPos({ x: e.clientX, y: e.clientY })
+                    setIsDragReady(node.id)
+
+                    const rect = canvasRef.current?.getBoundingClientRect()
+                    if (rect) {
+                      const mouseX = e.clientX - rect.left
+                      const mouseY = e.clientY - rect.top
+                      setDragOffset({
+                        x: mouseX - node.x,
+                        y: mouseY - node.y
+                      })
                     }
                   }}
                 >
@@ -3711,7 +3759,7 @@ export default function HTMLCanvas({
 
                     {/* Navigation arrow - clickable */}
                     <div
-                      className="absolute bottom-1 right-1 p-1 cursor-pointer ${tool !== 'pan' ? 'hover:bg-black/10' : ''} rounded"
+                      className="absolute bottom-1 right-1 p-1 cursor-pointer ${!isPanning ? 'hover:bg-black/10' : ''} rounded"
                       onClick={async (e) => {
                         e.stopPropagation()
                         // Single click navigation for character nodes
@@ -3764,7 +3812,7 @@ export default function HTMLCanvas({
               key={node.id}
               data-node-id={node.id}
               draggable={node.type !== 'list'}
-              className={`absolute border-2 rounded-lg p-3 cursor-move ${tool !== 'pan' ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
+              className={`absolute border-2 rounded-lg p-3 cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
                 selectedId === node.id ? 'ring-2 ring-primary' : ''
               } ${
                 connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
@@ -3795,22 +3843,33 @@ export default function HTMLCanvas({
                                      target.tagName === 'TEXTAREA' ||
                                      target.closest('[contenteditable="true"]')
 
-                // Only start drag if NOT clicking on editable text
-                if (!isTextElement) {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setDragStartPos({ x: e.clientX, y: e.clientY })
-                  setIsDragReady(node.id)
+                if (isTextElement) {
+                  // Switch to typing mode when clicking on text
+                  setInteractionMode('typing')
+                  // Deselect node when entering typing mode
+                  setSelectedId(null)
+                  // Allow default text selection behavior, don't interfere at all
+                  e.stopPropagation() // Still stop propagation to canvas
+                  return
+                }
 
-                  const rect = canvasRef.current?.getBoundingClientRect()
-                  if (rect) {
-                    const mouseX = e.clientX - rect.left
-                    const mouseY = e.clientY - rect.top
-                    setDragOffset({
-                      x: mouseX - node.x,
-                      y: mouseY - node.y
-                    })
-                  }
+                // Not on text - in moving mode
+                setInteractionMode('moving')
+                e.preventDefault()
+                e.stopPropagation()
+
+                // Set up drag tracking
+                setDragStartPos({ x: e.clientX, y: e.clientY })
+                setIsDragReady(node.id)
+
+                const rect = canvasRef.current?.getBoundingClientRect()
+                if (rect) {
+                  const mouseX = e.clientX - rect.left
+                  const mouseY = e.clientY - rect.top
+                  setDragOffset({
+                    x: mouseX - node.x,
+                    y: mouseY - node.y
+                  })
                 }
               }}
               onDragStart={(e) => handleDragStart(e, node.id)}
@@ -3953,28 +4012,38 @@ export default function HTMLCanvas({
                                                      target.tagName === 'TEXTAREA' ||
                                                      target.closest('[contenteditable="true"]')
 
-                                // Only start drag if NOT clicking on editable text
-                                if (!isTextElement) {
-                                  // Child folder nodes also skip our mouse-based movement completely
-                                  if (childNode.type === 'folder') {
-                                    return // Don't interfere with HTML5 drag at all
-                                  }
+                                // Child folder nodes skip our mouse-based movement completely
+                                if (childNode.type === 'folder') {
+                                  return // Don't interfere with HTML5 drag at all
+                                }
 
-                                  // For non-folder child nodes, use mouse-based movement
-                                  e.preventDefault()
-                                  e.stopPropagation()
-                                  setDragStartPos({ x: e.clientX, y: e.clientY })
-                                  setIsDragReady(childNode.id)
+                                if (isTextElement) {
+                                  // Switch to typing mode when clicking on text
+                                  setInteractionMode('typing')
+                                  // Deselect node when entering typing mode
+                                  setSelectedId(null)
+                                  // Allow default text selection behavior, don't interfere at all
+                                  e.stopPropagation() // Still stop propagation to canvas
+                                  return
+                                }
 
-                                  const rect = canvasRef.current?.getBoundingClientRect()
-                                  if (rect) {
-                                    const mouseX = e.clientX - rect.left
-                                    const mouseY = e.clientY - rect.top
-                                    setDragOffset({
-                                      x: mouseX - childNode.x,
-                                      y: mouseY - childNode.y
-                                    })
-                                  }
+                                // Not on text - in moving mode
+                                setInteractionMode('moving')
+                                e.preventDefault()
+                                e.stopPropagation()
+
+                                // Set up drag tracking
+                                setDragStartPos({ x: e.clientX, y: e.clientY })
+                                setIsDragReady(childNode.id)
+
+                                const rect = canvasRef.current?.getBoundingClientRect()
+                                if (rect) {
+                                  const mouseX = e.clientX - rect.left
+                                  const mouseY = e.clientY - rect.top
+                                  setDragOffset({
+                                    x: mouseX - childNode.x,
+                                    y: mouseY - childNode.y
+                                  })
                                 }
                               }}
                             >
@@ -4087,7 +4156,7 @@ export default function HTMLCanvas({
 
                                     {/* Navigation arrow */}
                                     <div
-                                      className="flex-shrink-0 p-1 cursor-pointer ${tool !== 'pan' ? 'hover:bg-black/10' : ''} rounded"
+                                      className="flex-shrink-0 p-1 cursor-pointer ${!isPanning ? 'hover:bg-black/10' : ''} rounded"
                                       onClick={async (e) => {
                                         e.stopPropagation()
 
@@ -4198,7 +4267,7 @@ export default function HTMLCanvas({
 
                                     {/* Navigation arrow */}
                                     <div
-                                      className="flex-shrink-0 p-1 cursor-pointer ${tool !== 'pan' ? 'hover:bg-black/10' : ''} rounded"
+                                      className="flex-shrink-0 p-1 cursor-pointer ${!isPanning ? 'hover:bg-black/10' : ''} rounded"
                                       onClick={async (e) => {
                                         e.stopPropagation()
 
@@ -4409,7 +4478,7 @@ export default function HTMLCanvas({
                               {/* Folder indicator */}
                               <div className="absolute bottom-1 right-1 flex items-center gap-1">
                                 <div
-                                  className="p-1 cursor-pointer ${tool !== 'pan' ? 'hover:bg-black/10' : ''} rounded"
+                                  className="p-1 cursor-pointer ${!isPanning ? 'hover:bg-black/10' : ''} rounded"
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     // CRITICAL: Get the most up-to-date node from the nodes array
@@ -4527,7 +4596,7 @@ export default function HTMLCanvas({
               {node.type === 'folder' && (
                 <div className="absolute bottom-1 right-1 flex items-center gap-1">
                   <div
-                    className="p-1 cursor-pointer ${tool !== 'pan' ? 'hover:bg-black/10' : ''} rounded"
+                    className="p-1 cursor-pointer ${!isPanning ? 'hover:bg-black/10' : ''} rounded"
                     onClick={async (e) => {
                       e.stopPropagation()
                       // Single click navigation for folder nodes

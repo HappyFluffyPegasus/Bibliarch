@@ -30,13 +30,19 @@ export function ColorFilter({ nodes, onFilterChange, className }: ColorFilterPro
   const [colorGroups, setColorGroups] = useState<ColorGroup[]>([])
   const [showAllColors, setShowAllColors] = useState(true)
 
+  // Memoize node IDs to prevent re-grouping when only node positions change
+  const nodeSnapshot = React.useMemo(() =>
+    JSON.stringify(nodes.map(n => ({ id: n.id, color: n.color, type: n.type }))),
+    [nodes]
+  )
+
   useEffect(() => {
     // Group nodes by color
     const colorMap = new Map<string, ColorGroup>()
-    
+
     nodes.forEach(node => {
       const color = node.color || '#ffffff' // Default to white if no color
-      
+
       if (colorMap.has(color)) {
         const group = colorMap.get(color)!
         group.count++
@@ -52,7 +58,8 @@ export function ColorFilter({ nodes, onFilterChange, className }: ColorFilterPro
     })
 
     setColorGroups(Array.from(colorMap.values()).sort((a, b) => b.count - a.count))
-  }, [nodes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodeSnapshot])
 
   useEffect(() => {
     // Calculate visible nodes
@@ -64,7 +71,8 @@ export function ColorFilter({ nodes, onFilterChange, className }: ColorFilterPro
         .flatMap(group => group.nodeIds)
       onFilterChange(visibleNodeIds)
     }
-  }, [colorGroups, showAllColors, nodes, onFilterChange])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colorGroups, showAllColors])
 
   const toggleColorVisibility = (color: string) => {
     setColorGroups(prev => 
