@@ -671,6 +671,46 @@ export default function HTMLCanvas({
     return classes.join(' ')
   }, [nodeStylePreferences])
 
+  // Helper function to get node position during drag (supports multi-select)
+  const getNodeDragPosition = useCallback((node: Node) => {
+    if (draggingNode === node.id) {
+      // This is the node being directly dragged
+      return { x: dragPosition.x, y: dragPosition.y }
+    }
+    if (draggingNode && selectedIds.includes(node.id)) {
+      // This is another selected node - move it by the same delta
+      const draggedNode = nodes.find(n => n.id === draggingNode)
+      if (draggedNode) {
+        let deltaX = dragPosition.x - draggedNode.x
+        let deltaY = dragPosition.y - draggedNode.y
+
+        // If multiple nodes selected, constrain delta so ALL nodes stay on canvas
+        if (selectedIds.length > 1) {
+          let minDeltaX = -Infinity
+          let minDeltaY = -Infinity
+
+          selectedIds.forEach(nodeId => {
+            const n = nodes.find(nd => nd.id === nodeId)
+            if (n) {
+              minDeltaX = Math.max(minDeltaX, -n.x)
+              minDeltaY = Math.max(minDeltaY, -n.y)
+            }
+          })
+
+          deltaX = Math.max(minDeltaX, deltaX)
+          deltaY = Math.max(minDeltaY, deltaY)
+        }
+
+        return {
+          x: node.x + deltaX,
+          y: node.y + deltaY
+        }
+      }
+    }
+    // Not being dragged
+    return { x: node.x, y: node.y }
+  }, [draggingNode, dragPosition, selectedIds, nodes])
+
   // Keyboard shortcuts for undo/redo and delete
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -801,7 +841,11 @@ export default function HTMLCanvas({
           )
         })
 
-        setSelectedIds(selectedNodes.map(n => n.id))
+        const selectedNodeIds = selectedNodes.map(n => n.id)
+        setSelectedIds(selectedNodeIds)
+        if (selectedNodeIds.length > 0) {
+          setSelectedId(selectedNodeIds[0])
+        }
       }
     }
 
@@ -1045,12 +1089,31 @@ export default function HTMLCanvas({
     }
   }, [isPanning, lastPanPoint, draggingNode, isDragReady, dragOffset, dragStartPos, resizingNode, resizeStartPos, resizeStartSize, isDraggingCharacter, isSelecting, tool, selectionStart, nodes])
 
-  const handleCanvasMouseUp = useCallback(() => {
+  const handleCanvasMouseUp = useCallback((e?: React.MouseEvent) => {
     setIsPanning(false)
     setIsSelecting(false)
 
-    // Clear drag ready state if mouse up without dragging
-    if (isDragReady) {
+    // Handle node selection on click (when isDragReady is set but no drag occurred)
+    if (isDragReady && tool === 'select') {
+      const nodeToSelect = nodes.find(n => n.id === isDragReady)
+      if (nodeToSelect && e) {
+        if (e.shiftKey) {
+          // Shift-click: toggle node in selection
+          if (selectedIds.includes(isDragReady)) {
+            const newSelection = selectedIds.filter(id => id !== isDragReady)
+            setSelectedIds(newSelection)
+            setSelectedId(newSelection.length > 0 ? newSelection[0] : null)
+          } else {
+            const newSelection = [...selectedIds, isDragReady]
+            setSelectedIds(newSelection)
+            setSelectedId(isDragReady)
+          }
+        } else {
+          // Normal click: select only this node
+          setSelectedIds([isDragReady])
+          setSelectedId(isDragReady)
+        }
+      }
       setIsDragReady(null)
     }
 
@@ -1059,7 +1122,7 @@ export default function HTMLCanvas({
       setIsResizeReady(null)
       document.body.style.userSelect = ''
     }
-    
+
     if (draggingNode) {
       // Check if the dragged node was dropped onto a list container
       const draggedNodeObj = nodes.find(n => n.id === draggingNode)
@@ -1117,12 +1180,46 @@ export default function HTMLCanvas({
       }
 
       if (!droppedIntoList) {
-        // Update the actual node position when dragging ends (normal canvas drop)
-        const updatedNodes = nodes.map(node =>
-          node.id === draggingNode
-            ? { ...node, x: dragPosition.x, y: dragPosition.y }
-            : node
-        )
+        // Update positions when dragging ends (normal canvas drop)
+        // If multiple nodes are selected, move them all together while maintaining relative positions
+        let deltaX = dragPosition.x - (draggedNodeObj?.x || 0)
+        let deltaY = dragPosition.y - (draggedNodeObj?.y || 0)
+
+        // If moving multiple nodes, constrain delta so ALL nodes stay on canvas
+        if (selectedIds.length > 1) {
+          // Find the minimum allowed delta based on all selected nodes
+          let minDeltaX = -Infinity
+          let minDeltaY = -Infinity
+
+          selectedIds.forEach(nodeId => {
+            const node = nodes.find(n => n.id === nodeId)
+            if (node) {
+              // Calculate the minimum delta that keeps this node at x >= 0, y >= 0
+              minDeltaX = Math.max(minDeltaX, -node.x)
+              minDeltaY = Math.max(minDeltaY, -node.y)
+            }
+          })
+
+          // Constrain the delta to prevent any node from going below 0
+          deltaX = Math.max(minDeltaX, deltaX)
+          deltaY = Math.max(minDeltaY, deltaY)
+        }
+
+        const updatedNodes = nodes.map(node => {
+          // Move the dragged node
+          if (node.id === draggingNode) {
+            return { ...node, x: Math.max(0, dragPosition.x), y: Math.max(0, dragPosition.y) }
+          }
+          // Move all other selected nodes by the same constrained delta
+          if (selectedIds.includes(node.id) && node.id !== draggingNode) {
+            return {
+              ...node,
+              x: node.x + deltaX,
+              y: node.y + deltaY
+            }
+          }
+          return node
+        })
         setNodes(updatedNodes)
         saveToHistory(updatedNodes, connections)
       }
@@ -1147,7 +1244,7 @@ export default function HTMLCanvas({
       // Delay to allow final render with high quality after movement stops
       setTimeout(() => setIsMoving(false), 100)
     }
-  }, [isMoving, draggingNode, isDragReady, isResizeReady, resizingNode, nodes, connections, saveToHistory, dragPosition])
+  }, [isMoving, draggingNode, isDragReady, isResizeReady, resizingNode, nodes, connections, saveToHistory, dragPosition, tool, selectedIds])
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     // Check if Ctrl key is pressed for zoom, otherwise allow normal scrolling
@@ -2590,8 +2687,8 @@ export default function HTMLCanvas({
           onClick={handleCanvasClick}
           onMouseDown={handleCanvasMouseDown}
           onMouseMove={handleCanvasMouseMove}
-          onMouseUp={handleCanvasMouseUp}
-          onMouseLeave={handleCanvasMouseUp}
+          onMouseUp={(e) => handleCanvasMouseUp(e)}
+          onMouseLeave={() => handleCanvasMouseUp()}
           onWheel={handleWheel}
           style={{
             width: '2000px',
@@ -2628,13 +2725,11 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute cursor-move ${
-                    selectedId === node.id || selectedIds.includes(node.id) ? 'ring-2' : ''
-                  } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   }`}
                   style={{
-                    left: draggingNode === node.id ? dragPosition.x : node.x,
-                    top: draggingNode === node.id ? dragPosition.y : node.y,
+                    left: getNodeDragPosition(node).x,
+                    top: getNodeDragPosition(node).y,
                     width: node.width || 240,
                     height: node.height || 120,
                     backgroundColor: 'transparent',
@@ -2642,14 +2737,14 @@ export default function HTMLCanvas({
                     padding: '0',
                     margin: '0',
                     userSelect: 'none',
-                    ...((selectedId === node.id || selectedIds.includes(node.id)) ? { '--tw-ring-color': getResizeHandleColor(node.type || 'image') } as any : {})
+                    outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'image')}` : 'none',
+                    outlineOffset: '-1px'
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onMouseDown={(e) => {
                     // Only enable dragging in select mode
                     if (tool === 'select') {
                       // For image nodes, allow dragging from anywhere except when double-clicking for upload
-                      e.preventDefault()
                       e.stopPropagation()
                       setDragStartPos({ x: e.clientX, y: e.clientY })
                       setIsDragReady(node.id)
@@ -2852,26 +2947,23 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm ${
-                    selectedId === node.id || selectedIds.includes(node.id) ? 'ring-2' : ''
-                  } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   }`}
                   style={{
-                    ...((selectedId === node.id || selectedIds.includes(node.id)) ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {}),
-                    left: draggingNode === node.id ? dragPosition.x : node.x,
-                    top: draggingNode === node.id ? dragPosition.y : node.y,
+                    left: getNodeDragPosition(node).x,
+                    top: getNodeDragPosition(node).y,
                     width: node.width || 240,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
                     border: `1px solid ${getNodeBorderColor(node.type || 'text')}`,
                     padding: '0',
                     overflow: 'visible',
-                    userSelect: 'none'
+                    userSelect: 'none',
+                    outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
+                    outlineOffset: '-1px'
                   }}
-                  onClick={(e) => handleNodeClick(node, e)}
                   onMouseDown={(e) => {
                     // Only enable dragging in select mode
                     if (tool === 'select') {
-                      e.preventDefault()
                       e.stopPropagation()
                       setDragStartPos({ x: e.clientX, y: e.clientY })
                       setIsDragReady(node.id)
@@ -2960,8 +3052,6 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
-                    selectedId === node.id || selectedIds.includes(node.id) ? 'ring-2' : ''
-                  } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   } ${
                     isDropTarget ? 'ring-2 ring-green-500 bg-green-50' : ''
@@ -2969,14 +3059,15 @@ export default function HTMLCanvas({
                     renderSettings.skipAnimations ? '' : 'transition-all'
                   }`}
                   style={{
-                    left: draggingNode === node.id ? dragPosition.x : node.x,
-                    top: draggingNode === node.id ? dragPosition.y : node.y,
+                    left: getNodeDragPosition(node).x,
+                    top: getNodeDragPosition(node).y,
                     width: node.width || 240,
                     height: node.height || 120,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
                     borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
                     userSelect: tool === 'textedit' ? 'auto' : 'none',
-                    ...((selectedId === node.id || selectedIds.includes(node.id)) ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
+                    outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
+                    outlineOffset: '-3px'
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onDoubleClick={(e) => {
@@ -2988,32 +3079,9 @@ export default function HTMLCanvas({
                     }
                   }}
                   onMouseDown={(e) => {
-                    // Check if user is clicking on text content areas that should be editable
-                    const target = e.target as HTMLElement
-                    const isTextElement = target.contentEditable === 'true' ||
-                                         target.tagName === 'INPUT' ||
-                                         target.tagName === 'TEXTAREA' ||
-                                         target.closest('[contenteditable="true"]')
-
-                    // Only deselect and enter typing mode if we're in textedit mode
-                    if (isTextElement && tool === 'textedit') {
-                      // Switch to typing mode when clicking on text
-                      setInteractionMode('typing')
-                      // Deselect node when entering typing mode
-                      setSelectedId(null)
-                      // Allow default text selection behavior, don't interfere at all
-                      e.stopPropagation() // Still stop propagation to canvas
-                      return
-                    }
-
                     // Only enable dragging in select mode
                     if (tool === 'select') {
-                      // Not on text - in moving mode
-                      setInteractionMode('moving')
-                      e.preventDefault()
                       e.stopPropagation()
-
-                      // Set up drag tracking
                       setDragStartPos({ x: e.clientX, y: e.clientY })
                       setIsDragReady(node.id)
 
@@ -3097,8 +3165,6 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
-                    selectedId === node.id || selectedIds.includes(node.id) ? 'ring-2' : ''
-                  } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   } ${
                     isDropTarget ? 'ring-2 ring-green-500 bg-green-50' : ''
@@ -3106,14 +3172,15 @@ export default function HTMLCanvas({
                     renderSettings.skipAnimations ? '' : 'transition-all'
                   }`}
                   style={{
-                    left: draggingNode === node.id ? dragPosition.x : node.x,
-                    top: draggingNode === node.id ? dragPosition.y : node.y,
+                    left: getNodeDragPosition(node).x,
+                    top: getNodeDragPosition(node).y,
                     width: node.width || 240,
                     height: node.height || 120,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
                     borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
                     userSelect: tool === 'textedit' ? 'auto' : 'none',
-                    ...((selectedId === node.id || selectedIds.includes(node.id)) ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
+                    outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
+                    outlineOffset: '-3px'
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onDoubleClick={(e) => {
@@ -3122,32 +3189,9 @@ export default function HTMLCanvas({
                     // Prevent double-click navigation for event nodes
                   }}
                   onMouseDown={(e) => {
-                    // Check if user is clicking on text content areas that should be editable
-                    const target = e.target as HTMLElement
-                    const isTextElement = target.contentEditable === 'true' ||
-                                         target.tagName === 'INPUT' ||
-                                         target.tagName === 'TEXTAREA' ||
-                                         target.closest('[contenteditable="true"]')
-
-                    // Only deselect and enter typing mode if we're in textedit mode
-                    if (isTextElement && tool === 'textedit') {
-                      // Switch to typing mode when clicking on text
-                      setInteractionMode('typing')
-                      // Deselect node when entering typing mode
-                      setSelectedId(null)
-                      // Allow default text selection behavior, don't interfere at all
-                      e.stopPropagation() // Still stop propagation to canvas
-                      return
-                    }
-
                     // Only enable dragging in select mode
                     if (tool === 'select') {
-                      // Not on text - in moving mode
-                      setInteractionMode('moving')
-                      e.preventDefault()
                       e.stopPropagation()
-
-                      // Set up drag tracking
                       setDragStartPos({ x: e.clientX, y: e.clientY })
                       setIsDragReady(node.id)
 
@@ -3440,26 +3484,23 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm border-2 rounded-lg ${
-                    selectedId === node.id ? 'ring-2' : ''
-                  } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   }`}
                   style={{
-                    left: draggingNode === node.id ? dragPosition.x : node.x,
-                    top: draggingNode === node.id ? dragPosition.y : node.y,
+                    left: getNodeDragPosition(node).x,
+                    top: getNodeDragPosition(node).y,
                     width: node.width || 240,
                     height: node.height || 120,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
                     borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
-                    ...((selectedId === node.id || selectedIds.includes(node.id)) ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {}),
                     padding: '12px',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
+                    outlineOffset: '-3px'
                   }}
-                  onClick={(e) => handleNodeClick(node, e)}
                   onMouseDown={(e) => {
                     // Only enable dragging in select mode
                     if (tool === 'select') {
-                      e.preventDefault()
                       e.stopPropagation()
                       setDragStartPos({ x: e.clientX, y: e.clientY })
                       setIsDragReady(node.id)
@@ -3822,8 +3863,6 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
-                    selectedId === node.id || selectedIds.includes(node.id) ? 'ring-2' : ''
-                  } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   } ${
                     isDropTarget ? 'ring-2 ring-green-500 bg-green-50' : ''
@@ -3831,14 +3870,15 @@ export default function HTMLCanvas({
                     renderSettings.skipAnimations ? '' : 'transition-all'
                   }`}
                   style={{
-                    left: draggingNode === node.id ? dragPosition.x : node.x,
-                    top: draggingNode === node.id ? dragPosition.y : node.y,
+                    left: getNodeDragPosition(node).x,
+                    top: getNodeDragPosition(node).y,
                     width: node.width || 240,
                     height: node.height || 120,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
                     borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
                     userSelect: tool === 'textedit' ? 'auto' : 'none',
-                    ...((selectedId === node.id || selectedIds.includes(node.id)) ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
+                    outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
+                    outlineOffset: '-3px'
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onDoubleClick={(e) => {
@@ -3847,39 +3887,9 @@ export default function HTMLCanvas({
                     // Explicitly prevent any double-click navigation for character nodes
                   }}
                   onMouseDown={(e) => {
-                    // Check if user is clicking on text content areas that should be editable
-                    const target = e.target as HTMLElement
-                    const isTextElement = target.contentEditable === 'true' ||
-                                         target.tagName === 'INPUT' ||
-                                         target.tagName === 'TEXTAREA' ||
-                                         target.closest('[contenteditable="true"]')
-
-                    // Check if user is clicking on profile picture area
-                    const isProfilePicture = target.closest('.profile-picture-area')
-
-                    // Don't interfere with profile picture clicks
-                    if (isProfilePicture) {
-                      return
-                    }
-
-                    if (isTextElement) {
-                      // Switch to typing mode when clicking on text
-                      setInteractionMode('typing')
-                      // Deselect node when entering typing mode
-                      setSelectedId(null)
-                      // Allow default text selection behavior, don't interfere at all
-                      e.stopPropagation() // Still stop propagation to canvas
-                      return
-                    }
-
                     // Only enable dragging in select mode
                     if (tool === 'select') {
-                      // Not on text - in moving mode
-                      setInteractionMode('moving')
-                      e.preventDefault()
                       e.stopPropagation()
-
-                      // Set up drag tracking
                       setDragStartPos({ x: e.clientX, y: e.clientY })
                       setIsDragReady(node.id)
 
@@ -4047,8 +4057,6 @@ export default function HTMLCanvas({
               data-node-id={node.id}
               draggable={node.type !== 'list'}
               className={`absolute border-2 rounded-lg p-3 cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
-                selectedId === node.id ? 'ring-2' : ''
-              } ${
                 connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
               } ${
                 isDropTarget ? 'ring-2 ring-green-500 bg-green-50' : ''
@@ -4056,14 +4064,15 @@ export default function HTMLCanvas({
                 renderSettings.skipAnimations ? '' : 'transition-all'
               }`}
               style={{
-                left: draggingNode === node.id ? dragPosition.x : node.x,
-                top: draggingNode === node.id ? dragPosition.y : node.y,
+                left: getNodeDragPosition(node).x,
+                top: getNodeDragPosition(node).y,
                 width: node.width || 240,
                 height: node.height || 120,
                 backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
-                borderColor: selectedId === node.id ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
+                borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
                 userSelect: tool === 'textedit' ? 'auto' : 'none',
-                ...(selectedId === node.id ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
+                outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
+                outlineOffset: '-3px'
               }}
               onClick={(e) => handleNodeClick(node, e)}
               onDoubleClick={(e) => {
@@ -4076,32 +4085,9 @@ export default function HTMLCanvas({
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, node.id)}
               onMouseDown={(e) => {
-                // Check if user is clicking on text content areas that should be editable
-                const target = e.target as HTMLElement
-                const isTextElement = target.contentEditable === 'true' ||
-                                     target.tagName === 'INPUT' ||
-                                     target.tagName === 'TEXTAREA' ||
-                                     target.closest('[contenteditable="true"]')
-
-                // Only deselect and enter typing mode if we're in textedit mode
-                if (isTextElement && tool === 'textedit') {
-                  // Switch to typing mode when clicking on text
-                  setInteractionMode('typing')
-                  // Deselect node when entering typing mode
-                  setSelectedId(null)
-                  // Allow default text selection behavior, don't interfere at all
-                  e.stopPropagation() // Still stop propagation to canvas
-                  return
-                }
-
                 // Only enable dragging in select mode
                 if (tool === 'select') {
-                  // Not on text - in moving mode
-                  setInteractionMode('moving')
-                  e.preventDefault()
                   e.stopPropagation()
-
-                  // Set up drag tracking
                   setDragStartPos({ x: e.clientX, y: e.clientY })
                   setIsDragReady(node.id)
 
@@ -4303,45 +4289,21 @@ export default function HTMLCanvas({
                                 // Explicitly prevent any double-click navigation for child folder nodes in lists
                               }}
                               onMouseDown={(e) => {
-                                // Check if user is clicking on text content areas that should be editable
-                                const target = e.target as HTMLElement
-                                const isTextElement = target.contentEditable === 'true' ||
-                                                     target.tagName === 'INPUT' ||
-                                                     target.tagName === 'TEXTAREA' ||
-                                                     target.closest('[contenteditable="true"]')
+                                // Only enable dragging in select mode
+                                if (tool === 'select') {
+                                  e.stopPropagation()
+                                  setDragStartPos({ x: e.clientX, y: e.clientY })
+                                  setIsDragReady(childNode.id)
 
-                                // Child folder nodes skip our mouse-based movement completely
-                                if (childNode.type === 'folder') {
-                                  return // Don't interfere with HTML5 drag at all
-                                }
-
-                                if (isTextElement) {
-                                  // Switch to typing mode when clicking on text
-                                  setInteractionMode('typing')
-                                  // Deselect node when entering typing mode
-                                  setSelectedId(null)
-                                  // Allow default text selection behavior, don't interfere at all
-                                  e.stopPropagation() // Still stop propagation to canvas
-                                  return
-                                }
-
-                                // Not on text - in moving mode
-                                setInteractionMode('moving')
-                                e.preventDefault()
-                                e.stopPropagation()
-
-                                // Set up drag tracking
-                                setDragStartPos({ x: e.clientX, y: e.clientY })
-                                setIsDragReady(childNode.id)
-
-                                const rect = canvasRef.current?.getBoundingClientRect()
-                                if (rect) {
-                                  const mouseX = e.clientX - rect.left
-                                  const mouseY = e.clientY - rect.top
-                                  setDragOffset({
-                                    x: mouseX - childNode.x,
-                                    y: mouseY - childNode.y
-                                  })
+                                  const rect = canvasRef.current?.getBoundingClientRect()
+                                  if (rect) {
+                                    const mouseX = e.clientX - rect.left
+                                    const mouseY = e.clientY - rect.top
+                                    setDragOffset({
+                                      x: mouseX - childNode.x,
+                                      y: mouseY - childNode.y
+                                    })
+                                  }
                                 }
                               }}
                             >

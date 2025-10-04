@@ -1433,4 +1433,97 @@ if (amount === 0.3) { // For dots only
 
 ---
 
+## 🎯 **Latest Session Updates** (October 3, 2025)
+
+### **Multi-Select and Text Edit Tool Separation** ⚠️ **IN PROGRESS - NOT WORKING**
+
+#### **Issue 26: Text Edit Tool Implementation** ✅ **PARTIALLY IMPLEMENTED**
+- **Problem**: Users couldn't select nodes without accidentally selecting text inside them
+- **Goal**: Separate text editing from node selection into distinct tools
+
+**🎯 Implementation Attempted**:
+
+1. **Tool Separation** ✅ **COMPLETED**
+   - **New Tool Type**: Added `'textedit'` to tool type union
+   - **Default Tool Changed**: From `'pan'` to `'select'`
+   - **New Icon Button**: Added TextCursor icon to toolbar for text editing mode
+   - **ContentEditable Control**: All `contentEditable` changed from `tool === 'select'` to `tool === 'textedit'`
+   - **Cursor Display**: Select mode shows default cursor, textedit mode shows text cursor
+
+2. **Multi-Select System** ✅ **COMPLETED**
+   - **State Added**: `selectedIds`, `isSelecting`, `selectionBox`, `selectionStart`
+   - **Drag-to-Select**: Blue dashed selection box appears when dragging in select mode
+   - **Shift-Click**: Add/remove nodes from selection with shift key
+   - **Visual Feedback**: Selected nodes show ring-2 border with palette-matching colors
+   - **Selection Box Rendering**: Overlay div with blue dashed border shows selection area
+
+3. **Node Selection Handlers** ✅ **ATTEMPTED**
+   - **handleNodeClick Updated**: Now handles shift-click for multi-select
+   - **Multi-Select Logic**: Shift adds/removes nodes, normal click selects single node
+   - **onClick Handlers**: All node types have `onClick={(e) => handleNodeClick(node, e)}`
+
+4. **Text Selection Prevention** ✅ **COMPLETED**
+   - **userSelect CSS**: All node containers have `userSelect: tool === 'textedit' ? 'auto' : 'none'`
+   - **Image Node Protection**: Images have `userSelect: 'none'` and `pointerEvents: 'none'`
+   - **Table Textareas**: `userSelect: tool === 'textedit' ? 'text' : 'none'`
+   - **ContentEditable Elements**: All have `userSelect: tool === 'textedit' ? 'text' : 'none'`
+   - **Icon Protection**: Icons have `userSelect: 'none'` to prevent highlighting
+
+5. **OnMouseDown Handler Fix** ✅ **ATTEMPTED**
+   - **Problem Identified**: `onMouseDown` handlers were calling `setSelectedId(null)` when clicking text elements
+   - **Solution Applied**: Added `&& tool === 'textedit'` condition to text element check
+   - **All Node Types Updated**: Regular text/folder, location, character, event nodes all fixed
+   - **Table and Image Nodes**: Wrapped drag handlers in `if (tool === 'select')` checks
+
+**⚠️ Current Status**: **NOT WORKING**
+- User reports only image nodes are actually getting selected
+- Other node types (text, folder, event, location, character, list, table) not responding to clicks
+- Multi-select visually works (selection box appears) but nodes don't get selected
+- Text selection prevention working correctly
+- Tool separation UI working (icons highlight correctly)
+
+**🔍 Technical Issues Identified**:
+- Click events may not be propagating to `handleNodeClick`
+- Possible event handler conflicts between `onClick` and `onMouseDown`
+- May need to investigate event bubbling and stopPropagation calls
+- `onMouseDown` handlers might be preventing `onClick` from firing
+
+**📁 Files Modified**:
+- `src/components/canvas/HTMLCanvas.tsx` - Tool types, multi-select state, selection handlers, userSelect controls
+- `src/app/story/[id]/page.tsx` - Event template loading for sub-canvases
+
+**🔧 Code Changes**:
+- Added 7+ new state variables for multi-select system
+- Updated ~15 contentEditable elements with new tool checks
+- Modified ~8 onMouseDown handlers with tool-based logic
+- Added userSelect styling to ~20+ elements
+- Created selection box rendering with AABB overlap detection
+
+**❌ Known Broken Features**:
+1. **CRITICAL**: Node selection not working for most node types (only image nodes work)
+2. **CRITICAL**: Multi-select drag box appears but doesn't actually select nodes
+3. **CRITICAL**: Shift-click not adding nodes to selection
+4. **CRITICAL**: Single-click node selection not working
+
+**✅ Working Features**:
+- Text selection prevention (text not selectable in select mode)
+- Tool switching UI (buttons highlight correctly)
+- Cursor display changes (default vs text cursor)
+- Selection box visual rendering
+- Image node selection (only node type that works)
+
+#### **Next Steps Required**:
+1. **🚨 CRITICAL**: Debug why handleNodeClick is not firing for non-image nodes
+2. **🚨 CRITICAL**: Investigate onClick vs onMouseDown event conflicts
+3. **🚨 CRITICAL**: Check event propagation and stopPropagation calls
+4. **🔍 Debug**: Add console logs to handleNodeClick to verify it's being called
+5. **🔍 Debug**: Verify onClick events are reaching node containers
+
+#### **User Feedback**:
+- "now its selecting the base text on the image node and some icons too"
+- "the image node is the only thing actually getting selected"
+- "this issue STILL is NOT solved"
+
+---
+
 *This document serves as a comprehensive record of all achievements, current status, and future direction for the StoryCanvas project.*
