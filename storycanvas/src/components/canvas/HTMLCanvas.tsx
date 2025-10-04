@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, ArrowUp, ArrowDown, Table, Heart, Settings } from 'lucide-react'
+import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, ArrowUp, ArrowDown, Table, Heart, Settings, TextCursor } from 'lucide-react'
 import { toast } from 'sonner'
 import { PaletteSelector } from '@/components/ui/palette-selector'
 import { ColorFilter } from '@/components/ui/color-filter'
@@ -98,7 +98,7 @@ export default function HTMLCanvas({
   const [nodes, setNodes] = useState<Node[]>(initialNodes)
   const [connections, setConnections] = useState<Connection[]>(initialConnections)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [tool, setTool] = useState<'pan' | 'select' | 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'connect' | 'relationship-canvas'>('pan')
+  const [tool, setTool] = useState<'pan' | 'select' | 'textedit' | 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'connect' | 'relationship-canvas'>('select')
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
   const [showHelp, setShowHelp] = useState(true)
@@ -130,12 +130,19 @@ export default function HTMLCanvas({
   const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 })
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 })
   const [isDragReady, setIsDragReady] = useState<string | null>(null)
+  const [isResizeReady, setIsResizeReady] = useState<string | null>(null)
   const [resizingNode, setResizingNode] = useState<string | null>(null)
   const [resizeStartSize, setResizeStartSize] = useState({ width: 0, height: 0 })
   const [resizeStartPos, setResizeStartPos] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [zoomCenter, setZoomCenter] = useState({ x: 0, y: 0 })
   const canvasRef = useRef<HTMLDivElement>(null)
+
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [isSelecting, setIsSelecting] = useState(false)
+  const [selectionBox, setSelectionBox] = useState({ x: 0, y: 0, width: 0, height: 0 })
+  const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 })
 
   // Image cropping state
   const [cropModal, setCropModal] = useState<{
@@ -237,6 +244,11 @@ export default function HTMLCanvas({
         return
       }
 
+      // Skip auto-resize if user is actively resizing this node manually
+      if (resizingNode === nodeId) {
+        return
+      }
+
       // Skip auto-resize for image nodes - they maintain their aspect ratio based on the image
       const currentNode = nodes.find(n => n.id === nodeId)
       if (currentNode?.type === 'image') {
@@ -244,8 +256,12 @@ export default function HTMLCanvas({
       }
 
       // Force a reflow to get accurate measurements
+      // Store the current height before resetting
+      const currentHeight = element.style.height
       element.style.height = 'auto'
       const scrollHeight = element.scrollHeight
+      // Restore height immediately to prevent visual flash
+      element.style.height = currentHeight
 
       let newHeight
       if (currentNode?.type === 'event') {
@@ -304,7 +320,7 @@ export default function HTMLCanvas({
     } catch (error) {
       console.error('Auto-resize error for node', nodeId, ':', error)
     }
-  }, [])
+  }, [resizingNode])
 
   // Debounced resize function to prevent conflicts and race conditions
   const debouncedResizeRef = useRef<Record<string, NodeJS.Timeout>>({})
@@ -735,6 +751,22 @@ export default function HTMLCanvas({
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
     // Enable panning in select mode when clicking on empty canvas (not on nodes)
     if (tool === 'select' && e.target === canvasRef.current && !isDraggingCharacter) {
+      // Start selection box if not shift-clicking
+      if (!e.shiftKey) {
+        // Clear existing selection
+        setSelectedIds([])
+        setSelectedId(null)
+      }
+
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (rect) {
+        const x = e.clientX - rect.left
+        const y = e.clientY - rect.top
+        setSelectionStart({ x, y })
+        setSelectionBox({ x, y, width: 0, height: 0 })
+        setIsSelecting(true)
+      }
+
       setIsPanning(true)
       setIsMoving(true)
       setLastPanPoint({ x: e.clientX, y: e.clientY })
@@ -742,7 +774,38 @@ export default function HTMLCanvas({
   }, [tool, isDraggingCharacter])
 
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
-    if (isPanning && !isDraggingCharacter) {
+    // Update selection box if selecting
+    if (isSelecting && tool === 'select') {
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (rect) {
+        const currentX = e.clientX - rect.left
+        const currentY = e.clientY - rect.top
+
+        const x = Math.min(selectionStart.x, currentX)
+        const y = Math.min(selectionStart.y, currentY)
+        const width = Math.abs(currentX - selectionStart.x)
+        const height = Math.abs(currentY - selectionStart.y)
+
+        setSelectionBox({ x, y, width, height })
+
+        // Find nodes within selection box
+        const selectedNodes = nodes.filter(node => {
+          const nodeRight = node.x + (node.width || 240)
+          const nodeBottom = node.y + (node.height || 120)
+
+          return (
+            node.x < x + width &&
+            nodeRight > x &&
+            node.y < y + height &&
+            nodeBottom > y
+          )
+        })
+
+        setSelectedIds(selectedNodes.map(n => n.id))
+      }
+    }
+
+    if (isPanning && !isDraggingCharacter && !isSelecting) {
       const deltaX = e.clientX - lastPanPoint.x
       const deltaY = e.clientY - lastPanPoint.y
 
@@ -785,17 +848,39 @@ export default function HTMLCanvas({
         setIsDragReady(null)
         setIsMoving(true)
       }
-    } else if (draggingNode) {
+    }
+
+    if (isResizeReady) {
+      // Check if mouse moved enough to start resizing
+      const deltaX = e.clientX - resizeStartPos.x
+      const deltaY = e.clientY - resizeStartPos.y
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+
+      const resizeThreshold = 3
+
+      if (distance > resizeThreshold) {
+        // Start resizing the node
+        setResizingNode(isResizeReady)
+        setIsResizeReady(null)
+        setIsMoving(true)
+        // Disable text selection during resize
+        document.body.style.userSelect = 'none'
+      }
+    }
+
+    if (draggingNode) {
       // Handle node dragging - just update position state, don't re-render nodes
       const rect = canvasRef.current?.getBoundingClientRect()
       if (rect) {
         const x = e.clientX - rect.left - dragOffset.x
         const y = e.clientY - rect.top - dragOffset.y
-        
+
         setDragPosition({ x: Math.max(0, x), y: Math.max(0, y) })
         setIsMoving(true)
       }
-    } else if (resizingNode) {
+    }
+
+    if (resizingNode) {
       // Handle node resizing
       const deltaX = e.clientX - resizeStartPos.x
       const deltaY = e.clientY - resizeStartPos.y
@@ -936,7 +1021,9 @@ export default function HTMLCanvas({
       // Text, character, event, location, folder nodes: freely scalable width and height
       // (no special restrictions)
 
-      // Update the resizing node size immediately for visual feedback
+      // Update resize current size for real-time visual feedback during resize
+
+      // Also update the nodes for final state
       setNodes(prevNodes =>
         prevNodes.map(node =>
           node.id === resizingNode
@@ -956,14 +1043,21 @@ export default function HTMLCanvas({
         )
       )
     }
-  }, [isPanning, lastPanPoint, draggingNode, isDragReady, dragOffset, dragStartPos, resizingNode, resizeStartPos, resizeStartSize, isDraggingCharacter])
+  }, [isPanning, lastPanPoint, draggingNode, isDragReady, dragOffset, dragStartPos, resizingNode, resizeStartPos, resizeStartSize, isDraggingCharacter, isSelecting, tool, selectionStart, nodes])
 
   const handleCanvasMouseUp = useCallback(() => {
     setIsPanning(false)
+    setIsSelecting(false)
 
     // Clear drag ready state if mouse up without dragging
     if (isDragReady) {
       setIsDragReady(null)
+    }
+
+    // Clear resize ready state if mouse up without resizing
+    if (isResizeReady) {
+      setIsResizeReady(null)
+      document.body.style.userSelect = ''
     }
     
     if (draggingNode) {
@@ -1053,7 +1147,7 @@ export default function HTMLCanvas({
       // Delay to allow final render with high quality after movement stops
       setTimeout(() => setIsMoving(false), 100)
     }
-  }, [isMoving, draggingNode, isDragReady, resizingNode, nodes, connections, saveToHistory, dragPosition])
+  }, [isMoving, draggingNode, isDragReady, isResizeReady, resizingNode, nodes, connections, saveToHistory, dragPosition])
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     // Check if Ctrl key is pressed for zoom, otherwise allow normal scrolling
@@ -1593,8 +1687,21 @@ export default function HTMLCanvas({
     // Only allow node interactions with select tool for other functions
     if (tool !== 'select') return
 
-    // Simply select the node
-    setSelectedId(node.id)
+    // Handle shift-click for multi-select
+    if (e.shiftKey) {
+      if (selectedIds.includes(node.id)) {
+        // Remove from selection
+        setSelectedIds(selectedIds.filter(id => id !== node.id))
+        setSelectedId(null)
+      } else {
+        // Add to selection
+        setSelectedIds([...selectedIds, node.id])
+      }
+    } else {
+      // Normal click - single selection
+      setSelectedIds([node.id])
+      setSelectedId(node.id)
+    }
   }
 
 
@@ -2107,9 +2214,18 @@ export default function HTMLCanvas({
             variant={tool === 'select' ? 'default' : 'outline'}
             onClick={() => setTool('select')}
             className={`h-12 w-14 p-0 ${tool === 'select' ? 'bg-green-600 text-white' : ''}`}
-            title="Select Tool - Click nodes to interact, drag canvas to pan"
+            title="Select Tool - Move nodes, multi-select with drag or shift-click"
           >
             <MousePointer className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
+            variant={tool === 'textedit' ? 'default' : 'outline'}
+            onClick={() => setTool('textedit')}
+            className={`h-12 w-14 p-0 ${tool === 'textedit' ? 'bg-blue-600 text-white' : ''}`}
+            title="Text Edit Tool - Click to edit text in nodes"
+          >
+            <TextCursor className="w-7 h-7" />
           </Button>
         </div>
 
@@ -2466,7 +2582,8 @@ export default function HTMLCanvas({
         <div
           ref={canvasRef}
           className={`canvas-grid relative ${
-            tool === 'select' ? 'cursor-grab' :
+            tool === 'select' ? 'cursor-default' :
+            tool === 'textedit' ? 'cursor-text' :
             tool === 'relationships' ? 'cursor-pointer' :
             'cursor-crosshair'
           } ${isPanning ? 'cursor-grabbing' : ''} ${getNodeStyleClasses()}`}
@@ -2511,36 +2628,41 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute cursor-move ${
-                    selectedId === node.id ? 'ring-2' : ''
+                    selectedId === node.id || selectedIds.includes(node.id) ? 'ring-2' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   }`}
                   style={{
                     left: draggingNode === node.id ? dragPosition.x : node.x,
                     top: draggingNode === node.id ? dragPosition.y : node.y,
-                    width: node.width,
-                    height: node.height,
+                    width: node.width || 240,
+                    height: node.height || 120,
                     backgroundColor: 'transparent',
                     border: 'none',
                     padding: '0',
-                    margin: '0'
+                    margin: '0',
+                    userSelect: 'none',
+                    ...((selectedId === node.id || selectedIds.includes(node.id)) ? { '--tw-ring-color': getResizeHandleColor(node.type || 'image') } as any : {})
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onMouseDown={(e) => {
-                    // For image nodes, allow dragging from anywhere except when double-clicking for upload
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setDragStartPos({ x: e.clientX, y: e.clientY })
-                    setIsDragReady(node.id)
+                    // Only enable dragging in select mode
+                    if (tool === 'select') {
+                      // For image nodes, allow dragging from anywhere except when double-clicking for upload
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setDragStartPos({ x: e.clientX, y: e.clientY })
+                      setIsDragReady(node.id)
 
-                    const rect = canvasRef.current?.getBoundingClientRect()
-                    if (rect) {
-                      const mouseX = e.clientX - rect.left
-                      const mouseY = e.clientY - rect.top
-                      setDragOffset({
-                        x: mouseX - node.x,
-                        y: mouseY - node.y
-                      })
+                      const rect = canvasRef.current?.getBoundingClientRect()
+                      if (rect) {
+                        const mouseX = e.clientX - rect.left
+                        const mouseY = e.clientY - rect.top
+                        setDragOffset({
+                          x: mouseX - node.x,
+                          y: mouseY - node.y
+                        })
+                      }
                     }
                   }}
                 >
@@ -2555,7 +2677,9 @@ export default function HTMLCanvas({
                         height: '100%',
                         objectFit: 'contain',
                         border: 'none',
-                        outline: 'none'
+                        outline: 'none',
+                        userSelect: 'none',
+                        pointerEvents: 'none'
                       }}
                       onDoubleClick={(e) => {
                         e.stopPropagation()
@@ -2628,7 +2752,8 @@ export default function HTMLCanvas({
                       style={{
                         backgroundColor: getNodeColor('image', node.color, node.id),
                         border: `2px solid ${getNodeBorderColor('image')}`,
-                        color: getTextColor(getNodeColor('image', node.color, node.id))
+                        color: getTextColor(getNodeColor('image', node.color, node.id)),
+                        userSelect: 'none'
                       }}
                       onDoubleClick={(e) => {
                         e.stopPropagation()
@@ -2710,7 +2835,7 @@ export default function HTMLCanvas({
                         // Disable text selection during resize
                         document.body.style.userSelect = 'none'
                         setResizingNode(node.id)
-                        setResizeStartSize({ width: node.width, height: node.height })
+                        setResizeStartSize({ width: node.width || 240, height: node.height })
                         setResizeStartPos({ x: e.clientX, y: e.clientY })
                       }}
                       title="Resize image (maintains aspect ratio)"
@@ -2727,35 +2852,39 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm ${
-                    selectedId === node.id ? 'ring-2' : ''
+                    selectedId === node.id || selectedIds.includes(node.id) ? 'ring-2' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   }`}
                   style={{
-                    ...(selectedId === node.id ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {}),
+                    ...((selectedId === node.id || selectedIds.includes(node.id)) ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {}),
                     left: draggingNode === node.id ? dragPosition.x : node.x,
                     top: draggingNode === node.id ? dragPosition.y : node.y,
-                    width: node.width,
+                    width: node.width || 240,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
                     border: `1px solid ${getNodeBorderColor(node.type || 'text')}`,
                     padding: '0',
-                    overflow: 'visible'
+                    overflow: 'visible',
+                    userSelect: 'none'
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onMouseDown={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setDragStartPos({ x: e.clientX, y: e.clientY })
-                    setIsDragReady(node.id)
+                    // Only enable dragging in select mode
+                    if (tool === 'select') {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setDragStartPos({ x: e.clientX, y: e.clientY })
+                      setIsDragReady(node.id)
 
-                    const rect = canvasRef.current?.getBoundingClientRect()
-                    if (rect) {
-                      const mouseX = e.clientX - rect.left
-                      const mouseY = e.clientY - rect.top
-                      setDragOffset({
-                        x: mouseX - node.x,
-                        y: mouseY - node.y
-                      })
+                      const rect = canvasRef.current?.getBoundingClientRect()
+                      if (rect) {
+                        const mouseX = e.clientX - rect.left
+                        const mouseY = e.clientY - rect.top
+                        setDragOffset({
+                          x: mouseX - node.x,
+                          y: mouseY - node.y
+                        })
+                      }
                     }
                   }}
                 >
@@ -2784,7 +2913,8 @@ export default function HTMLCanvas({
                                     style={{
                                       color: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
                                       minHeight: '20px',
-                                      height: 'auto'
+                                      height: 'auto',
+                                      userSelect: tool === 'textedit' ? 'text' : 'none'
                                     }}
                                     onClick={(e) => e.stopPropagation()}
                                     onMouseDown={(e) => e.stopPropagation()}
@@ -2813,7 +2943,7 @@ export default function HTMLCanvas({
                         onMouseDown={(e) => {
                           e.stopPropagation()
                           setResizingNode(node.id)
-                          setResizeStartSize({ width: node.width, height: node.height })
+                          setResizeStartSize({ width: node.width || 240, height: node.height })
                           setResizeStartPos({ x: e.clientX, y: e.clientY })
                         }}
                       />
@@ -2830,7 +2960,7 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
-                    selectedId === node.id ? 'ring-2' : ''
+                    selectedId === node.id || selectedIds.includes(node.id) ? 'ring-2' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   } ${
@@ -2841,11 +2971,12 @@ export default function HTMLCanvas({
                   style={{
                     left: draggingNode === node.id ? dragPosition.x : node.x,
                     top: draggingNode === node.id ? dragPosition.y : node.y,
-                    width: node.width,
-                    height: node.height,
+                    width: node.width || 240,
+                    height: node.height || 120,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
-                    borderColor: selectedId === node.id ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
-                    ...(selectedId === node.id ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
+                    borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
+                    userSelect: tool === 'textedit' ? 'auto' : 'none',
+                    ...((selectedId === node.id || selectedIds.includes(node.id)) ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onDoubleClick={(e) => {
@@ -2864,7 +2995,8 @@ export default function HTMLCanvas({
                                          target.tagName === 'TEXTAREA' ||
                                          target.closest('[contenteditable="true"]')
 
-                    if (isTextElement) {
+                    // Only deselect and enter typing mode if we're in textedit mode
+                    if (isTextElement && tool === 'textedit') {
                       // Switch to typing mode when clicking on text
                       setInteractionMode('typing')
                       // Deselect node when entering typing mode
@@ -2874,23 +3006,26 @@ export default function HTMLCanvas({
                       return
                     }
 
-                    // Not on text - in moving mode
-                    setInteractionMode('moving')
-                    e.preventDefault()
-                    e.stopPropagation()
+                    // Only enable dragging in select mode
+                    if (tool === 'select') {
+                      // Not on text - in moving mode
+                      setInteractionMode('moving')
+                      e.preventDefault()
+                      e.stopPropagation()
 
-                    // Set up drag tracking
-                    setDragStartPos({ x: e.clientX, y: e.clientY })
-                    setIsDragReady(node.id)
+                      // Set up drag tracking
+                      setDragStartPos({ x: e.clientX, y: e.clientY })
+                      setIsDragReady(node.id)
 
-                    const rect = canvasRef.current?.getBoundingClientRect()
-                    if (rect) {
-                      const mouseX = e.clientX - rect.left
-                      const mouseY = e.clientY - rect.top
-                      setDragOffset({
-                        x: mouseX - node.x,
-                        y: mouseY - node.y
-                      })
+                      const rect = canvasRef.current?.getBoundingClientRect()
+                      if (rect) {
+                        const mouseX = e.clientX - rect.left
+                        const mouseY = e.clientY - rect.top
+                        setDragOffset({
+                          x: mouseX - node.x,
+                          y: mouseY - node.y
+                        })
+                      }
                     }
                   }}
                 >
@@ -2904,13 +3039,14 @@ export default function HTMLCanvas({
                     {/* Location name */}
                     <div className="flex-1 min-w-0 pr-2">
                       <div
-                        contentEditable={tool === 'select'}
+                        contentEditable={tool === 'textedit'}
                         suppressContentEditableWarning={true}
                         data-content-type="title"
                         className="bg-transparent border-none outline-none font-medium text-base cursor-text rounded px-1"
                         style={{
                           color: getTextColor(getNodeColor(node.type, node.color, node.id)),
-                          caretColor: getTextColor(getNodeColor(node.type, node.color, node.id))
+                          caretColor: getTextColor(getNodeColor(node.type, node.color, node.id)),
+                          userSelect: tool === 'textedit' ? 'text' : 'none'
                         }}
                         onBlur={(e) => {
                           const newText = e.currentTarget.textContent || ''
@@ -2921,7 +3057,7 @@ export default function HTMLCanvas({
                           saveToHistory(updatedNodes, connections)
                         }}
                         onClick={(e) => {
-                          if (tool === 'select') {
+                          if (tool === 'textedit') {
                             e.stopPropagation()
                             e.currentTarget.focus()
                           }
@@ -2944,7 +3080,7 @@ export default function HTMLCanvas({
                         onMouseDown={(e) => {
                           e.stopPropagation()
                           setResizingNode(node.id)
-                          setResizeStartSize({ width: node.width, height: node.height })
+                          setResizeStartSize({ width: node.width || 240, height: node.height })
                           setResizeStartPos({ x: e.clientX, y: e.clientY })
                         }}
                       />
@@ -2961,7 +3097,7 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
-                    selectedId === node.id ? 'ring-2' : ''
+                    selectedId === node.id || selectedIds.includes(node.id) ? 'ring-2' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   } ${
@@ -2972,11 +3108,12 @@ export default function HTMLCanvas({
                   style={{
                     left: draggingNode === node.id ? dragPosition.x : node.x,
                     top: draggingNode === node.id ? dragPosition.y : node.y,
-                    width: node.width,
-                    height: node.height,
+                    width: node.width || 240,
+                    height: node.height || 120,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
-                    borderColor: selectedId === node.id ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
-                    ...(selectedId === node.id ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
+                    borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
+                    userSelect: tool === 'textedit' ? 'auto' : 'none',
+                    ...((selectedId === node.id || selectedIds.includes(node.id)) ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onDoubleClick={(e) => {
@@ -2992,7 +3129,8 @@ export default function HTMLCanvas({
                                          target.tagName === 'TEXTAREA' ||
                                          target.closest('[contenteditable="true"]')
 
-                    if (isTextElement) {
+                    // Only deselect and enter typing mode if we're in textedit mode
+                    if (isTextElement && tool === 'textedit') {
                       // Switch to typing mode when clicking on text
                       setInteractionMode('typing')
                       // Deselect node when entering typing mode
@@ -3002,23 +3140,26 @@ export default function HTMLCanvas({
                       return
                     }
 
-                    // Not on text - in moving mode
-                    setInteractionMode('moving')
-                    e.preventDefault()
-                    e.stopPropagation()
+                    // Only enable dragging in select mode
+                    if (tool === 'select') {
+                      // Not on text - in moving mode
+                      setInteractionMode('moving')
+                      e.preventDefault()
+                      e.stopPropagation()
 
-                    // Set up drag tracking
-                    setDragStartPos({ x: e.clientX, y: e.clientY })
-                    setIsDragReady(node.id)
+                      // Set up drag tracking
+                      setDragStartPos({ x: e.clientX, y: e.clientY })
+                      setIsDragReady(node.id)
 
-                    const rect = canvasRef.current?.getBoundingClientRect()
-                    if (rect) {
-                      const mouseX = e.clientX - rect.left
-                      const mouseY = e.clientY - rect.top
-                      setDragOffset({
-                        x: mouseX - node.x,
-                        y: mouseY - node.y
-                      })
+                      const rect = canvasRef.current?.getBoundingClientRect()
+                      if (rect) {
+                        const mouseX = e.clientX - rect.left
+                        const mouseY = e.clientY - rect.top
+                        setDragOffset({
+                          x: mouseX - node.x,
+                          y: mouseY - node.y
+                        })
+                      }
                     }
                   }}
                 >
@@ -3032,7 +3173,7 @@ export default function HTMLCanvas({
                         color: getNodeBorderColor(node.type || 'event')
                       }} />
                       <div
-                        contentEditable={tool === 'select'}
+                        contentEditable={tool === 'textedit'}
                         suppressContentEditableWarning={true}
                         data-content-type="title"
                         className="bg-transparent border-none outline-none font-semibold text-sm cursor-text rounded px-1 flex-1"
@@ -3040,7 +3181,7 @@ export default function HTMLCanvas({
                           color: getTextColor(getNodeColor(node.type, node.color, node.id)),
                           caretColor: getTextColor(getNodeColor(node.type, node.color, node.id)),
                           pointerEvents: tool === 'event' ? 'none' : 'auto',
-                          userSelect: tool === 'event' ? 'none' : 'auto'
+                          userSelect: tool === 'textedit' ? 'text' : 'none'
                         }}
                         onPaste={(e) => {
                           const target = e.currentTarget as HTMLElement
@@ -3108,7 +3249,7 @@ export default function HTMLCanvas({
                           saveToHistory(nodes, connections)
                         }}
                         onClick={(e) => {
-                          if (tool === 'select') {
+                          if (tool === 'textedit') {
                             e.stopPropagation()
                             e.currentTarget.focus()
                           }
@@ -3121,7 +3262,7 @@ export default function HTMLCanvas({
                     {/* Summary area - main content */}
                     <div className="flex-1 px-3 py-2 overflow-hidden">
                       <div
-                        contentEditable={tool === 'select'}
+                        contentEditable={tool === 'textedit'}
                         suppressContentEditableWarning={true}
                         data-content-type="summary"
                         className="bg-transparent border-none outline-none text-sm cursor-text rounded px-1 h-full overflow-hidden leading-relaxed resize-none"
@@ -3129,7 +3270,7 @@ export default function HTMLCanvas({
                           color: getTextColor(getNodeColor(node.type, node.color, node.id)),
                           caretColor: getTextColor(getNodeColor(node.type, node.color, node.id)),
                           pointerEvents: tool === 'event' ? 'none' : 'auto',
-                          userSelect: tool === 'event' ? 'none' : 'auto'
+                          userSelect: tool === 'textedit' ? 'text' : 'none'
                         }}
                         onPaste={(e) => {
                           const target = e.currentTarget as HTMLElement
@@ -3197,7 +3338,7 @@ export default function HTMLCanvas({
                           saveToHistory(nodes, connections)
                         }}
                         onClick={(e) => {
-                          if (tool === 'select') {
+                          if (tool === 'textedit') {
                             e.stopPropagation()
                             e.currentTarget.focus()
                           }
@@ -3239,6 +3380,39 @@ export default function HTMLCanvas({
                     </div>
                   </div>
 
+                  {/* Navigation arrow for event nodes */}
+                  <div className="absolute top-1 right-1 flex items-center gap-1">
+                    <div
+                      className="p-1 cursor-pointer ${!isPanning ? 'hover:bg-black/10' : ''} rounded"
+                      onClick={async (e) => {
+                        e.stopPropagation()
+
+                        if (node.linkedCanvasId && onNavigateToCanvas) {
+                          // Navigate to existing canvas
+                          onNavigateToCanvas(node.linkedCanvasId, node.title || 'Event')
+                        } else if (!node.linkedCanvasId && onNavigateToCanvas) {
+                          // Create new linkedCanvasId
+                          const linkedCanvasId = `event-canvas-${node.id}`
+                          const updatedNodes = nodes.map(n =>
+                            n.id === node.id ? { ...n, linkedCanvasId } : n
+                          )
+                          setNodes(updatedNodes)
+                          saveToHistory(updatedNodes, connections)
+
+                          // Save in background without blocking navigation
+                          if (onSave) {
+                            onSave(updatedNodes, connections)
+                          }
+
+                          onNavigateToCanvas(linkedCanvasId, node.title || 'Event')
+                        }
+                      }}
+                      title="Break down event"
+                    >
+                      <span className="text-2xl font-bold" style={{ color: getIconColor('event', getNodeColor('event', node.color, node.id)) }}>→</span>
+                    </div>
+                  </div>
+
                   {/* Resize handles for event nodes */}
                   {selectedId === node.id && (
                     <>
@@ -3247,7 +3421,7 @@ export default function HTMLCanvas({
                         onMouseDown={(e) => {
                           e.stopPropagation()
                           setResizingNode(node.id)
-                          setResizeStartSize({ width: node.width, height: node.height })
+                          setResizeStartSize({ width: node.width || 240, height: node.height })
                           setResizeStartPos({ x: e.clientX, y: e.clientY })
                         }}
                       />
@@ -3273,29 +3447,32 @@ export default function HTMLCanvas({
                   style={{
                     left: draggingNode === node.id ? dragPosition.x : node.x,
                     top: draggingNode === node.id ? dragPosition.y : node.y,
-                    width: node.width,
-                    height: node.height,
+                    width: node.width || 240,
+                    height: node.height || 120,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
-                    borderColor: selectedId === node.id ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
-                    ...(selectedId === node.id ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {}),
+                    borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
+                    ...((selectedId === node.id || selectedIds.includes(node.id)) ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {}),
                     padding: '12px',
                     overflow: 'hidden'
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onMouseDown={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setDragStartPos({ x: e.clientX, y: e.clientY })
-                    setIsDragReady(node.id)
+                    // Only enable dragging in select mode
+                    if (tool === 'select') {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setDragStartPos({ x: e.clientX, y: e.clientY })
+                      setIsDragReady(node.id)
 
-                    const rect = canvasRef.current?.getBoundingClientRect()
-                    if (rect) {
-                      const mouseX = e.clientX - rect.left
-                      const mouseY = e.clientY - rect.top
-                      setDragOffset({
-                        x: mouseX - node.x,
-                        y: mouseY - node.y
-                      })
+                      const rect = canvasRef.current?.getBoundingClientRect()
+                      if (rect) {
+                        const mouseX = e.clientX - rect.left
+                        const mouseY = e.clientY - rect.top
+                        setDragOffset({
+                          x: mouseX - node.x,
+                          y: mouseY - node.y
+                        })
+                      }
                     }
                   }}
                 >
@@ -3645,7 +3822,7 @@ export default function HTMLCanvas({
                   key={node.id}
                   data-node-id={node.id}
                   className={`absolute border-2 rounded-lg overflow-hidden cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
-                    selectedId === node.id ? 'ring-2' : ''
+                    selectedId === node.id || selectedIds.includes(node.id) ? 'ring-2' : ''
                   } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   } ${
@@ -3656,11 +3833,12 @@ export default function HTMLCanvas({
                   style={{
                     left: draggingNode === node.id ? dragPosition.x : node.x,
                     top: draggingNode === node.id ? dragPosition.y : node.y,
-                    width: node.width,
-                    height: node.height,
+                    width: node.width || 240,
+                    height: node.height || 120,
                     backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
-                    borderColor: selectedId === node.id ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
-                    ...(selectedId === node.id ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
+                    borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
+                    userSelect: tool === 'textedit' ? 'auto' : 'none',
+                    ...((selectedId === node.id || selectedIds.includes(node.id)) ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onDoubleClick={(e) => {
@@ -3694,23 +3872,26 @@ export default function HTMLCanvas({
                       return
                     }
 
-                    // Not on text - in moving mode
-                    setInteractionMode('moving')
-                    e.preventDefault()
-                    e.stopPropagation()
+                    // Only enable dragging in select mode
+                    if (tool === 'select') {
+                      // Not on text - in moving mode
+                      setInteractionMode('moving')
+                      e.preventDefault()
+                      e.stopPropagation()
 
-                    // Set up drag tracking
-                    setDragStartPos({ x: e.clientX, y: e.clientY })
-                    setIsDragReady(node.id)
+                      // Set up drag tracking
+                      setDragStartPos({ x: e.clientX, y: e.clientY })
+                      setIsDragReady(node.id)
 
-                    const rect = canvasRef.current?.getBoundingClientRect()
-                    if (rect) {
-                      const mouseX = e.clientX - rect.left
-                      const mouseY = e.clientY - rect.top
-                      setDragOffset({
-                        x: mouseX - node.x,
-                        y: mouseY - node.y
-                      })
+                      const rect = canvasRef.current?.getBoundingClientRect()
+                      if (rect) {
+                        const mouseX = e.clientX - rect.left
+                        const mouseY = e.clientY - rect.top
+                        setDragOffset({
+                          x: mouseX - node.x,
+                          y: mouseY - node.y
+                        })
+                      }
                     }
                   }}
                 >
@@ -3776,7 +3957,7 @@ export default function HTMLCanvas({
                     {/* Character name area */}
                     <div className="flex-1 pr-8 min-w-0 flex items-center">
                       <div
-                        contentEditable={tool === 'select'}
+                        contentEditable={tool === 'textedit'}
                         suppressContentEditableWarning={true}
                         data-content-type="title"
                         className="font-medium text-sm outline-none bg-transparent border-none cursor-text rounded px-1 w-full"
@@ -3785,7 +3966,8 @@ export default function HTMLCanvas({
                           caretColor: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
-                          textOverflow: 'ellipsis'
+                          textOverflow: 'ellipsis',
+                          userSelect: tool === 'textedit' ? 'text' : 'none'
                         }}
                         onBlur={(e) => {
                           const newText = e.currentTarget.textContent || ''
@@ -3796,7 +3978,7 @@ export default function HTMLCanvas({
                           saveToHistory(updatedNodes, connections)
                         }}
                         onClick={(e) => {
-                          if (tool === 'select') {
+                          if (tool === 'textedit') {
                             e.stopPropagation()
                             e.currentTarget.focus()
                           }
@@ -3848,7 +4030,7 @@ export default function HTMLCanvas({
                         onMouseDown={(e) => {
                           e.stopPropagation()
                           setResizingNode(node.id)
-                          setResizeStartSize({ width: node.width, height: node.height })
+                          setResizeStartSize({ width: node.width || 240, height: node.height })
                           setResizeStartPos({ x: e.clientX, y: e.clientY })
                         }}
                       />
@@ -3876,10 +4058,11 @@ export default function HTMLCanvas({
               style={{
                 left: draggingNode === node.id ? dragPosition.x : node.x,
                 top: draggingNode === node.id ? dragPosition.y : node.y,
-                width: node.width,
-                height: node.height,
+                width: node.width || 240,
+                height: node.height || 120,
                 backgroundColor: getNodeColor(node.type || 'text', node.color, node.id),
                 borderColor: selectedId === node.id ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
+                userSelect: tool === 'textedit' ? 'auto' : 'none',
                 ...(selectedId === node.id ? { '--tw-ring-color': getResizeHandleColor(node.type || 'text') } as any : {})
               }}
               onClick={(e) => handleNodeClick(node, e)}
@@ -3888,6 +4071,10 @@ export default function HTMLCanvas({
                 e.stopPropagation()
                 // Explicitly prevent any double-click navigation for folder nodes
               }}
+              onDragStart={(e) => handleDragStart(e, node.id)}
+              onDragOver={(e) => handleDragOver(e, node.id)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, node.id)}
               onMouseDown={(e) => {
                 // Check if user is clicking on text content areas that should be editable
                 const target = e.target as HTMLElement
@@ -3896,7 +4083,8 @@ export default function HTMLCanvas({
                                      target.tagName === 'TEXTAREA' ||
                                      target.closest('[contenteditable="true"]')
 
-                if (isTextElement) {
+                // Only deselect and enter typing mode if we're in textedit mode
+                if (isTextElement && tool === 'textedit') {
                   // Switch to typing mode when clicking on text
                   setInteractionMode('typing')
                   // Deselect node when entering typing mode
@@ -3906,39 +4094,96 @@ export default function HTMLCanvas({
                   return
                 }
 
-                // Not on text - in moving mode
-                setInteractionMode('moving')
-                e.preventDefault()
-                e.stopPropagation()
+                // Only enable dragging in select mode
+                if (tool === 'select') {
+                  // Not on text - in moving mode
+                  setInteractionMode('moving')
+                  e.preventDefault()
+                  e.stopPropagation()
 
-                // Set up drag tracking
-                setDragStartPos({ x: e.clientX, y: e.clientY })
-                setIsDragReady(node.id)
+                  // Set up drag tracking
+                  setDragStartPos({ x: e.clientX, y: e.clientY })
+                  setIsDragReady(node.id)
 
-                const rect = canvasRef.current?.getBoundingClientRect()
-                if (rect) {
-                  const mouseX = e.clientX - rect.left
-                  const mouseY = e.clientY - rect.top
-                  setDragOffset({
-                    x: mouseX - node.x,
-                    y: mouseY - node.y
-                  })
+                  const rect = canvasRef.current?.getBoundingClientRect()
+                  if (rect) {
+                    const mouseX = e.clientX - rect.left
+                    const mouseY = e.clientY - rect.top
+                    setDragOffset({
+                      x: mouseX - node.x,
+                      y: mouseY - node.y
+                    })
+                  }
                 }
               }}
-              onDragStart={(e) => handleDragStart(e, node.id)}
-              onDragOver={(e) => handleDragOver(e, node.id)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, node.id)}
             >
+              {/* Extended draggable border strips for easier grabbing - only around edges */}
+              {/* Top border strip */}
+              <div className="absolute left-0 right-0 cursor-move" style={{ top: '-8px', height: '14px', pointerEvents: 'auto' }}
+                onMouseDown={(e) => {
+                  setInteractionMode('moving')
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setDragStartPos({ x: e.clientX, y: e.clientY })
+                  setIsDragReady(node.id)
+                  const rect = canvasRef.current?.getBoundingClientRect()
+                  if (rect) {
+                    setDragOffset({ x: e.clientX - rect.left - node.x, y: e.clientY - rect.top - node.y })
+                  }
+                }}
+              />
+              {/* Right border strip */}
+              <div className="absolute top-0 bottom-0 cursor-move" style={{ right: '-8px', width: '14px', pointerEvents: 'auto' }}
+                onMouseDown={(e) => {
+                  setInteractionMode('moving')
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setDragStartPos({ x: e.clientX, y: e.clientY })
+                  setIsDragReady(node.id)
+                  const rect = canvasRef.current?.getBoundingClientRect()
+                  if (rect) {
+                    setDragOffset({ x: e.clientX - rect.left - node.x, y: e.clientY - rect.top - node.y })
+                  }
+                }}
+              />
+              {/* Bottom border strip */}
+              <div className="absolute left-0 right-0 cursor-move" style={{ bottom: '-8px', height: '14px', pointerEvents: 'auto' }}
+                onMouseDown={(e) => {
+                  setInteractionMode('moving')
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setDragStartPos({ x: e.clientX, y: e.clientY })
+                  setIsDragReady(node.id)
+                  const rect = canvasRef.current?.getBoundingClientRect()
+                  if (rect) {
+                    setDragOffset({ x: e.clientX - rect.left - node.x, y: e.clientY - rect.top - node.y })
+                  }
+                }}
+              />
+              {/* Left border strip */}
+              <div className="absolute top-0 bottom-0 cursor-move" style={{ left: '-8px', width: '14px', pointerEvents: 'auto' }}
+                onMouseDown={(e) => {
+                  setInteractionMode('moving')
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setDragStartPos({ x: e.clientX, y: e.clientY })
+                  setIsDragReady(node.id)
+                  const rect = canvasRef.current?.getBoundingClientRect()
+                  if (rect) {
+                    setDragOffset({ x: e.clientX - rect.left - node.x, y: e.clientY - rect.top - node.y })
+                  }
+                }}
+              />
+
               {/* Node header - skip for image nodes as they have integrated headers */}
               {node.type !== 'image' && (
               <div className="flex items-center justify-between mb-2 gap-2">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div style={{ color: getIconColor(node.type || 'text', getNodeColor(node.type || 'text', node.color, node.id)) }}>
+                  <div style={{ color: getIconColor(node.type || 'text', getNodeColor(node.type || 'text', node.color, node.id)), userSelect: 'none' }}>
                     {getNodeIcon(node.type)}
                   </div>
                   <div
-                    contentEditable={tool === 'select'}
+                    contentEditable={tool === 'textedit'}
                     suppressContentEditableWarning={true}
                     data-content-type="title"
                     className="flex-1 font-medium text-sm outline-none bg-transparent border-none cursor-text rounded px-1"
@@ -3946,7 +4191,7 @@ export default function HTMLCanvas({
                       color: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
                       caretColor: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
                       pointerEvents: tool === 'event' ? 'none' : 'auto',
-                      userSelect: tool === 'event' ? 'none' : 'auto'
+                      userSelect: tool === 'textedit' ? 'text' : 'none'
                     }}
                     onInput={(e) => {
                       const newText = e.currentTarget.textContent || ''
@@ -4165,13 +4410,14 @@ export default function HTMLCanvas({
                                     {/* Character name */}
                                     <div className="flex-1 min-w-0 flex items-center">
                                       <div
-                                        contentEditable={tool === 'select'}
+                                        contentEditable={tool === 'textedit'}
                                         suppressContentEditableWarning={true}
                                         data-content-type="title"
                                         className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text rounded px-1 whitespace-nowrap overflow-hidden"
                                         style={{
                                           color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
-                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true)
+                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
+                                          userSelect: tool === 'textedit' ? 'text' : 'none'
                                         }}
                                         onBlur={(e) => {
                                           const newText = e.currentTarget.textContent || ''
@@ -4276,13 +4522,14 @@ export default function HTMLCanvas({
                                     {/* Location name */}
                                     <div className="flex-1 min-w-0 flex items-center">
                                       <div
-                                        contentEditable={tool === 'select'}
+                                        contentEditable={tool === 'textedit'}
                                         suppressContentEditableWarning={true}
                                         data-content-type="title"
                                         className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text rounded px-1 whitespace-nowrap overflow-hidden"
                                         style={{
                                           color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
-                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true)
+                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
+                                          userSelect: tool === 'textedit' ? 'text' : 'none'
                                         }}
                                         onBlur={(e) => {
                                           const newText = e.currentTarget.textContent || ''
@@ -4372,13 +4619,14 @@ export default function HTMLCanvas({
                                         color: getIconColor(childNode.type || 'event', getNodeColor(childNode.type || 'event', childNode.color, childNode.id), true)
                                       }} />
                                       <div
-                                        contentEditable={tool === 'select'}
+                                        contentEditable={tool === 'textedit'}
                                         suppressContentEditableWarning={true}
                                         data-content-type="title"
                                         className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text rounded px-1 whitespace-nowrap overflow-hidden"
                                         style={{
                                           color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
-                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true)
+                                          caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
+                                          userSelect: tool === 'textedit' ? 'text' : 'none'
                                         }}
                                         onBlur={(e) => {
                                           const newTitle = e.currentTarget.textContent || ''
@@ -4446,13 +4694,14 @@ export default function HTMLCanvas({
                                     {getNodeIcon(childNode.type)}
                                   </div>
                                   <div
-                                    contentEditable={tool === 'select'}
+                                    contentEditable={tool === 'textedit'}
                                     suppressContentEditableWarning={true}
                                     data-content-type="title"
                                     className="flex-1 bg-transparent border-none outline-none font-medium text-sm cursor-text min-w-0 rounded px-1"
                                     style={{
                                       color: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id), true),
-                                      caretColor: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id), true)
+                                      caretColor: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id), true),
+                                      userSelect: tool === 'textedit' ? 'text' : 'none'
                                     }}
                                     onInput={(e) => {
                                       // Don't update state immediately to avoid cursor jumping
@@ -4498,13 +4747,14 @@ export default function HTMLCanvas({
                               {/* Content area */}
                               <div className="px-2 pb-2">
                                 <div
-                                  contentEditable={tool === 'select'}
+                                  contentEditable={tool === 'textedit'}
                                   suppressContentEditableWarning={true}
                                   data-content-type="content"
                                   className="w-full bg-transparent border-none outline-none text-sm min-h-[3.5rem] max-h-full overflow-auto cursor-text leading-relaxed rounded px-1"
                                   style={{
                                     color: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id)),
-                                    caretColor: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id))
+                                    caretColor: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id)),
+                                    userSelect: tool === 'textedit' ? 'text' : 'none'
                                   }}
                                   onInput={(e) => {
                                     const newContent = e.currentTarget.textContent || ''
@@ -4587,7 +4837,7 @@ export default function HTMLCanvas({
                 ) : (
                   // Text/other node content
                   <div
-                    contentEditable={tool === 'select'}
+                    contentEditable={tool === 'textedit'}
                     suppressContentEditableWarning={true}
                     data-content-type="content"
                     className="w-full bg-transparent border-none outline-none text-sm min-h-[4rem] max-h-full overflow-auto cursor-text leading-relaxed rounded px-1"
@@ -4595,9 +4845,16 @@ export default function HTMLCanvas({
                       color: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
                       caretColor: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
                       pointerEvents: tool === 'event' ? 'none' : 'auto',
-                      userSelect: tool === 'event' ? 'none' : 'auto'
+                      userSelect: tool === 'textedit' ? 'text' : 'none',
+                      // Lock height during manual resize to prevent flash
+                      height: resizingNode === node.id ? `${node.height - 60}px` : 'auto'
                     }}
                     onInput={(e) => {
+                      // Skip input handling if this node is being manually resized
+                      if (resizingNode === node.id) {
+                        return
+                      }
+
                       const newContent = e.currentTarget.textContent || ''
                       const updatedNodes = nodes.map(n =>
                         n.id === node.id ? { ...n, content: newContent } : n
@@ -4689,9 +4946,10 @@ export default function HTMLCanvas({
                   <div
                     className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-sm cursor-se-resize hover:bg-primary/80 border border-background"
                     onMouseDown={(e) => {
+                      e.preventDefault()
                       e.stopPropagation()
-                      setResizingNode(node.id)
-                      setResizeStartSize({ width: node.width, height: node.height })
+                      setIsResizeReady(node.id)
+                      setResizeStartSize({ width: node.width || 240, height: node.height })
                       setResizeStartPos({ x: e.clientX, y: e.clientY })
                     }}
                     title="Resize node"
@@ -4703,12 +4961,10 @@ export default function HTMLCanvas({
                       className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-8 rounded-sm cursor-e-resize"
                       style={{ backgroundColor: getResizeHandleColor(node.type || 'text') }}
                       onMouseDown={(e) => {
-                        e.preventDefault() // Prevent text selection during resize
+                        e.preventDefault()
                         e.stopPropagation()
-                        // Disable text selection during resize
-                        document.body.style.userSelect = 'none'
-                        setResizingNode(node.id)
-                        setResizeStartSize({ width: node.width, height: node.height })
+                        setIsResizeReady(node.id)
+                        setResizeStartSize({ width: node.width || 240, height: node.height })
                         setResizeStartPos({ x: e.clientX, y: e.clientY })
                       }}
                       title="Resize width"
@@ -4721,12 +4977,10 @@ export default function HTMLCanvas({
                       className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-8 h-2 rounded-sm cursor-s-resize"
                       style={{ backgroundColor: getResizeHandleColor(node.type || 'text') }}
                       onMouseDown={(e) => {
-                        e.preventDefault() // Prevent text selection during resize
+                        e.preventDefault()
                         e.stopPropagation()
-                        // Disable text selection during resize
-                        document.body.style.userSelect = 'none'
-                        setResizingNode(node.id)
-                        setResizeStartSize({ width: node.width, height: node.height })
+                        setIsResizeReady(node.id)
+                        setResizeStartSize({ width: node.width || 240, height: node.height })
                         setResizeStartPos({ x: e.clientX, y: e.clientY })
                       }}
                       title="Resize height"
@@ -5783,6 +6037,23 @@ export default function HTMLCanvas({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Selection box */}
+      {isSelecting && selectionBox.width > 0 && selectionBox.height > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            left: selectionBox.x,
+            top: selectionBox.y,
+            width: selectionBox.width,
+            height: selectionBox.height,
+            border: '2px dashed #3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            pointerEvents: 'none',
+            zIndex: 9999
+          }}
+        />
       )}
 
     </div>

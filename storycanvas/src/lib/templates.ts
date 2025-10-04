@@ -91,8 +91,8 @@ export const storyTemplates: StoryTemplate[] = [
         id: 'story-overview',
         x: 500,
         y: 370,
-        text: 'Story Overview',
-        content: 'Write your story overview here...',
+        text: 'Story Title',
+        content: 'Write a story overview here',
         width: 300,
         height: 185,
         type: 'text'
@@ -1327,19 +1327,9 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
   'folder-canvas-timeline-folder': {
     nodes: [
       {
-        id: 'timeline-instructions',
-        x: 50,
-        y: 50,
-        text: 'Story Timeline',
-        content: 'Map out your story\'s key events. Edit each event below or add new ones!',
-        width: 600,
-        height: 80,
-        type: 'text'
-      },
-      {
         id: 'event-1-opening',
         x: 50,
-        y: 200,
+        y: 50,
         width: 220,
         height: 280,
         type: 'event',
@@ -1350,7 +1340,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
       {
         id: 'event-2-inciting',
         x: 290,
-        y: 200,
+        y: 50,
         width: 220,
         height: 280,
         type: 'event',
@@ -1361,7 +1351,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
       {
         id: 'event-3-choice',
         x: 530,
-        y: 200,
+        y: 50,
         width: 220,
         height: 280,
         type: 'event',
@@ -1372,7 +1362,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
       {
         id: 'event-4-midpoint',
         x: 770,
-        y: 200,
+        y: 50,
         width: 220,
         height: 280,
         type: 'event',
@@ -1383,7 +1373,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
       {
         id: 'event-5-darkest',
         x: 1010,
-        y: 200,
+        y: 50,
         width: 220,
         height: 280,
         type: 'event',
@@ -1394,7 +1384,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
       {
         id: 'event-6-climax',
         x: 1250,
-        y: 200,
+        y: 50,
         width: 220,
         height: 280,
         type: 'event',
@@ -1405,7 +1395,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
       {
         id: 'event-7-resolution',
         x: 1490,
-        y: 200,
+        y: 50,
         width: 220,
         height: 280,
         type: 'event',
@@ -1421,6 +1411,166 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
       { id: 'timeline-midpoint-to-darkest', from: 'event-4-midpoint', to: 'event-5-darkest', type: 'leads-to' },
       { id: 'timeline-darkest-to-climax', from: 'event-5-darkest', to: 'event-6-climax', type: 'leads-to' },
       { id: 'timeline-climax-to-resolution', from: 'event-6-climax', to: 'event-7-resolution', type: 'leads-to' }
+    ]
+  },
+  // Generic event canvas template - used when clicking into any event node
+  event: {
+    nodes: [
+      // LEFT COLUMN - Event Details
+      {
+        id: 'setting-atmosphere',
+        x: 50,
+        y: 50,
+        text: 'Setting & Atmosphere',
+        content: 'Where does this happen? What\'s the mood/tone? Time of day, weather, sensory details?',
+        width: 350,
+        height: 180,
+        type: 'text'
+      },
+      {
+        id: 'conflict-stakes',
+        x: 50,
+        y: 250,
+        text: 'Conflict & Stakes',
+        content: 'What\'s at stake in this moment? What could go wrong? What tension exists?',
+        width: 350,
+        height: 180,
+        type: 'text'
+      },
+      {
+        id: 'characters-involved',
+        x: 50,
+        y: 450,
+        text: 'Characters Involved',
+        width: 350,
+        height: 200,
+        type: 'table',
+        tableData: [
+          { col1: 'Character Name', col2: 'Role in Event' },
+          { col1: '', col2: '' },
+          { col1: '', col2: '' },
+          { col1: '', col2: '' },
+          { col1: '', col2: '' },
+          { col1: '', col2: '' }
+        ]
+      },
+
+      // ABOVE TIMELINE - Production Notes
+      {
+        id: 'key-dialogue',
+        x: 450,
+        y: 50,
+        text: 'Key Dialogue/Quotes',
+        content: 'Important lines or exchanges. Memorable moments.',
+        width: 580,
+        height: 120,
+        type: 'text'
+      },
+      {
+        id: 'visual-action-notes',
+        x: 1050,
+        y: 50,
+        text: 'Visual/Action Notes',
+        content: 'Key visual moments. Action sequences. Important blocking or cinematography ideas.',
+        width: 580,
+        height: 120,
+        type: 'text'
+      },
+
+      // CENTER - Timeline (sub-events)
+      {
+        id: 'sub-event-1',
+        x: 450,
+        y: 200,
+        width: 220,
+        height: 280,
+        type: 'event',
+        title: 'Sub-event 1',
+        summary: 'What happens first in this event?',
+        durationText: ''
+      },
+      {
+        id: 'sub-event-2',
+        x: 690,
+        y: 200,
+        width: 220,
+        height: 280,
+        type: 'event',
+        title: 'Sub-event 2',
+        summary: 'What happens next?',
+        durationText: ''
+      },
+      {
+        id: 'sub-event-3',
+        x: 930,
+        y: 200,
+        width: 220,
+        height: 280,
+        type: 'event',
+        title: 'Sub-event 3',
+        summary: 'What happens after that?',
+        durationText: ''
+      },
+      {
+        id: 'sub-event-4',
+        x: 1170,
+        y: 200,
+        width: 220,
+        height: 280,
+        type: 'event',
+        title: 'Sub-event 4',
+        summary: 'What happens next?',
+        durationText: ''
+      },
+      {
+        id: 'sub-event-5',
+        x: 1410,
+        y: 200,
+        width: 220,
+        height: 280,
+        type: 'event',
+        title: 'Sub-event 5',
+        summary: 'How does this event conclude?',
+        durationText: ''
+      },
+
+      // RIGHT COLUMN - Narrative Analysis
+      {
+        id: 'narrative-purpose',
+        x: 1680,
+        y: 50,
+        text: 'Narrative Purpose',
+        content: 'How does this serve the overall story? What does the audience learn? What changes as a result?',
+        width: 350,
+        height: 180,
+        type: 'text'
+      },
+      {
+        id: 'themes-symbolism',
+        x: 1680,
+        y: 250,
+        text: 'Themes & Symbolism',
+        content: 'What themes are explored here? Any symbolic elements? Motifs or recurring imagery?',
+        width: 350,
+        height: 180,
+        type: 'text'
+      },
+      {
+        id: 'emotional-arc',
+        x: 1680,
+        y: 450,
+        text: 'Emotional Arc',
+        content: 'How should the audience feel? Emotional journey within this event. Key emotional beats.',
+        width: 350,
+        height: 200,
+        type: 'text'
+      }
+    ],
+    connections: [
+      { id: 'sub-timeline-1-to-2', from: 'sub-event-1', to: 'sub-event-2', type: 'leads-to' },
+      { id: 'sub-timeline-2-to-3', from: 'sub-event-2', to: 'sub-event-3', type: 'leads-to' },
+      { id: 'sub-timeline-3-to-4', from: 'sub-event-3', to: 'sub-event-4', type: 'leads-to' },
+      { id: 'sub-timeline-4-to-5', from: 'sub-event-4', to: 'sub-event-5', type: 'leads-to' }
     ]
   }
 }

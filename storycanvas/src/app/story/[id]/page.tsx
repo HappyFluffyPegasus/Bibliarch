@@ -499,6 +499,30 @@ export default function StoryPage({ params }: PageProps) {
               to: `${conn.to}-${Date.now()}`
             }))
           }
+        } else if (currentCanvasId.includes('event-canvas-') && subCanvasTemplates.event) {
+          console.log('Applying event sub-canvas template')
+          const timestamp = Date.now()
+
+          // Create ID mapping for updating references
+          const idMap: Record<string, string> = {}
+          subCanvasTemplates.event.nodes.forEach(node => {
+            idMap[node.id] = `${node.id}-${timestamp}`
+          })
+
+          templateData = {
+            nodes: subCanvasTemplates.event.nodes.map(node => ({
+              ...node,
+              id: idMap[node.id],
+              ...(node.childIds ? { childIds: node.childIds.map(childId => idMap[childId]) } : {}),
+              ...(node.parentId ? { parentId: idMap[node.parentId] } : {})
+            })),
+            connections: subCanvasTemplates.event.connections.map(conn => ({
+              ...conn,
+              id: `${conn.id}-${timestamp}`,
+              from: idMap[conn.from] || conn.from,
+              to: idMap[conn.to] || conn.to
+            }))
+          }
         }
 
         console.log('Initializing canvas with template data:', templateData)
