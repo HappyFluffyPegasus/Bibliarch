@@ -587,6 +587,16 @@ export default function StoryPage({ params }: PageProps) {
     if (existing) {
       // Update existing
       console.log('Updating existing canvas:', (existing as any)?.id)
+
+      // Test JSON serialization before saving
+      try {
+        JSON.stringify({ nodes, connections })
+      } catch (jsonError) {
+        console.error('JSON serialization error:', jsonError)
+        console.error('Problematic nodes:', nodes)
+        return
+      }
+
       const { error: updateError } = await supabase
         .from('canvas_data')
         .update({
@@ -598,6 +608,8 @@ export default function StoryPage({ params }: PageProps) {
 
       if (updateError) {
         console.error('Error updating canvas:', updateError)
+        console.error('Update error message:', updateError.message)
+        console.error('Update error code:', updateError.code)
       } else {
         console.log('Canvas updated successfully')
       }
