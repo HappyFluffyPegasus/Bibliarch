@@ -122,7 +122,8 @@ export default function HTMLCanvas({
   const [nodes, setNodes] = useState<Node[]>(initialNodes)
   const [connections, setConnections] = useState<Connection[]>(initialConnections)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [tool, setTool] = useState<'pan' | 'select' | 'textedit' | 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'connect' | 'relationship-canvas'>('select')
+  const [tool, setTool] = useState<'pan' | 'select' | 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'connect' | 'relationship-canvas'>('select')
+  const [editingField, setEditingField] = useState<{nodeId: string, field: string} | null>(null)
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
   const [showHelp, setShowHelp] = useState(true)
@@ -2444,15 +2445,6 @@ export default function HTMLCanvas({
           >
             <MousePointer className="w-7 h-7" />
           </Button>
-          <Button
-            size="sm"
-            variant={tool === 'textedit' ? 'default' : 'outline'}
-            onClick={() => setTool('textedit')}
-            className={`h-12 w-14 p-0 ${tool === 'textedit' ? 'bg-blue-600 text-white' : ''}`}
-            title="Text Edit Tool - Click to edit text in nodes"
-          >
-            <TextCursor className="w-7 h-7" />
-          </Button>
         </div>
 
         {/* Divider */}
@@ -2809,7 +2801,6 @@ export default function HTMLCanvas({
           ref={canvasRef}
           className={`canvas-grid relative ${
             tool === 'select' ? 'cursor-default' :
-            tool === 'textedit' ? 'cursor-text' :
             tool === 'relationships' ? 'cursor-pointer' :
             'cursor-crosshair'
           } ${isPanning ? 'cursor-grabbing' : ''} ${getNodeStyleClasses()}`}
@@ -2912,28 +2903,54 @@ export default function HTMLCanvas({
                 >
                   <div className="w-full h-full flex flex-col">
                     {/* Header */}
-                    {(node.settings?.show_header ?? true) && (
+                    {(node.settings?.show_header ?? false) && (
                       <div
-                        contentEditable
+                        key={`${node.id}-header`}
+                        contentEditable={editingField?.nodeId === node.id && editingField?.field === 'header'}
                         suppressContentEditableWarning
-                        className="px-2 py-1 text-sm font-medium border-b"
+                        data-content-type="header"
+                        className={`px-2 py-1 text-sm font-medium border-b bg-black/10 dark:bg-white/10 ${(editingField?.nodeId === node.id && editingField?.field === 'header') ? 'cursor-text' : 'cursor-move'}`}
                         style={{
-                          backgroundColor: getNodeColor('image', node.color, node.id),
                           borderColor: getNodeBorderColor('image'),
                           color: getTextColor(getNodeColor('image', node.color, node.id)),
-                          outline: 'none'
+                          outline: 'none',
+                          userSelect: (editingField?.nodeId === node.id && editingField?.field === 'header') ? 'text' : 'none'
                         }}
-                        onInput={(e) => {
-                          const newTitle = (e.target as HTMLElement).innerText
+                        onBlur={(e) => {
+                          const newTitle = e.currentTarget.textContent || ''
                           const updatedNodes = nodes.map(n =>
                             n.id === node.id ? { ...n, title: newTitle } : n
                           )
                           setNodes(updatedNodes)
+                          saveToHistory(updatedNodes, connections)
+                          setEditingField(null)
                         }}
-                        onBlur={() => saveToHistory(nodes, connections)}
-                      >
-                        {node.title || 'Image Title'}
-                      </div>
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (editingField?.nodeId === node.id && editingField?.field === 'header') {
+                            e.currentTarget.focus()
+                          }
+                        }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation()
+                          const target = e.currentTarget
+                          if (editingField?.nodeId === node.id && editingField?.field === 'header') {
+                            // Already editing, just focus
+                            target.focus()
+                          } else {
+                            // Start editing
+                            setEditingField({ nodeId: node.id, field: 'header' })
+                            setTimeout(() => target.focus(), 0)
+                          }
+                        }}
+                        ref={(el) => {
+                          if (el && !(editingField?.nodeId === node.id && editingField?.field === 'header')) {
+                            if (el.textContent !== (node.title || 'Image Title')) {
+                              el.textContent = node.title || 'Image Title'
+                            }
+                          }
+                        }}
+                      />
                     )}
 
                     {/* Image */}
@@ -3099,26 +3116,52 @@ export default function HTMLCanvas({
                     {/* Caption */}
                     {(node.settings?.show_caption ?? false) && (
                       <div
-                        contentEditable
+                        key={`${node.id}-caption`}
+                        contentEditable={editingField?.nodeId === node.id && editingField?.field === 'caption'}
                         suppressContentEditableWarning
-                        className="px-2 py-1 text-xs italic border-t"
+                        data-content-type="caption"
+                        className={`px-2 py-1 text-xs italic border-t bg-black/10 dark:bg-white/10 ${(editingField?.nodeId === node.id && editingField?.field === 'caption') ? 'cursor-text' : 'cursor-move'}`}
                         style={{
-                          backgroundColor: getNodeColor('image', node.color, node.id),
                           borderColor: getNodeBorderColor('image'),
                           color: getTextColor(getNodeColor('image', node.color, node.id)),
-                          outline: 'none'
+                          outline: 'none',
+                          userSelect: (editingField?.nodeId === node.id && editingField?.field === 'caption') ? 'text' : 'none'
                         }}
-                        onInput={(e) => {
-                          const newCaption = (e.target as HTMLElement).innerText
+                        onBlur={(e) => {
+                          const newCaption = e.currentTarget.textContent || ''
                           const updatedNodes = nodes.map(n =>
                             n.id === node.id ? { ...n, content: newCaption } : n
                           )
                           setNodes(updatedNodes)
+                          saveToHistory(updatedNodes, connections)
+                          setEditingField(null)
                         }}
-                        onBlur={() => saveToHistory(nodes, connections)}
-                      >
-                        {node.content || 'Caption'}
-                      </div>
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (editingField?.nodeId === node.id && editingField?.field === 'caption') {
+                            e.currentTarget.focus()
+                          }
+                        }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation()
+                          const target = e.currentTarget
+                          if (editingField?.nodeId === node.id && editingField?.field === 'caption') {
+                            // Already editing, just focus
+                            target.focus()
+                          } else {
+                            // Start editing
+                            setEditingField({ nodeId: node.id, field: 'caption' })
+                            setTimeout(() => target.focus(), 0)
+                          }
+                        }}
+                        ref={(el) => {
+                          if (el && !(editingField?.nodeId === node.id && editingField?.field === 'caption')) {
+                            if (el.textContent !== (node.content || 'Caption')) {
+                              el.textContent = node.content || 'Caption'
+                            }
+                          }
+                        }}
+                      />
                     )}
                   </div>
 
@@ -3400,14 +3443,15 @@ export default function HTMLCanvas({
                     {/* Location name */}
                     <div className="flex-1 min-w-0 pr-2">
                       <div
-                        contentEditable={tool === 'textedit'}
+                        key={`${node.id}-title`}
+                        contentEditable={editingField?.nodeId === node.id && editingField?.field === 'title'}
                         suppressContentEditableWarning={true}
                         data-content-type="title"
-                        className={`bg-transparent border-none outline-none font-medium text-base rounded px-1 ${tool === 'textedit' ? 'cursor-text' : 'cursor-move'}`}
+                        className={`bg-transparent border-none outline-none font-medium text-base rounded px-1 ${(editingField?.nodeId === node.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                         style={{
                           color: getTextColor(getNodeColor(node.type, node.color, node.id)),
                           caretColor: getTextColor(getNodeColor(node.type, node.color, node.id)),
-                          userSelect: tool === 'textedit' ? 'text' : 'none'
+                          userSelect: (editingField?.nodeId === node.id && editingField?.field === 'title') ? 'text' : 'none'
                         }}
                         onBlur={(e) => {
                           const newText = e.currentTarget.textContent || ''
@@ -3416,18 +3460,36 @@ export default function HTMLCanvas({
                           )
                           setNodes(updatedNodes)
                           saveToHistory(updatedNodes, connections)
+                          setEditingField(null)
                         }}
                         onClick={(e) => {
-                          if (tool === 'textedit') {
-                            e.stopPropagation()
+                          e.stopPropagation()
+                          if (editingField?.nodeId === node.id && editingField?.field === 'title') {
                             e.currentTarget.focus()
+                          }
+                        }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation()
+                          const target = e.currentTarget
+                          if (editingField?.nodeId === node.id && editingField?.field === 'title') {
+                            // Already editing, just focus
+                            target.focus()
+                          } else {
+                            // Start editing
+                            setEditingField({ nodeId: node.id, field: 'title' })
+                            setTimeout(() => target.focus(), 0)
                           }
                         }}
                         spellCheck={false}
                         data-placeholder="Location name..."
-                      >
-                        {node.text || ''}
-                      </div>
+                        ref={(el) => {
+                          if (el && !(editingField?.nodeId === node.id && editingField?.field === 'title')) {
+                            if (el.textContent !== (node.text || '')) {
+                              el.textContent = node.text || ''
+                            }
+                          }
+                        }}
+                      />
                     </div>
                   </div>
 
@@ -3530,15 +3592,16 @@ export default function HTMLCanvas({
                         color: getNodeBorderColor(node.type || 'event')
                       }} />
                       <div
-                        contentEditable={tool === 'textedit'}
+                        key={`${node.id}-title`}
+                        contentEditable={editingField?.nodeId === node.id && editingField?.field === 'title'}
                         suppressContentEditableWarning={true}
                         data-content-type="title"
-                        className={`bg-transparent border-none outline-none font-semibold text-sm rounded px-1 flex-1 ${tool === 'textedit' ? 'cursor-text' : 'cursor-move'}`}
+                        className={`bg-transparent border-none outline-none font-semibold text-sm rounded px-1 flex-1 ${(editingField?.nodeId === node.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                         style={{
                           color: getTextColor(getNodeColor(node.type, node.color, node.id)),
                           caretColor: getTextColor(getNodeColor(node.type, node.color, node.id)),
                           pointerEvents: tool === 'event' ? 'none' : 'auto',
-                          userSelect: tool === 'textedit' ? 'text' : 'none'
+                          userSelect: (editingField?.nodeId === node.id && editingField?.field === 'title') ? 'text' : 'none'
                         }}
                         onPaste={(e) => {
                           const target = e.currentTarget as HTMLElement
@@ -3548,53 +3611,10 @@ export default function HTMLCanvas({
                         }}
                         onInput={(e) => {
                           const newTitle = e.currentTarget.textContent || ''
-                          // Save cursor position before state update
-                          const selection = window.getSelection()
-                          let cursorOffset = 0
-                          if (selection && selection.rangeCount > 0) {
-                            const range = selection.getRangeAt(0)
-                            cursorOffset = range.startOffset
-                          }
-
                           const updatedNodes = nodes.map(n =>
                             n.id === node.id ? { ...n, title: newTitle } : n
                           )
                           setNodes(updatedNodes)
-
-                          // Restore cursor position after state update
-                          setTimeout(() => {
-                            const element = e.currentTarget
-                            if (element && document.activeElement === element) {
-                              // Try to restore cursor position
-                              try {
-                                const textNode = element.firstChild
-                                if (textNode && textNode.nodeType === Node.TEXT_NODE && textNode.textContent) {
-                                  const newRange = document.createRange()
-                                  const newSelection = window.getSelection()
-                                  const safeOffset = Math.min(cursorOffset, textNode.textContent.length)
-                                  newRange.setStart(textNode, safeOffset)
-                                  newRange.setEnd(textNode, safeOffset)
-                                  if (newSelection) {
-                                    newSelection.removeAllRanges()
-                                    newSelection.addRange(newRange)
-                                  }
-                                } else if (element.textContent) {
-                                  // Fallback: set cursor at end
-                                  const range = document.createRange()
-                                  range.selectNodeContents(element)
-                                  range.collapse(false)
-                                  const selection = window.getSelection()
-                                  if (selection) {
-                                    selection.removeAllRanges()
-                                    selection.addRange(range)
-                                  }
-                                }
-                              } catch (error) {
-                                // Ignore cursor restoration errors
-                                console.warn('Cursor restoration failed:', error)
-                              }
-                            }
-                          }, 0)
 
                           // Auto-resize
                           const target = e.currentTarget as HTMLElement
@@ -3604,30 +3624,51 @@ export default function HTMLCanvas({
                         }}
                         onBlur={() => {
                           saveToHistory(nodes, connections)
+                          setEditingField(null)
                         }}
                         onClick={(e) => {
-                          if (tool === 'textedit') {
-                            e.stopPropagation()
+                          e.stopPropagation()
+                          if (editingField?.nodeId === node.id && editingField?.field === 'title') {
                             e.currentTarget.focus()
+                          }
+                        }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation()
+                          const target = e.currentTarget
+                          if (editingField?.nodeId === node.id && editingField?.field === 'title') {
+                            // Already editing, just focus
+                            target.focus()
+                          } else {
+                            // Start editing
+                            setEditingField({ nodeId: node.id, field: 'title' })
+                            setTimeout(() => target.focus(), 0)
                           }
                         }}
                         spellCheck={false}
                         data-placeholder="Event Title"
+                        ref={(el) => {
+                          if (el && !(editingField?.nodeId === node.id && editingField?.field === 'title')) {
+                            if (el.textContent !== (node.title || '')) {
+                              el.textContent = node.title || ''
+                            }
+                          }
+                        }}
                       />
                     </div>
 
                     {/* Summary area - main content */}
                     <div className={`px-3 py-2 ${(node.settings?.expand_summary ?? true) ? 'flex-1 overflow-hidden' : 'overflow-hidden'}`}>
                       <div
-                        contentEditable={tool === 'textedit'}
+                        key={`${node.id}-summary`}
+                        contentEditable={editingField?.nodeId === node.id && editingField?.field === 'summary'}
                         suppressContentEditableWarning={true}
                         data-content-type="summary"
-                        className={`bg-transparent border-none outline-none text-sm rounded px-1 ${(node.settings?.expand_summary ?? true) ? 'h-full' : ''} overflow-hidden leading-relaxed resize-none ${tool === 'textedit' ? 'cursor-text' : 'cursor-move'}`}
+                        className={`bg-transparent border-none outline-none text-sm rounded px-1 ${(node.settings?.expand_summary ?? true) ? 'h-full' : ''} overflow-hidden leading-relaxed resize-none ${(editingField?.nodeId === node.id && editingField?.field === 'summary') ? 'cursor-text' : 'cursor-move'}`}
                         style={{
                           color: getTextColor(getNodeColor(node.type, node.color, node.id)),
                           caretColor: getTextColor(getNodeColor(node.type, node.color, node.id)),
                           pointerEvents: tool === 'event' ? 'none' : 'auto',
-                          userSelect: tool === 'textedit' ? 'text' : 'none',
+                          userSelect: (editingField?.nodeId === node.id && editingField?.field === 'summary') ? 'text' : 'none',
                           ...(!(node.settings?.expand_summary ?? true) && {
                             display: '-webkit-box',
                             WebkitLineClamp: '2',
@@ -3643,53 +3684,10 @@ export default function HTMLCanvas({
                         }}
                         onInput={(e) => {
                           const newSummary = e.currentTarget.textContent || ''
-                          // Save cursor position before state update
-                          const selection = window.getSelection()
-                          let cursorOffset = 0
-                          if (selection && selection.rangeCount > 0) {
-                            const range = selection.getRangeAt(0)
-                            cursorOffset = range.startOffset
-                          }
-
                           const updatedNodes = nodes.map(n =>
                             n.id === node.id ? { ...n, summary: newSummary } : n
                           )
                           setNodes(updatedNodes)
-
-                          // Restore cursor position after state update
-                          setTimeout(() => {
-                            const element = e.currentTarget
-                            if (element && document.activeElement === element) {
-                              // Try to restore cursor position
-                              try {
-                                const textNode = element.firstChild
-                                if (textNode && textNode.nodeType === Node.TEXT_NODE && textNode.textContent) {
-                                  const newRange = document.createRange()
-                                  const newSelection = window.getSelection()
-                                  const safeOffset = Math.min(cursorOffset, textNode.textContent.length)
-                                  newRange.setStart(textNode, safeOffset)
-                                  newRange.setEnd(textNode, safeOffset)
-                                  if (newSelection) {
-                                    newSelection.removeAllRanges()
-                                    newSelection.addRange(newRange)
-                                  }
-                                } else if (element.textContent) {
-                                  // Fallback: set cursor at end
-                                  const range = document.createRange()
-                                  range.selectNodeContents(element)
-                                  range.collapse(false)
-                                  const selection = window.getSelection()
-                                  if (selection) {
-                                    selection.removeAllRanges()
-                                    selection.addRange(range)
-                                  }
-                                }
-                              } catch (error) {
-                                // Ignore cursor restoration errors
-                                console.warn('Cursor restoration failed:', error)
-                              }
-                            }
-                          }, 0)
 
                           // Auto-resize
                           const target = e.currentTarget as HTMLElement
@@ -3699,15 +3697,35 @@ export default function HTMLCanvas({
                         }}
                         onBlur={() => {
                           saveToHistory(nodes, connections)
+                          setEditingField(null)
                         }}
                         onClick={(e) => {
-                          if (tool === 'textedit') {
-                            e.stopPropagation()
+                          e.stopPropagation()
+                          if (editingField?.nodeId === node.id && editingField?.field === 'summary') {
                             e.currentTarget.focus()
+                          }
+                        }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation()
+                          const target = e.currentTarget
+                          if (editingField?.nodeId === node.id && editingField?.field === 'summary') {
+                            // Already editing, just focus
+                            target.focus()
+                          } else {
+                            // Start editing
+                            setEditingField({ nodeId: node.id, field: 'summary' })
+                            setTimeout(() => target.focus(), 0)
                           }
                         }}
                         spellCheck={false}
                         data-placeholder="Describe what happens in this event..."
+                        ref={(el) => {
+                          if (el && !(editingField?.nodeId === node.id && editingField?.field === 'summary')) {
+                            if (el.textContent !== (node.summary || '')) {
+                              el.textContent = node.summary || ''
+                            }
+                          }
+                        }}
                       />
                     </div>
 
@@ -4335,17 +4353,18 @@ export default function HTMLCanvas({
                     {/* Character name area */}
                     <div className="flex-1 pr-8 min-w-0 flex items-center">
                       <div
-                        contentEditable={tool === 'textedit'}
+                        key={`${node.id}-title`}
+                        contentEditable={editingField?.nodeId === node.id && editingField?.field === 'title'}
                         suppressContentEditableWarning={true}
                         data-content-type="title"
-                        className={`font-medium text-sm outline-none bg-transparent border-none rounded px-1 w-full ${tool === 'textedit' ? 'cursor-text' : 'cursor-move'}`}
+                        className={`font-medium text-sm outline-none bg-transparent border-none rounded px-1 w-full ${(editingField?.nodeId === node.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                         style={{
                           color: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
                           caretColor: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          userSelect: tool === 'textedit' ? 'text' : 'none'
+                          userSelect: (editingField?.nodeId === node.id && editingField?.field === 'title') ? 'text' : 'none'
                         }}
                         onBlur={(e) => {
                           const newText = e.currentTarget.textContent || ''
@@ -4354,18 +4373,36 @@ export default function HTMLCanvas({
                           )
                           setNodes(updatedNodes)
                           saveToHistory(updatedNodes, connections)
+                          setEditingField(null)
                         }}
                         onClick={(e) => {
-                          if (tool === 'textedit') {
-                            e.stopPropagation()
+                          e.stopPropagation()
+                          if (editingField?.nodeId === node.id && editingField?.field === 'title') {
                             e.currentTarget.focus()
+                          }
+                        }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation()
+                          const target = e.currentTarget
+                          if (editingField?.nodeId === node.id && editingField?.field === 'title') {
+                            // Already editing, just focus
+                            target.focus()
+                          } else {
+                            // Start editing
+                            setEditingField({ nodeId: node.id, field: 'title' })
+                            setTimeout(() => target.focus(), 0)
                           }
                         }}
                         spellCheck={false}
                         data-placeholder="Character name..."
-                      >
-                        {node.text || ''}
-                      </div>
+                        ref={(el) => {
+                          if (el && !(editingField?.nodeId === node.id && editingField?.field === 'title')) {
+                            if (el.textContent !== (node.text || '')) {
+                              el.textContent = node.text || ''
+                            }
+                          }
+                        }}
+                      />
                     </div>
 
                     {/* Navigation arrow - clickable */}
@@ -4567,47 +4604,23 @@ export default function HTMLCanvas({
                     {getNodeIcon(node.type, node)}
                   </div>
                   <div
-                    contentEditable={tool === 'textedit'}
+                    key={`${node.id}-title`}
+                    contentEditable={editingField?.nodeId === node.id && editingField?.field === 'title'}
                     suppressContentEditableWarning={true}
                     data-content-type="title"
-                    className={`flex-1 font-medium text-sm outline-none bg-transparent border-none rounded px-1 ${tool === 'textedit' ? 'cursor-text' : 'cursor-move'}`}
+                    className={`flex-1 font-medium text-sm outline-none bg-transparent border-none rounded px-1 ${(editingField?.nodeId === node.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                     style={{
                       color: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
                       caretColor: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
                       pointerEvents: tool === 'event' ? 'none' : 'auto',
-                      userSelect: tool === 'textedit' ? 'text' : 'none'
+                      userSelect: (editingField?.nodeId === node.id && editingField?.field === 'title') ? 'text' : 'none'
                     }}
                     onInput={(e) => {
                       const newText = e.currentTarget.textContent || ''
-                      // Save cursor position before state update
-                      const selection = window.getSelection()
-                      let cursorOffset = 0
-                      if (selection && selection.rangeCount > 0) {
-                        const range = selection.getRangeAt(0)
-                        cursorOffset = range.startOffset
-                      }
-
                       const updatedNodes = nodes.map(n =>
                         n.id === node.id ? { ...n, text: newText } : n
                       )
                       setNodes(updatedNodes)
-
-                      // Restore cursor position after state update
-                      setTimeout(() => {
-                        const element = e.currentTarget
-                        if (element && document.activeElement === element) {
-                          const textNode = element.firstChild
-                          if (textNode && textNode.nodeType === Node.TEXT_NODE) {
-                            const newRange = document.createRange()
-                            const newSelection = window.getSelection()
-                            const safeOffset = Math.min(cursorOffset, textNode.textContent?.length || 0)
-                            newRange.setStart(textNode, safeOffset)
-                            newRange.setEnd(textNode, safeOffset)
-                            newSelection?.removeAllRanges()
-                            newSelection?.addRange(newRange)
-                          }
-                        }
-                      }, 0)
 
                       // Real-time auto-resize for title (but not for list nodes)
                       if (node.type !== 'list') {
@@ -4630,12 +4643,24 @@ export default function HTMLCanvas({
                     }}
                     onBlur={() => {
                       saveToHistory(nodes, connections)
+                      setEditingField(null)
                     }}
                     onClick={(e) => {
-                      if (tool === 'textedit') {
-                        e.stopPropagation()
-                        // Focus the text editing area when clicked
+                      e.stopPropagation()
+                      if (editingField?.nodeId === node.id && editingField?.field === 'title') {
                         e.currentTarget.focus()
+                      }
+                    }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation()
+                      const target = e.currentTarget
+                      if (editingField?.nodeId === node.id && editingField?.field === 'title') {
+                        // Already editing, just focus
+                        target.focus()
+                      } else {
+                        // Start editing
+                        setEditingField({ nodeId: node.id, field: 'title' })
+                        setTimeout(() => target.focus(), 0)
                       }
                     }}
                     onMouseDown={(e) => {
@@ -4644,11 +4669,12 @@ export default function HTMLCanvas({
                         e.currentTarget.blur()
                       }
                     }}
-                    onFocus={(e) => {
-                      // Let the browser handle cursor positioning naturally
-                      // Don't override the user's click position
-                    }}
                     spellCheck={false}
+                    ref={(el) => {
+                      if (el && el.textContent !== (node.text || '')) {
+                        el.textContent = node.text || ''
+                      }
+                    }}
                   >
                   </div>
                 </div>
@@ -4823,14 +4849,15 @@ export default function HTMLCanvas({
                                     {/* Character name */}
                                     <div className="flex-1 min-w-0 flex items-center">
                                       <div
-                                        contentEditable={tool === 'textedit'}
+                                        key={`${childNode.id}-title`}
+                                        contentEditable={editingField?.nodeId === childNode.id && editingField?.field === 'title'}
                                         suppressContentEditableWarning={true}
                                         data-content-type="title"
-                                        className={`flex-1 bg-transparent border-none outline-none font-medium text-sm rounded px-1 whitespace-nowrap overflow-hidden ${tool === 'textedit' ? 'cursor-text' : 'cursor-move'}`}
+                                        className={`flex-1 bg-transparent border-none outline-none font-medium text-sm rounded px-1 whitespace-nowrap overflow-hidden ${(editingField?.nodeId === childNode.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                                         style={{
                                           color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
                                           caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
-                                          userSelect: tool === 'textedit' ? 'text' : 'none'
+                                          userSelect: (editingField?.nodeId === childNode.id && editingField?.field === 'title') ? 'text' : 'none'
                                         }}
                                         onBlur={(e) => {
                                           const newText = e.currentTarget.textContent || ''
@@ -4839,18 +4866,36 @@ export default function HTMLCanvas({
                                           )
                                           setNodes(updatedNodes)
                                           saveToHistory(updatedNodes, connections)
+                                          setEditingField(null)
                                         }}
                                         onClick={(e) => {
-                                          if (tool === 'select') {
-                                            e.stopPropagation()
+                                          e.stopPropagation()
+                                          if (editingField?.nodeId === childNode.id && editingField?.field === 'title') {
                                             e.currentTarget.focus()
+                                          }
+                                        }}
+                                        onDoubleClick={(e) => {
+                                          e.stopPropagation()
+                                          const target = e.currentTarget
+                                          if (editingField?.nodeId === childNode.id && editingField?.field === 'title') {
+                                            // Already editing, just focus
+                                            target.focus()
+                                          } else {
+                                            // Start editing
+                                            setEditingField({ nodeId: childNode.id, field: 'title' })
+                                            setTimeout(() => target.focus(), 0)
                                           }
                                         }}
                                         spellCheck={false}
                                         data-placeholder="Character name..."
-                                      >
-                                        {childNode.text || ''}
-                                      </div>
+                                        ref={(el) => {
+                                          if (el && !(editingField?.nodeId === childNode.id && editingField?.field === 'title')) {
+                                            if (el.textContent !== (childNode.text || '')) {
+                                              el.textContent = childNode.text || ''
+                                            }
+                                          }
+                                        }}
+                                      />
                                     </div>
 
                                     {/* Remove button */}
@@ -4935,14 +4980,15 @@ export default function HTMLCanvas({
                                     {/* Location name */}
                                     <div className="flex-1 min-w-0 flex items-center">
                                       <div
-                                        contentEditable={tool === 'textedit'}
+                                        key={`${childNode.id}-title`}
+                                        contentEditable={editingField?.nodeId === childNode.id && editingField?.field === 'title'}
                                         suppressContentEditableWarning={true}
                                         data-content-type="title"
-                                        className={`flex-1 bg-transparent border-none outline-none font-medium text-sm rounded px-1 whitespace-nowrap overflow-hidden ${tool === 'textedit' ? 'cursor-text' : 'cursor-move'}`}
+                                        className={`flex-1 bg-transparent border-none outline-none font-medium text-sm rounded px-1 whitespace-nowrap overflow-hidden ${(editingField?.nodeId === childNode.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                                         style={{
                                           color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
                                           caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
-                                          userSelect: tool === 'textedit' ? 'text' : 'none'
+                                          userSelect: (editingField?.nodeId === childNode.id && editingField?.field === 'title') ? 'text' : 'none'
                                         }}
                                         onBlur={(e) => {
                                           const newText = e.currentTarget.textContent || ''
@@ -4951,18 +4997,36 @@ export default function HTMLCanvas({
                                           )
                                           setNodes(updatedNodes)
                                           saveToHistory(updatedNodes, connections)
+                                          setEditingField(null)
                                         }}
                                         onClick={(e) => {
-                                          if (tool === 'select') {
-                                            e.stopPropagation()
+                                          e.stopPropagation()
+                                          if (editingField?.nodeId === childNode.id && editingField?.field === 'title') {
                                             e.currentTarget.focus()
+                                          }
+                                        }}
+                                        onDoubleClick={(e) => {
+                                          e.stopPropagation()
+                                          const target = e.currentTarget
+                                          if (editingField?.nodeId === childNode.id && editingField?.field === 'title') {
+                                            // Already editing, just focus
+                                            target.focus()
+                                          } else {
+                                            // Start editing
+                                            setEditingField({ nodeId: childNode.id, field: 'title' })
+                                            setTimeout(() => target.focus(), 0)
                                           }
                                         }}
                                         spellCheck={false}
                                         data-placeholder="Location name..."
-                                      >
-                                        {childNode.text || ''}
-                                      </div>
+                                        ref={(el) => {
+                                          if (el && !(editingField?.nodeId === childNode.id && editingField?.field === 'title')) {
+                                            if (el.textContent !== (childNode.text || '')) {
+                                              el.textContent = childNode.text || ''
+                                            }
+                                          }
+                                        }}
+                                      />
                                     </div>
 
                                     {/* Remove button */}
@@ -5032,14 +5096,15 @@ export default function HTMLCanvas({
                                         color: getIconColor(childNode.type || 'event', getNodeColor(childNode.type || 'event', childNode.color, childNode.id), true)
                                       }} />
                                       <div
-                                        contentEditable={tool === 'textedit'}
+                                        key={`${childNode.id}-title`}
+                                        contentEditable={editingField?.nodeId === childNode.id && editingField?.field === 'title'}
                                         suppressContentEditableWarning={true}
                                         data-content-type="title"
-                                        className={`flex-1 bg-transparent border-none outline-none font-medium text-sm rounded px-1 whitespace-nowrap overflow-hidden ${tool === 'textedit' ? 'cursor-text' : 'cursor-move'}`}
+                                        className={`flex-1 bg-transparent border-none outline-none font-medium text-sm rounded px-1 whitespace-nowrap overflow-hidden ${(editingField?.nodeId === childNode.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                                         style={{
                                           color: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
                                           caretColor: getTextColor(getNodeColor(childNode.type, childNode.color, childNode.id), true),
-                                          userSelect: tool === 'textedit' ? 'text' : 'none'
+                                          userSelect: (editingField?.nodeId === childNode.id && editingField?.field === 'title') ? 'text' : 'none'
                                         }}
                                         onBlur={(e) => {
                                           const newTitle = e.currentTarget.textContent || ''
@@ -5048,18 +5113,36 @@ export default function HTMLCanvas({
                                           )
                                           setNodes(updatedNodes)
                                           saveToHistory(updatedNodes, connections)
+                                          setEditingField(null)
                                         }}
                                         onClick={(e) => {
-                                          if (tool === 'select') {
-                                            e.stopPropagation()
+                                          e.stopPropagation()
+                                          if (editingField?.nodeId === childNode.id && editingField?.field === 'title') {
                                             e.currentTarget.focus()
+                                          }
+                                        }}
+                                        onDoubleClick={(e) => {
+                                          e.stopPropagation()
+                                          const target = e.currentTarget
+                                          if (editingField?.nodeId === childNode.id && editingField?.field === 'title') {
+                                            // Already editing, just focus
+                                            target.focus()
+                                          } else {
+                                            // Start editing
+                                            setEditingField({ nodeId: childNode.id, field: 'title' })
+                                            setTimeout(() => target.focus(), 0)
                                           }
                                         }}
                                         spellCheck={false}
                                         data-placeholder="Event Title"
-                                      >
-                                        {childNode.title || 'New Event'}
-                                      </div>
+                                        ref={(el) => {
+                                          if (el && !(editingField?.nodeId === childNode.id && editingField?.field === 'title')) {
+                                            if (el.textContent !== (childNode.title || 'New Event')) {
+                                              el.textContent = childNode.title || 'New Event'
+                                            }
+                                          }
+                                        }}
+                                      />
 
                                       {/* Remove button */}
                                       <button
@@ -5107,18 +5190,15 @@ export default function HTMLCanvas({
                                     {getNodeIcon(childNode.type, childNode)}
                                   </div>
                                   <div
-                                    contentEditable={tool === 'textedit'}
+                                    key={`${childNode.id}-title`}
+                                    contentEditable={editingField?.nodeId === childNode.id && editingField?.field === 'title'}
                                     suppressContentEditableWarning={true}
                                     data-content-type="title"
-                                    className={`flex-1 bg-transparent border-none outline-none font-medium text-sm min-w-0 rounded px-1 ${tool === 'textedit' ? 'cursor-text' : 'cursor-move'}`}
+                                    className={`flex-1 bg-transparent border-none outline-none font-medium text-sm min-w-0 rounded px-1 ${(editingField?.nodeId === childNode.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                                     style={{
                                       color: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id), true),
                                       caretColor: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id), true),
-                                      userSelect: tool === 'textedit' ? 'text' : 'none'
-                                    }}
-                                    onInput={(e) => {
-                                      // Don't update state immediately to avoid cursor jumping
-                                      // State will be updated on blur instead
+                                      userSelect: (editingField?.nodeId === childNode.id && editingField?.field === 'title') ? 'text' : 'none'
                                     }}
                                     onBlur={(e) => {
                                       const newText = e.currentTarget.textContent || ''
@@ -5127,21 +5207,34 @@ export default function HTMLCanvas({
                                       )
                                       setNodes(updatedNodes)
                                       saveToHistory(updatedNodes, connections)
+                                      setEditingField(null)
                                     }}
                                     onClick={(e) => {
-                                      if (tool === 'select') {
-                                        e.stopPropagation()
+                                      e.stopPropagation()
+                                      if (editingField?.nodeId === childNode.id && editingField?.field === 'title') {
                                         e.currentTarget.focus()
                                       }
                                     }}
-                                    onFocus={(e) => {
-                                      // Let the browser handle cursor positioning naturally
+                                    onDoubleClick={(e) => {
+                                      e.stopPropagation()
+                                      const target = e.currentTarget
+                                      if (editingField?.nodeId === childNode.id && editingField?.field === 'title') {
+                                        // Already editing, just focus
+                                        target.focus()
+                                      } else {
+                                        // Start editing
+                                        setEditingField({ nodeId: childNode.id, field: 'title' })
+                                        setTimeout(() => target.focus(), 0)
+                                      }
                                     }}
                                     spellCheck={false}
                                     data-placeholder="Folder title..."
-                                  >
-                                    {childNode.text || ''}
-                                  </div>
+                                    ref={(el) => {
+                                      if (el && el.textContent !== (childNode.text || '')) {
+                                        el.textContent = childNode.text || ''
+                                      }
+                                    }}
+                                  />
                                 </div>
                                 {/* Remove from container button */}
                                 <button
@@ -5160,33 +5253,52 @@ export default function HTMLCanvas({
                               {/* Content area */}
                               <div className="px-2 pb-2">
                                 <div
-                                  contentEditable={tool === 'textedit'}
+                                  key={`${childNode.id}-content`}
+                                  contentEditable={editingField?.nodeId === childNode.id && editingField?.field === 'content'}
                                   suppressContentEditableWarning={true}
                                   data-content-type="content"
-                                  className={`w-full bg-transparent border-none outline-none text-sm min-h-[3.5rem] max-h-full overflow-auto leading-relaxed rounded px-1 ${tool === 'textedit' ? 'cursor-text' : 'cursor-move'}`}
+                                  className={`w-full bg-transparent border-none outline-none text-sm min-h-[3.5rem] max-h-full overflow-auto leading-relaxed rounded px-1 ${(editingField?.nodeId === childNode.id && editingField?.field === 'content') ? 'cursor-text' : 'cursor-move'}`}
                                   style={{
                                     color: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id)),
                                     caretColor: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id)),
-                                    userSelect: tool === 'textedit' ? 'text' : 'none'
+                                    userSelect: (editingField?.nodeId === childNode.id && editingField?.field === 'content') ? 'text' : 'none'
                                   }}
-                                  onInput={(e) => {
+                                  onBlur={(e) => {
                                     const newContent = e.currentTarget.textContent || ''
                                     const updatedNodes = nodes.map(n =>
                                       n.id === childNode.id ? { ...n, content: newContent } : n
                                     )
                                     setNodes(updatedNodes)
-                                  }}
-                                  onBlur={() => {
-                                    saveToHistory(nodes, connections)
+                                    saveToHistory(updatedNodes, connections)
+                                    setEditingField(null)
                                   }}
                                   onClick={(e) => {
-                                    if (tool === 'select') {
-                                      e.stopPropagation()
+                                    e.stopPropagation()
+                                    if (editingField?.nodeId === childNode.id && editingField?.field === 'content') {
                                       e.currentTarget.focus()
+                                    }
+                                  }}
+                                  onDoubleClick={(e) => {
+                                    e.stopPropagation()
+                                    const target = e.currentTarget
+                                    if (editingField?.nodeId === childNode.id && editingField?.field === 'content') {
+                                      // Already editing, just focus
+                                      target.focus()
+                                    } else {
+                                      // Start editing
+                                      setEditingField({ nodeId: childNode.id, field: 'content' })
+                                      setTimeout(() => target.focus(), 0)
                                     }
                                   }}
                                   spellCheck={false}
                                   data-placeholder="Write your content here..."
+                                  ref={(el) => {
+                                    if (el && !(editingField?.nodeId === childNode.id && editingField?.field === 'content')) {
+                                      if (el.textContent !== (childNode.content || '')) {
+                                        el.textContent = childNode.content || ''
+                                      }
+                                    }
+                                  }}
                                 >
                                 </div>
                               </div>
@@ -5250,19 +5362,20 @@ export default function HTMLCanvas({
                 ) : (
                   // Text/other node content
                   <div
-                    contentEditable={tool === 'textedit'}
+                    key={`${node.id}-content`}
+                    contentEditable={editingField?.nodeId === node.id && editingField?.field === 'content'}
                     suppressContentEditableWarning={true}
                     data-content-type="content"
-                    className={`w-full bg-transparent border-none outline-none text-sm min-h-[4rem] max-h-full overflow-hidden leading-relaxed rounded px-1 ${tool === 'textedit' ? 'cursor-text' : 'cursor-move'}`}
+                    className={`w-full bg-transparent border-none outline-none text-sm min-h-[4rem] max-h-full overflow-hidden leading-relaxed rounded px-1 ${(editingField?.nodeId === node.id && editingField?.field === 'content') ? 'cursor-text' : 'cursor-move'}`}
                     draggable={false}
                     style={{
                       color: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
                       caretColor: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
                       pointerEvents: tool === 'event' ? 'none' : 'auto',
-                      userSelect: tool === 'textedit' ? 'text' : 'none',
-                      WebkitUserSelect: tool === 'textedit' ? 'text' : 'none',
-                      MozUserSelect: tool === 'textedit' ? 'text' : 'none',
-                      msUserSelect: tool === 'textedit' ? 'text' : 'none',
+                      userSelect: (editingField?.nodeId === node.id && editingField?.field === 'content') ? 'text' : 'none',
+                      WebkitUserSelect: (editingField?.nodeId === node.id && editingField?.field === 'content') ? 'text' : 'none',
+                      MozUserSelect: (editingField?.nodeId === node.id && editingField?.field === 'content') ? 'text' : 'none',
+                      msUserSelect: (editingField?.nodeId === node.id && editingField?.field === 'content') ? 'text' : 'none',
                       // Lock height during manual resize to prevent flash
                       height: resizingNode === node.id ? `${node.height - 60}px` : 'auto'
                     } as React.CSSProperties}
@@ -5299,12 +5412,18 @@ export default function HTMLCanvas({
                     }}
                     onBlur={() => {
                       saveToHistory(nodes, connections)
+                      setEditingField(null)
                     }}
-                    onClick={(e) => {
-                      if (tool === 'textedit') {
-                        e.stopPropagation()
-                        // Focus the text editing area when clicked
-                        e.currentTarget.focus()
+                    onDoubleClick={(e) => {
+                      e.stopPropagation()
+                      const target = e.currentTarget
+                      if (editingField?.nodeId === node.id && editingField?.field === 'content') {
+                        // Already editing, just focus
+                        target.focus()
+                      } else {
+                        // Start editing
+                        setEditingField({ nodeId: node.id, field: 'content' })
+                        setTimeout(() => target.focus(), 0)
                       }
                     }}
                     onMouseDown={(e) => {
@@ -5313,15 +5432,16 @@ export default function HTMLCanvas({
                         e.currentTarget.blur()
                       }
                     }}
-                    onFocus={(e) => {
-                      // Let the browser handle cursor positioning naturally
-                      // Don't override the user's click position
-                    }}
                     spellCheck={false}
                     data-placeholder="Write your content here..."
-                  >
-                    {node.content || ''}
-                  </div>
+                    ref={(el) => {
+                      if (el && !(editingField?.nodeId === node.id && editingField?.field === 'content')) {
+                        if (el.textContent !== (node.content || '')) {
+                          el.textContent = node.content || ''
+                        }
+                      }
+                    }}
+                  />
                 )}
                 </div>
               )}
