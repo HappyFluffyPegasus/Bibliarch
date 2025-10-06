@@ -2928,6 +2928,7 @@ export default function HTMLCanvas({
                         onClick={(e) => {
                           e.stopPropagation()
                           if (editingField?.nodeId === node.id && editingField?.field === 'header') {
+                            e.preventDefault()
                             e.currentTarget.focus()
                           }
                         }}
@@ -3139,6 +3140,7 @@ export default function HTMLCanvas({
                         onClick={(e) => {
                           e.stopPropagation()
                           if (editingField?.nodeId === node.id && editingField?.field === 'caption') {
+                            e.preventDefault()
                             e.currentTarget.focus()
                           }
                         }}
@@ -3465,6 +3467,7 @@ export default function HTMLCanvas({
                         onClick={(e) => {
                           e.stopPropagation()
                           if (editingField?.nodeId === node.id && editingField?.field === 'title') {
+                            e.preventDefault()
                             e.currentTarget.focus()
                           }
                         }}
@@ -3629,6 +3632,7 @@ export default function HTMLCanvas({
                         onClick={(e) => {
                           e.stopPropagation()
                           if (editingField?.nodeId === node.id && editingField?.field === 'title') {
+                            e.preventDefault()
                             e.currentTarget.focus()
                           }
                         }}
@@ -3702,6 +3706,7 @@ export default function HTMLCanvas({
                         onClick={(e) => {
                           e.stopPropagation()
                           if (editingField?.nodeId === node.id && editingField?.field === 'summary') {
+                            e.preventDefault()
                             e.currentTarget.focus()
                           }
                         }}
@@ -4378,6 +4383,7 @@ export default function HTMLCanvas({
                         onClick={(e) => {
                           e.stopPropagation()
                           if (editingField?.nodeId === node.id && editingField?.field === 'title') {
+                            e.preventDefault()
                             e.currentTarget.focus()
                           }
                         }}
@@ -4615,39 +4621,19 @@ export default function HTMLCanvas({
                       pointerEvents: tool === 'event' ? 'none' : 'auto',
                       userSelect: (editingField?.nodeId === node.id && editingField?.field === 'title') ? 'text' : 'none'
                     }}
-                    onInput={(e) => {
+                    onBlur={(e) => {
                       const newText = e.currentTarget.textContent || ''
                       const updatedNodes = nodes.map(n =>
                         n.id === node.id ? { ...n, text: newText } : n
                       )
                       setNodes(updatedNodes)
-
-                      // Real-time auto-resize for title (but not for list nodes)
-                      if (node.type !== 'list') {
-                        const target = e.currentTarget as HTMLElement
-                        if (target) {
-                          // Delayed resize to avoid cursor jumping
-                          debouncedAutoResize(node.id, target, true)
-                        }
-                      }
-                    }}
-                    // Removed onKeyUp to prevent cursor jumping
-                    onPaste={(e) => {
-                      // Handle paste operations (but not auto-resize for list nodes)
-                      if (node.type !== 'list') {
-                        const target = e.currentTarget as HTMLElement
-                        if (target) {
-                          debouncedAutoResize(node.id, target, true)
-                        }
-                      }
-                    }}
-                    onBlur={() => {
-                      saveToHistory(nodes, connections)
+                      saveToHistory(updatedNodes, connections)
                       setEditingField(null)
                     }}
                     onClick={(e) => {
                       e.stopPropagation()
                       if (editingField?.nodeId === node.id && editingField?.field === 'title') {
+                        e.preventDefault()
                         e.currentTarget.focus()
                       }
                     }}
@@ -4663,20 +4649,15 @@ export default function HTMLCanvas({
                         setTimeout(() => target.focus(), 0)
                       }
                     }}
-                    onMouseDown={(e) => {
-                      // In select mode, don't let text element grab focus
-                      if (tool === 'select' && document.activeElement === e.currentTarget) {
-                        e.currentTarget.blur()
-                      }
-                    }}
                     spellCheck={false}
                     ref={(el) => {
-                      if (el && el.textContent !== (node.text || '')) {
-                        el.textContent = node.text || ''
+                      if (el && !(editingField?.nodeId === node.id && editingField?.field === 'title')) {
+                        if (el.textContent !== (node.text || '')) {
+                          el.textContent = node.text || ''
+                        }
                       }
                     }}
-                  >
-                  </div>
+                  />
                 </div>
               </div>
               )}
@@ -4871,6 +4852,7 @@ export default function HTMLCanvas({
                                         onClick={(e) => {
                                           e.stopPropagation()
                                           if (editingField?.nodeId === childNode.id && editingField?.field === 'title') {
+                                            e.preventDefault()
                                             e.currentTarget.focus()
                                           }
                                         }}
@@ -5002,6 +4984,7 @@ export default function HTMLCanvas({
                                         onClick={(e) => {
                                           e.stopPropagation()
                                           if (editingField?.nodeId === childNode.id && editingField?.field === 'title') {
+                                            e.preventDefault()
                                             e.currentTarget.focus()
                                           }
                                         }}
@@ -5118,6 +5101,7 @@ export default function HTMLCanvas({
                                         onClick={(e) => {
                                           e.stopPropagation()
                                           if (editingField?.nodeId === childNode.id && editingField?.field === 'title') {
+                                            e.preventDefault()
                                             e.currentTarget.focus()
                                           }
                                         }}
@@ -5212,6 +5196,7 @@ export default function HTMLCanvas({
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       if (editingField?.nodeId === childNode.id && editingField?.field === 'title') {
+                                        e.preventDefault()
                                         e.currentTarget.focus()
                                       }
                                     }}
@@ -5424,12 +5409,6 @@ export default function HTMLCanvas({
                         // Start editing
                         setEditingField({ nodeId: node.id, field: 'content' })
                         setTimeout(() => target.focus(), 0)
-                      }
-                    }}
-                    onMouseDown={(e) => {
-                      // In select mode, don't let text element grab focus
-                      if (tool === 'select' && document.activeElement === e.currentTarget) {
-                        e.currentTarget.blur()
                       }
                     }}
                     spellCheck={false}
