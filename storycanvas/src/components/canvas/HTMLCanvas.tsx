@@ -774,6 +774,15 @@ export default function HTMLCanvas({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [undo, redo, selectedId])
 
+  // Auto-sync: When selectedIds has exactly 1 item, sync to selectedId for single-selection mode
+  useEffect(() => {
+    if (selectedIds.length === 1 && selectedIds[0] !== selectedId) {
+      setSelectedId(selectedIds[0])
+    } else if (selectedIds.length === 0 && selectedId !== null) {
+      setSelectedId(null)
+    }
+  }, [selectedIds, selectedId])
+
   // Cancel connecting mode when tool changes
   useEffect(() => {
     setConnectingFrom(null)
@@ -856,8 +865,11 @@ export default function HTMLCanvas({
 
       const rect = canvasRef.current?.getBoundingClientRect()
       if (rect) {
+        // Get position relative to canvas element
+        // Don't divide by zoom - both selection box and nodes are in same transformed space
         const x = e.clientX - rect.left
         const y = e.clientY - rect.top
+
         setSelectionStart({ x, y })
         setSelectionBox({ x, y, width: 0, height: 0 })
         setIsSelecting(true)
@@ -867,13 +879,15 @@ export default function HTMLCanvas({
       setIsMoving(true)
       setLastPanPoint({ x: e.clientX, y: e.clientY })
     }
-  }, [tool, isDraggingCharacter])
+  }, [tool, isDraggingCharacter, zoom, zoomCenter])
 
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
     // Update selection box if selecting
     if (isSelecting && tool === 'select') {
       const rect = canvasRef.current?.getBoundingClientRect()
       if (rect) {
+        // Get current position relative to canvas element
+        // Don't divide by zoom - both selection box and nodes are in same transformed space
         const currentX = e.clientX - rect.left
         const currentY = e.clientY - rect.top
 
@@ -1158,11 +1172,13 @@ export default function HTMLCanvas({
           if (selectedIds.includes(isDragReady)) {
             const newSelection = selectedIds.filter(id => id !== isDragReady)
             setSelectedIds(newSelection)
-            setSelectedId(newSelection.length > 0 ? newSelection[0] : null)
+            // If only 1 node left, sync to selectedId, otherwise clear
+            setSelectedId(newSelection.length === 1 ? newSelection[0] : null)
           } else {
             const newSelection = [...selectedIds, isDragReady]
             setSelectedIds(newSelection)
-            setSelectedId(isDragReady)
+            // If only 1 node in selection, sync to selectedId, otherwise set to last selected
+            setSelectedId(newSelection.length === 1 ? newSelection[0] : isDragReady)
           }
         } else {
           // Normal click: select only this node
@@ -1311,7 +1327,7 @@ export default function HTMLCanvas({
       // Delay to allow final render with high quality after movement stops
       setTimeout(() => setIsMoving(false), 100)
     }
-  }, [isMoving, draggingNode, isDragReady, isResizeReady, resizingNode, nodes, connections, saveToHistory, dragPosition, tool, selectedIds])
+  }, [isMoving, draggingNode, isDragReady, isResizeReady, resizingNode, nodes, connections, saveToHistory, dragPosition, tool, selectedIds, zoom, isSelecting, selectionStart, zoomCenter])
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     // Check if Ctrl key is pressed for zoom, otherwise allow normal scrolling
@@ -1855,11 +1871,16 @@ export default function HTMLCanvas({
     if (e.shiftKey) {
       if (selectedIds.includes(node.id)) {
         // Remove from selection
-        setSelectedIds(selectedIds.filter(id => id !== node.id))
-        setSelectedId(null)
+        const newSelection = selectedIds.filter(id => id !== node.id)
+        setSelectedIds(newSelection)
+        // If only 1 node left, sync to selectedId, otherwise clear
+        setSelectedId(newSelection.length === 1 ? newSelection[0] : null)
       } else {
         // Add to selection
-        setSelectedIds([...selectedIds, node.id])
+        const newSelection = [...selectedIds, node.id]
+        setSelectedIds(newSelection)
+        // If only 1 node in selection, sync to selectedId
+        setSelectedId(newSelection.length === 1 ? newSelection[0] : node.id)
       }
     } else {
       // Normal click - single selection
@@ -3869,6 +3890,7 @@ export default function HTMLCanvas({
                     outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
                     outlineOffset: '-3px'
                   }}
+                  onClick={(e) => handleNodeClick(node, e)}
                   onMouseDown={(e) => {
                     // Right click on selected node opens context menu
                     if (e.button === 2 && (selectedId === node.id || selectedIds.includes(node.id))) {
@@ -4244,6 +4266,52 @@ export default function HTMLCanvas({
                       </div>
                     )}
                   </div>
+
+                  {/* Resize handles for relationship-canvas nodes */}
+                  {selectedId === node.id && !node.parentId && (
+                    <>
+                      {/* Bottom-right corner resize handle */}
+                      <div
+                        className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-sm cursor-se-resize hover:bg-primary/80 border border-background z-10"
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setIsResizeReady(node.id)
+                          setResizeStartSize({ width: node.width || 600, height: node.height || 400 })
+                          setResizeStartPos({ x: e.clientX, y: e.clientY })
+                        }}
+                        title="Resize relationship canvas"
+                      />
+
+                      {/* Right edge resize handle (width only) */}
+                      <div
+                        className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-8 rounded-sm cursor-e-resize z-10"
+                        style={{ backgroundColor: getResizeHandleColor(node.type || 'text') }}
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setIsResizeReady(node.id)
+                          setResizeStartSize({ width: node.width || 600, height: node.height || 400 })
+                          setResizeStartPos({ x: e.clientX, y: e.clientY })
+                        }}
+                        title="Resize width"
+                      />
+
+                      {/* Bottom edge resize handle (height only) */}
+                      <div
+                        className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-8 h-2 rounded-sm cursor-s-resize z-10"
+                        style={{ backgroundColor: getResizeHandleColor(node.type || 'text') }}
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setIsResizeReady(node.id)
+                          setResizeStartSize({ width: node.width || 600, height: node.height || 400 })
+                          setResizeStartPos({ x: e.clientX, y: e.clientY })
+                        }}
+                        title="Resize height"
+                      />
+                    </>
+                  )}
                 </div>
               )
             }
@@ -5271,6 +5339,18 @@ export default function HTMLCanvas({
                                     }}
                                     spellCheck={false}
                                     data-placeholder="Folder title..."
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        if (e.shiftKey) {
+                                          // Shift+Enter: allow default (insert newline)
+                                          return
+                                        } else {
+                                          // Enter alone: save and exit edit mode
+                                          e.preventDefault()
+                                          e.currentTarget.blur()
+                                        }
+                                      }
+                                    }}
                                     ref={(el) => {
                                       // Only update DOM if NOT currently editing this field
                                       if (el && !(editingField?.nodeId === childNode.id && editingField?.field === 'title')) {
@@ -5529,7 +5609,7 @@ export default function HTMLCanvas({
               )}
 
               {/* Resize handles for selected nodes (not for child nodes within list containers) */}
-              {selectedId === node.id && tool === 'select' && !node.parentId && (
+              {selectedId === node.id && !node.parentId && (
                 <>
                   {/* Bottom-right corner resize handle */}
                   <div
@@ -5737,6 +5817,24 @@ export default function HTMLCanvas({
                 </p>
               </Card>
             </div>
+          )}
+
+          {/* Selection box - inside canvas so it's affected by transform */}
+          {isSelecting && selectionBox.width > 0 && selectionBox.height > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                left: `${selectionBox.x}px`,
+                top: `${selectionBox.y}px`,
+                width: `${selectionBox.width}px`,
+                height: `${selectionBox.height}px`,
+                border: '2px dashed #3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                pointerEvents: 'none',
+                zIndex: 9999,
+                boxSizing: 'border-box'
+              }}
+            />
           )}
         </div>
       </div>
@@ -6626,23 +6724,6 @@ export default function HTMLCanvas({
             </div>
           </div>
         </div>
-      )}
-
-      {/* Selection box */}
-      {isSelecting && selectionBox.width > 0 && selectionBox.height > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            left: selectionBox.x,
-            top: selectionBox.y,
-            width: selectionBox.width,
-            height: selectionBox.height,
-            border: '2px dashed #3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            pointerEvents: 'none',
-            zIndex: 9999
-          }}
-        />
       )}
 
       {/* Context menu */}
