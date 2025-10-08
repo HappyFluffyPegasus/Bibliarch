@@ -35,7 +35,7 @@ interface Node {
   // Container properties for list nodes
   parentId?: string // If this node is inside a container
   childIds?: string[] // If this node is a container (for list nodes)
-  layoutMode?: 'single-column' | 'multi-column' // Layout for list containers
+  layoutMode?: 'single-column' | 'two-columns' | 'grid' // Layout for list containers
   // Relationship canvas properties
   relationshipData?: {
     selectedCharacters: Array<{
@@ -782,7 +782,19 @@ export default function HTMLCanvas({
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
     // Select tool: deselect nodes when clicking empty canvas, switch to moving mode
     if (tool === 'select') {
+      // Save before exiting edit mode
+      if (editingField) {
+        console.log('🔵 handleCanvasClick: editingField detected, forcing blur', editingField)
+        const activeElement = document.activeElement as HTMLElement
+        if (activeElement && activeElement.getAttribute('contenteditable') === 'true') {
+          console.log('🔵 handleCanvasClick: calling blur on active element')
+          activeElement.blur() // Trigger blur event which will save
+        } else {
+          console.log('🔴 handleCanvasClick: no active contenteditable element found')
+        }
+      }
       setSelectedId(null)
+      setEditingField(null) // Exit edit mode when clicking canvas background
       setInteractionMode('moving')
       return
     }
@@ -2924,6 +2936,9 @@ export default function HTMLCanvas({
                           setNodes(updatedNodes)
                           saveToHistory(updatedNodes, connections)
                           setEditingField(null)
+                          if (onSave) {
+                            onSave(updatedNodes, connections)
+                          }
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -3136,6 +3151,9 @@ export default function HTMLCanvas({
                           setNodes(updatedNodes)
                           saveToHistory(updatedNodes, connections)
                           setEditingField(null)
+                          if (onSave) {
+                            onSave(updatedNodes, connections)
+                          }
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -3463,6 +3481,9 @@ export default function HTMLCanvas({
                           setNodes(updatedNodes)
                           saveToHistory(updatedNodes, connections)
                           setEditingField(null)
+                          if (onSave) {
+                            onSave(updatedNodes, connections)
+                          }
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -3628,6 +3649,9 @@ export default function HTMLCanvas({
                         onBlur={() => {
                           saveToHistory(nodes, connections)
                           setEditingField(null)
+                          if (onSave) {
+                            onSave(nodes, connections)
+                          }
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -3702,6 +3726,9 @@ export default function HTMLCanvas({
                         onBlur={() => {
                           saveToHistory(nodes, connections)
                           setEditingField(null)
+                          if (onSave) {
+                            onSave(nodes, connections)
+                          }
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -4379,6 +4406,9 @@ export default function HTMLCanvas({
                           setNodes(updatedNodes)
                           saveToHistory(updatedNodes, connections)
                           setEditingField(null)
+                          if (onSave) {
+                            onSave(updatedNodes, connections)
+                          }
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -4622,6 +4652,7 @@ export default function HTMLCanvas({
                       userSelect: (editingField?.nodeId === node.id && editingField?.field === 'title') ? 'text' : 'none'
                     }}
                     onBlur={(e) => {
+                      console.log('💾 onBlur triggered for node title:', node.id, 'New text:', e.currentTarget.textContent)
                       const newText = e.currentTarget.textContent || ''
                       const updatedNodes = nodes.map(n =>
                         n.id === node.id ? { ...n, text: newText } : n
@@ -4629,6 +4660,12 @@ export default function HTMLCanvas({
                       setNodes(updatedNodes)
                       saveToHistory(updatedNodes, connections)
                       setEditingField(null)
+                      if (onSave) {
+                        console.log('💾 Calling onSave immediately')
+                        onSave(updatedNodes, connections)
+                      } else {
+                        console.log('🔴 onSave not available!')
+                      }
                     }}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -4669,7 +4706,15 @@ export default function HTMLCanvas({
                   // List container content
                   <div className="space-y-2">
                     {childNodes.length > 0 ? (
-                      <div className="space-y-1">
+                      <div
+                        className={
+                          node.layoutMode === 'two-columns'
+                            ? 'grid grid-cols-2 gap-2'
+                            : node.layoutMode === 'grid'
+                            ? 'grid grid-cols-3 gap-2'
+                            : 'space-y-1'
+                        }
+                      >
                         {(() => {
                           // Sort child nodes based on auto_sort setting
                           let sortedChildren = [...childNodes]
@@ -4848,6 +4893,9 @@ export default function HTMLCanvas({
                                           setNodes(updatedNodes)
                                           saveToHistory(updatedNodes, connections)
                                           setEditingField(null)
+                                          if (onSave) {
+                                            onSave(updatedNodes, connections)
+                                          }
                                         }}
                                         onClick={(e) => {
                                           e.stopPropagation()
@@ -4980,6 +5028,9 @@ export default function HTMLCanvas({
                                           setNodes(updatedNodes)
                                           saveToHistory(updatedNodes, connections)
                                           setEditingField(null)
+                                          if (onSave) {
+                                            onSave(updatedNodes, connections)
+                                          }
                                         }}
                                         onClick={(e) => {
                                           e.stopPropagation()
@@ -5097,6 +5148,9 @@ export default function HTMLCanvas({
                                           setNodes(updatedNodes)
                                           saveToHistory(updatedNodes, connections)
                                           setEditingField(null)
+                                          if (onSave) {
+                                            onSave(updatedNodes, connections)
+                                          }
                                         }}
                                         onClick={(e) => {
                                           e.stopPropagation()
@@ -5192,6 +5246,9 @@ export default function HTMLCanvas({
                                       setNodes(updatedNodes)
                                       saveToHistory(updatedNodes, connections)
                                       setEditingField(null)
+                                      if (onSave) {
+                                        onSave(updatedNodes, connections)
+                                      }
                                     }}
                                     onClick={(e) => {
                                       e.stopPropagation()
@@ -5215,8 +5272,11 @@ export default function HTMLCanvas({
                                     spellCheck={false}
                                     data-placeholder="Folder title..."
                                     ref={(el) => {
-                                      if (el && el.textContent !== (childNode.text || '')) {
-                                        el.textContent = childNode.text || ''
+                                      // Only update DOM if NOT currently editing this field
+                                      if (el && !(editingField?.nodeId === childNode.id && editingField?.field === 'title')) {
+                                        if (el.textContent !== (childNode.text || '')) {
+                                          el.textContent = childNode.text || ''
+                                        }
                                       }
                                     }}
                                   />
@@ -5256,6 +5316,9 @@ export default function HTMLCanvas({
                                     setNodes(updatedNodes)
                                     saveToHistory(updatedNodes, connections)
                                     setEditingField(null)
+                                    if (onSave) {
+                                      onSave(updatedNodes, connections)
+                                    }
                                   }}
                                   onClick={(e) => {
                                     e.stopPropagation()
@@ -5398,6 +5461,9 @@ export default function HTMLCanvas({
                     onBlur={() => {
                       saveToHistory(nodes, connections)
                       setEditingField(null)
+                      if (onSave) {
+                        onSave(nodes, connections)
+                      }
                     }}
                     onDoubleClick={(e) => {
                       e.stopPropagation()

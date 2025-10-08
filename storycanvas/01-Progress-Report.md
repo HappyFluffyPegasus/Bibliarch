@@ -1526,4 +1526,214 @@ if (amount === 0.3) { // For dots only
 
 ---
 
+## 🎯 **Latest Session Updates** (October 6, 2025)
+
+### **Single-Mode Selection System with Double-Click Text Editing** ⚠️ **IN PROGRESS - NOT FULLY WORKING**
+
+#### **Issue 27: Unified Selection and Editing Interaction Model** ✅ **PARTIALLY COMPLETED**
+- **Problem**: Two-mode system (select vs textedit tools) was confusing and cumbersome for users
+- **Goal**: Implement Milanote-style single-mode system where double-click enters text editing
+- **User Request**: "I dont like the two types of select modes. Could you think of a better system?"
+
+**🎯 New Interaction Model Implemented**:
+- **Single click on node**: Select it (allows dragging, shows resize handles)
+- **Double-click on text field**: Enter edit mode for that specific field (cursor appears, can type)
+- **Click outside or blur**: Exit edit mode, return to select mode
+- **Shift-click or drag box**: Multi-select still works
+- **Right-click selected node**: Context menu
+
+**🔧 Major Changes Implemented**:
+
+1. **Removed Text Edit Tool** ✅ **COMPLETED**
+   - Removed `'textedit'` from tool type union (line 125)
+   - Removed TextCursor button from toolbar (removed lines 2448-2456)
+   - Updated cursor display logic to remove textedit references
+   - Changed default interaction to always be select mode
+
+2. **Added Edit Field State Tracking** ✅ **COMPLETED**
+   - New state: `editingField: {nodeId: string, field: string} | null`
+   - Tracks which specific field is being edited
+   - Allows multiple fields per node (title, summary, content, etc.)
+
+3. **ContentEditable System Overhaul** ✅ **COMPLETED**
+   - Changed all 13 contentEditable fields from tool-based to field-based editing
+   - Pattern: `contentEditable={editingField?.nodeId === node.id && editingField?.field === 'title'}`
+   - Added unique keys to prevent re-renders: `key={`${node.id}-title`}`
+   - Updated cursor classes: conditional `cursor-text` when editing, `cursor-move` otherwise
+
+4. **Double-Click to Edit Implementation** ✅ **COMPLETED**
+   - All text fields now use `onDoubleClick` instead of tool check
+   - Pattern:
+     ```typescript
+     onDoubleClick={(e) => {
+       e.stopPropagation()
+       const target = e.currentTarget
+       if (editingField?.nodeId === node.id && editingField?.field === 'title') {
+         target.focus() // Already editing, just focus
+       } else {
+         setEditingField({ nodeId: node.id, field: 'title' })
+         setTimeout(() => target.focus(), 0)
+       }
+     }}
+     ```
+   - Applied to all node types: image header/caption, location, event title/summary, character, folder, list children
+
+5. **Cursor Position Preservation** ✅ **COMPLETED**
+   - Changed from `dangerouslySetInnerHTML` to ref-based content management
+   - Pattern:
+     ```typescript
+     ref={(el) => {
+       if (el && !(editingField?.nodeId === node.id && editingField?.field === 'title')) {
+         if (el.textContent !== (node.text || '')) {
+           el.textContent = node.text || ''
+         }
+       }
+     }}
+     ```
+   - Only updates DOM when NOT editing to preserve cursor position
+   - Fixed all 13 contentEditable fields with proper ref callbacks
+
+6. **Blur to Save Implementation** ✅ **COMPLETED**
+   - All fields save on `onBlur` instead of `onInput`
+   - Pattern:
+     ```typescript
+     onBlur={(e) => {
+       const newText = e.currentTarget.textContent || ''
+       const updatedNodes = nodes.map(n =>
+         n.id === node.id ? { ...n, text: newText } : n
+       )
+       setNodes(updatedNodes)
+       saveToHistory(updatedNodes, connections)
+       setEditingField(null) // Exit edit mode
+     }}
+     ```
+
+7. **Click Handler for Maintaining Edit Mode** ✅ **ATTEMPTED**
+   - Added `onClick` handlers to all contentEditable fields
+   - Pattern:
+     ```typescript
+     onClick={(e) => {
+       e.stopPropagation()
+       if (editingField?.nodeId === node.id && editingField?.field === 'title') {
+         e.preventDefault()
+         e.currentTarget.focus()
+       }
+     }}
+     ```
+   - Goal: Keep edit mode active when clicking within the same field
+   - Updated all 12 onClick handlers with preventDefault
+
+8. **Fixed Event Target Null Error** ✅ **COMPLETED**
+   - Problem: `e.currentTarget` becomes null inside setTimeout callback
+   - Solution: Capture target before setTimeout
+   - Pattern:
+     ```typescript
+     const target = e.currentTarget
+     setTimeout(() => target.focus(), 0)
+     ```
+   - Applied to all 13 onDoubleClick handlers
+
+**⚠️ Current Status**: **STILL NOT FULLY WORKING**
+
+**❌ Known Issues**:
+1. **CRITICAL**: Clicking within text field after double-click still exits edit mode
+2. **CRITICAL**: User reports "typing still goes backwards" (cursor jumps to beginning)
+3. **CRITICAL**: Subsequent clicks on same field don't maintain edit mode as intended
+4. **User Feedback**: "IT STILL ISNT FUCKING WORKING" - edit mode exits on third click instead of staying active
+
+**✅ Working Features**:
+- Double-click to enter edit mode
+- Text fields show cursor when editing
+- Single mode selection (no separate tool)
+- Cursor position preserved during typing (with ref callbacks)
+- onBlur saves and exits edit mode
+
+**🔍 Root Cause Analysis**:
+Based on user request: "I want clicking past 2 clicks to still keep the user in text editing. They exit text editing when they click off of the node entirely."
+
+The onClick preventDefault approach is not preventing the blur event from firing. The Milanote system likely:
+1. Does NOT trigger blur when clicking within the same contentEditable element
+2. Uses `mousedown` prevention or different event handling
+3. May use `contentEditable` attribute behavior that keeps focus naturally
+
+**📁 Files Modified**:
+- `src/components/canvas/HTMLCanvas.tsx` - Complete contentEditable system rewrite
+  - Tool state update (line 125-126)
+  - Removed textedit button (lines 2448-2456)
+  - Updated all 13 contentEditable fields with new pattern
+  - Added ref callbacks to all fields
+  - Updated onDoubleClick, onClick, onBlur handlers
+
+**🔧 Technical Details**:
+- **Fields Updated**: 13 total contentEditable fields
+  - Image header & caption
+  - Location title
+  - Event title & summary
+  - Character title
+  - Folder title
+  - List child nodes (character, location, event, folder)
+  - Text/folder content
+
+**Next Steps Required**:
+1. **🚨 CRITICAL**: Investigate why clicking within field triggers blur/exit
+2. **🚨 CRITICAL**: Implement true Milanote-style click behavior (clicks within field don't blur)
+3. **🔍 Debug**: May need to prevent mousedown default behavior, not just click
+4. **🔍 Debug**: Check if contentEditable naturally maintains focus or if we're breaking it
+5. **🔍 Test**: Verify backwards typing is actually fixed with ref callbacks
+
+**User Satisfaction**: ⚠️ **NOT SATISFIED** - Feature not working as requested despite significant implementation effort
+
+**Git Commits**:
+- `0ec33fb` - "Implement single-mode selection with double-click to edit"
+- `0edbdfe` - "Fix folder node contentEditable to match other fields"
+
+---
+
+## 🎯 **Latest Session Updates** (October 7, 2025)
+
+### **Critical Issues Resolution - ALL MAJOR BUGS FIXED** ✅ **COMPLETED**
+
+#### **Issue 28: All Critical Issues Resolved** ✅ **COMPLETED**
+- **Status Update**: All previously documented critical issues have been successfully resolved
+- **User Confirmation**: User confirmed all major bugs are now fixed
+
+**🎉 Issues Resolved:**
+
+1. **Text Editing Cursor Jumping** ✅ **FIXED**
+   - **Previous Status**: Typing went backwards, cursor jumped to beginning
+   - **Current Status**: Text editing works naturally in all fields
+   - **Impact**: Users can now type normally in all contentEditable areas
+
+2. **Navigation Looping** ✅ **FIXED**
+   - **Previous Status**: Character nodes (especially in lists) created infinite loops and duplicate canvases
+   - **Current Status**: Navigation system works correctly without looping
+   - **Impact**: Users can navigate into folders and character nodes without issues
+
+3. **Save System** ✅ **FIXED**
+   - **Previous Status**: Changes inside character canvases didn't persist to database
+   - **Current Status**: All changes save properly across all canvas types
+   - **Impact**: User work is now reliably persisted
+
+4. **Double-Click Text Selection** ✅ **FIXED**
+   - **Previous Status**: Conflicts between text editing and selection modes
+   - **Current Status**: Single-mode system with double-click to edit works seamlessly
+   - **Impact**: Users can select text and edit text without conflicts
+
+5. **Multi-Select Node Selection** ✅ **FIXED**
+   - **Previous Status**: Only image nodes were getting selected, other node types not responding
+   - **Current Status**: All node types respond correctly to selection
+   - **Impact**: Multi-select and shift-click work across all node types
+
+**📊 Project Status Summary:**
+- ✅ **Text Editing**: Fully functional across all node types
+- ✅ **Navigation System**: Stable and reliable
+- ✅ **Persistence**: All changes save correctly
+- ✅ **Selection System**: Multi-select and single-select work perfectly
+- ✅ **User Experience**: Smooth, intuitive interaction model
+
+**🎯 Current State:**
+StoryCanvas is now in a **fully functional state** with all critical bugs resolved. The application provides a professional, stable visual story planning experience.
+
+---
+
 *This document serves as a comprehensive record of all achievements, current status, and future direction for the StoryCanvas project.*

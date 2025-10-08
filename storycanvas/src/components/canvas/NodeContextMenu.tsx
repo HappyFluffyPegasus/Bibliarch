@@ -198,14 +198,6 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
       {node.type === 'list' && (
         <>
           <SubMenuItem
-            label="Layout"
-            options={[
-              { label: 'Single Column', value: 'single-column', current: (node.layoutMode ?? 'single-column') === 'single-column' },
-              { label: 'Two Columns', value: 'two-columns', current: (node.layoutMode ?? 'single-column') === 'two-columns' },
-              { label: 'Grid', value: 'grid', current: (node.layoutMode ?? 'single-column') === 'grid' }
-            ]}
-          />
-          <SubMenuItem
             label="Auto Sort"
             options={[
               { label: 'Manual', value: 'manual', current: (node.settings?.auto_sort ?? 'manual') === 'manual' },
