@@ -2954,6 +2954,14 @@ export default function HTMLCanvas({
 
                     // Only enable dragging in select mode with left click
                     if (tool === 'select' && e.button === 0) {
+                      // Check if clicking on contentEditable text - if so, don't start dragging
+                      const target = e.target as HTMLElement
+                      const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+
+                      if (isContentEditable) {
+                        return // Don't start dragging, allow text selection
+                      }
+
                       e.stopPropagation()
                       setDragStartPos({ x: e.clientX, y: e.clientY })
                       setIsDragReady(node.id)
@@ -3308,6 +3316,14 @@ export default function HTMLCanvas({
 
                     // Only enable dragging in select mode with left click
                     if (tool === 'select' && e.button === 0) {
+                      // Check if clicking on contentEditable text - if so, don't start dragging
+                      const target = e.target as HTMLElement
+                      const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+
+                      if (isContentEditable) {
+                        return // Don't start dragging, allow text selection
+                      }
+
                       e.stopPropagation()
                       setDragStartPos({ x: e.clientX, y: e.clientY })
                       setIsDragReady(node.id)
@@ -3494,6 +3510,14 @@ export default function HTMLCanvas({
 
                     // Only enable dragging in select mode with left click
                     if (tool === 'select' && e.button === 0) {
+                      // Check if clicking on contentEditable text - if so, don't start dragging
+                      const target = e.target as HTMLElement
+                      const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+
+                      if (isContentEditable) {
+                        return // Don't start dragging, allow text selection
+                      }
+
                       e.stopPropagation()
                       setDragStartPos({ x: e.clientX, y: e.clientY })
                       setIsDragReady(node.id)
@@ -3647,6 +3671,14 @@ export default function HTMLCanvas({
 
                     // Only enable dragging in select mode with left click
                     if (tool === 'select' && e.button === 0) {
+                      // Check if clicking on contentEditable text - if so, don't start dragging
+                      const target = e.target as HTMLElement
+                      const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+
+                      if (isContentEditable) {
+                        return // Don't start dragging, allow text selection
+                      }
+
                       e.stopPropagation()
                       setDragStartPos({ x: e.clientX, y: e.clientY })
                       setIsDragReady(node.id)
@@ -3951,6 +3983,14 @@ export default function HTMLCanvas({
 
                     // Only enable dragging in select mode with left click
                     if (tool === 'select' && e.button === 0) {
+                      // Check if clicking on contentEditable text - if so, don't start dragging
+                      const target = e.target as HTMLElement
+                      const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+
+                      if (isContentEditable) {
+                        return // Don't start dragging, allow text selection
+                      }
+
                       e.stopPropagation()
                       setDragStartPos({ x: e.clientX, y: e.clientY })
                       setIsDragReady(node.id)
@@ -4405,6 +4445,14 @@ export default function HTMLCanvas({
 
                     // Only enable dragging in select mode with left click
                     if (tool === 'select' && e.button === 0) {
+                      // Check if clicking on contentEditable text - if so, don't start dragging
+                      const target = e.target as HTMLElement
+                      const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+
+                      if (isContentEditable) {
+                        return // Don't start dragging, allow text selection
+                      }
+
                       e.stopPropagation()
                       setDragStartPos({ x: e.clientX, y: e.clientY })
                       setIsDragReady(node.id)
@@ -4662,6 +4710,14 @@ export default function HTMLCanvas({
 
                 // Only enable dragging in select mode with left click
                 if (tool === 'select' && e.button === 0) {
+                  // Check if clicking on contentEditable text - if so, don't start dragging
+                  const target = e.target as HTMLElement
+                  const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+
+                  if (isContentEditable) {
+                    return // Don't start dragging, allow text selection
+                  }
+
                   e.stopPropagation()
                   setDragStartPos({ x: e.clientX, y: e.clientY })
                   setIsDragReady(node.id)
@@ -4897,6 +4953,14 @@ export default function HTMLCanvas({
 
                                 // Only enable dragging in select mode with left click
                                 if (tool === 'select' && e.button === 0) {
+                                  // Check if clicking on contentEditable text - if so, don't start dragging
+                                  const target = e.target as HTMLElement
+                                  const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+
+                                  if (isContentEditable) {
+                                    return // Don't start dragging, allow text selection
+                                  }
+
                                   e.stopPropagation()
                                   setDragStartPos({ x: e.clientX, y: e.clientY })
                                   // In select mode, drag the parent list node instead of child
