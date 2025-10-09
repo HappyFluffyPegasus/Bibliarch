@@ -6,7 +6,6 @@ import { Card } from '@/components/ui/card'
 import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, ArrowUp, ArrowDown, Table, Heart, Settings, TextCursor } from 'lucide-react'
 import { toast } from 'sonner'
 import { PaletteSelector } from '@/components/ui/palette-selector'
-import { ColorFilter } from '@/components/ui/color-filter'
 import { NodeStylePanel } from '@/components/ui/node-style-panel'
 import { PerformanceOptimizer } from '@/lib/performance-utils'
 import { useColorContext } from '@/components/providers/color-provider'
@@ -2030,11 +2029,6 @@ export default function HTMLCanvas({
     }
   }
 
-  // Stable callback for ColorFilter to prevent re-render loops
-  const handleFilterChange = useCallback((visibleIds: string[]) => {
-    setVisibleNodeIds(visibleIds)
-  }, [])
-
   const handleDeleteNode = (nodeId: string) => {
     const newNodes = nodes.filter(node => node.id !== nodeId)
     const newConnections = connections.filter(conn => conn.from !== nodeId && conn.to !== nodeId)
@@ -2693,16 +2687,6 @@ export default function HTMLCanvas({
           </Button>
         </div>
 
-        {/* Divider */}
-        <div className="w-8 h-px bg-border my-2" />
-
-        {/* Delete Button */}
-        <div className="flex flex-col items-center gap-1">
-          <ColorFilter
-            nodes={nodes}
-            onFilterChange={handleFilterChange}
-          />
-        </div>
       </div>
 
       {/* Canvas Area */}
