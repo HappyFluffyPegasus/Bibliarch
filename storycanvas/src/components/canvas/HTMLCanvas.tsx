@@ -5484,8 +5484,8 @@ export default function HTMLCanvas({
                                   data-content-type="content"
                                   className={`w-full bg-transparent border-none outline-none text-sm min-h-[3.5rem] max-h-full overflow-auto leading-relaxed rounded px-1 ${(editingField?.nodeId === childNode.id && editingField?.field === 'content') ? 'cursor-text' : 'cursor-move'}`}
                                   style={{
-                                    color: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id)),
-                                    caretColor: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id)),
+                                    color: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id), true),
+                                    caretColor: getTextColor(getNodeColor(childNode.type || 'folder', childNode.color, childNode.id), true),
                                     userSelect: (editingField?.nodeId === childNode.id && editingField?.field === 'content') ? 'text' : 'none'
                                   }}
                                   onBlur={(e) => {

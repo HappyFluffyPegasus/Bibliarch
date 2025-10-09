@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { ColorProvider } from "@/components/providers/color-provider";
+import { NetworkStatusProvider } from "@/components/providers/network-status-provider";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,9 +39,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <ColorProvider>
-            {children}
+            <NetworkStatusProvider>
+              {children}
+            </NetworkStatusProvider>
           </ColorProvider>
         </ThemeProvider>
+        <Toaster />
       </body>
     </html>
   );
