@@ -16,20 +16,49 @@ import { Loader2 } from 'lucide-react'
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetSuccess, setResetSuccess] = useState(false)
   const router = useRouter()
 
   // Handle form submission with beautiful loading state
   async function handleSubmit(formData: FormData) {
     setIsLoading(true)
     setError(null)
-    
+
     const result = await signIn(formData)
-    
+
     if (result?.error) {
       setError(result.error)
       setIsLoading(false)
     }
     // If successful, signIn will redirect automatically
+  }
+
+  // Handle password reset request
+  async function handlePasswordReset(e: React.FormEvent) {
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+
+      if (error) {
+        setError(error.message)
+      } else {
+        setResetSuccess(true)
+      }
+    } catch (err) {
+      setError('Failed to send reset email. Please try again.')
+    }
+
+    setIsLoading(false)
   }
 
   return (
@@ -69,7 +98,16 @@ export default function LoginPage() {
 
             {/* Password input */}
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-xs text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <Input
                 id="password"
                 name="password"
@@ -128,6 +166,94 @@ export default function LoginPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
+          <Card className="w-full max-w-md animate-slide-up">
+            <CardHeader>
+              <CardTitle>Reset Password</CardTitle>
+              <CardDescription>
+                {resetSuccess
+                  ? "Check your email!"
+                  : "Enter your email to receive a password reset link"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {resetSuccess ? (
+                <div className="space-y-4">
+                  <div className="p-3 text-sm text-green-600 bg-green-50 dark:bg-green-900/20 rounded-md">
+                    We've sent a password reset link to <strong>{resetEmail}</strong>.
+                    Check your inbox (and spam folder)!
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setShowForgotPassword(false)
+                      setResetSuccess(false)
+                      setResetEmail('')
+                    }}
+                    className="w-full"
+                  >
+                    Back to Login
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handlePasswordReset} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-email">Email</Label>
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      required
+                      disabled={isLoading}
+                      className="transition-all duration-200 focus:scale-[1.02]"
+                    />
+                  </div>
+
+                  {error && (
+                    <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 rounded-md">
+                      {error}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowForgotPassword(false)
+                        setError(null)
+                        setResetEmail('')
+                      }}
+                      className="flex-1"
+                      disabled={isLoading}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1"
+                      disabled={isLoading || !resetEmail}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        'Send Reset Link'
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

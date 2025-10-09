@@ -1,5 +1,5 @@
 // Authentication actions for StoryCanvas
-// Simple auth - no email confirmations, just straight signup and login
+// Professional auth with email confirmations and password reset
 
 'use server'
 
@@ -54,14 +54,18 @@ export async function signUp(formData: FormData) {
       updated_at: new Date().toISOString()
     })
 
-    // Auto sign in after signup
-    await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    // Check if email confirmation is required
+    // If session exists, user is auto-confirmed (Supabase setting is OFF)
+    // If no session, email confirmation is required (Supabase setting is ON)
+    const { data: sessionData } = await supabase.auth.getSession()
+
+    if (!sessionData.session) {
+      // Email confirmation required
+      return { needsConfirmation: true }
+    }
   }
 
-  // Redirect to dashboard after successful signup
+  // If we get here, user is auto-confirmed, redirect to dashboard
   redirect('/dashboard')
 }
 

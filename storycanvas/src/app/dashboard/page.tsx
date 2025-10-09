@@ -7,7 +7,7 @@ import { signOut } from '@/lib/auth/actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Plus, LogOut, Sparkles, FileText, Clock, Layout } from 'lucide-react'
+import { Plus, LogOut, Sparkles, FileText, Clock, Layout, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { OnboardingModal } from '@/components/onboarding/OnboardingModal'
@@ -220,6 +220,12 @@ export default function DashboardPage() {
               Welcome back, <span className="font-medium">{username}</span>
             </span>
             <ThemeToggle />
+            <Link href="/settings">
+              <Button variant="ghost" size="sm">
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </Button>
+            </Link>
             <form action={signOut}>
               <Button variant="ghost" size="sm" type="submit">
                 <LogOut className="w-4 h-4 mr-2" />
