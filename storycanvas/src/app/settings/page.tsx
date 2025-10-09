@@ -18,11 +18,16 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingUsername, setIsLoadingUsername] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [usernameError, setUsernameError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [usernameSuccess, setUsernameSuccess] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [username, setUsername] = useState<string | null>(null)
+  const [newUsername, setNewUsername] = useState('')
   const [createdAt, setCreatedAt] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const router = useRouter()
 
   // Load user data
@@ -37,17 +42,24 @@ export default function SettingsPage() {
       }
 
       setUserEmail(user.email || null)
+      setUserId(user.id)
       setCreatedAt(user.created_at ? new Date(user.created_at).toLocaleDateString() : null)
 
       // Get username from profile
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('username')
         .eq('id', user.id)
         .single()
 
-      if (profile) {
-        setUsername(profile.username || null)
+      if (profileError) {
+        console.error('Error loading profile:', profileError)
+        setUsername('No username set')
+      } else if (profile && 'username' in profile) {
+        setUsername((profile as any).username || 'No username set')
+      } else {
+        // Fallback to user metadata if profile doesn't exist
+        setUsername(user.user_metadata?.username || 'No username set')
       }
     }
 
@@ -116,6 +128,57 @@ export default function SettingsPage() {
     setIsLoading(false)
   }
 
+  // Handle username change
+  async function handleUsernameChange(e: React.FormEvent) {
+    e.preventDefault()
+    setIsLoadingUsername(true)
+    setUsernameError(null)
+    setUsernameSuccess(false)
+
+    // Validation
+    if (!newUsername || newUsername.trim().length === 0) {
+      setUsernameError('Username cannot be empty')
+      setIsLoadingUsername(false)
+      return
+    }
+
+    if (newUsername.length < 3) {
+      setUsernameError('Username must be at least 3 characters')
+      setIsLoadingUsername(false)
+      return
+    }
+
+    if (newUsername.length > 20) {
+      setUsernameError('Username must be less than 20 characters')
+      setIsLoadingUsername(false)
+      return
+    }
+
+    try {
+      const supabase = createClient()
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          username: newUsername.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
+
+      if (updateError) {
+        setUsernameError(updateError.message)
+      } else {
+        setUsernameSuccess(true)
+        setUsername(newUsername.trim())
+        setNewUsername('')
+      }
+    } catch (err) {
+      setUsernameError('Failed to update username. Please try again.')
+    }
+
+    setIsLoadingUsername(false)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-100 to-blue-100 dark:from-gray-900 dark:to-gray-800">
       {/* Animated background */}
@@ -168,6 +231,70 @@ export default function SettingsPage() {
                 <Label className="text-muted-foreground">Member Since</Label>
                 <div className="text-sm font-medium">{createdAt || 'Loading...'}</div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Change Username Card */}
+          <Card className="backdrop-blur-sm bg-white/90 dark:bg-gray-900/90">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Change Username
+              </CardTitle>
+              <CardDescription>
+                Update your display name
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleUsernameChange} className="space-y-4">
+                {/* New Username */}
+                <div className="space-y-2">
+                  <Label htmlFor="new-username">New Username</Label>
+                  <Input
+                    id="new-username"
+                    type="text"
+                    placeholder="Enter new username"
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value)}
+                    required
+                    disabled={isLoadingUsername}
+                    className="transition-all duration-200 focus:scale-[1.01]"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Must be between 3-20 characters
+                  </p>
+                </div>
+
+                {/* Success message */}
+                {usernameSuccess && (
+                  <div className="p-3 text-sm text-green-600 bg-green-50 dark:bg-green-900/20 rounded-md animate-fade-in">
+                    Username updated successfully!
+                  </div>
+                )}
+
+                {/* Error message */}
+                {usernameError && (
+                  <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 rounded-md animate-fade-in">
+                    {usernameError}
+                  </div>
+                )}
+
+                {/* Submit button */}
+                <Button
+                  type="submit"
+                  className="w-full transition-all duration-200 hover:scale-[1.02]"
+                  disabled={isLoadingUsername || !newUsername}
+                >
+                  {isLoadingUsername ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating username...
+                    </>
+                  ) : (
+                    'Update Username'
+                  )}
+                </Button>
+              </form>
             </CardContent>
           </Card>
 

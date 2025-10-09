@@ -48,12 +48,16 @@ export async function signUp(formData: FormData) {
 
   // Create or update the profile with username
   if (data.user) {
-    await supabase.from('profiles').upsert({
+    const { error: profileError } = await supabase.from('profiles').upsert({
       id: data.user.id,
       username,
       email: email,
       updated_at: new Date().toISOString()
     })
+
+    if (profileError) {
+      console.error('Error creating profile:', profileError)
+    }
 
     // Check if email confirmation is required
     // If session exists, user is auto-confirmed (Supabase setting is OFF)
