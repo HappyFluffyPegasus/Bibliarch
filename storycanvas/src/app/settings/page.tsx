@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [username, setUsername] = useState<string | null>(null)
   const [createdAt, setCreatedAt] = useState<string | null>(null)
   const router = useRouter()
 
@@ -37,6 +38,17 @@ export default function SettingsPage() {
 
       setUserEmail(user.email || null)
       setCreatedAt(user.created_at ? new Date(user.created_at).toLocaleDateString() : null)
+
+      // Get username from profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single()
+
+      if (profile) {
+        setUsername(profile.username || null)
+      }
     }
 
     loadUser()
@@ -138,6 +150,13 @@ export default function SettingsPage() {
               <CardDescription>Your account details</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-muted-foreground">
+                  <User className="w-4 h-4" />
+                  Username
+                </Label>
+                <div className="text-sm font-medium">{username || 'Loading...'}</div>
+              </div>
               <div className="space-y-2">
                 <Label className="flex items-center gap-2 text-muted-foreground">
                   <Mail className="w-4 h-4" />
