@@ -74,9 +74,9 @@ export function PaletteSelector({
 
   // Custom color states for the custom color picker (only 3 main colors)
   const [customColors, setCustomColors] = useState({
-    main: '#ffd700',        // Main/primary color (yellow-like)
-    complementary: '#2c3e50', // Complementary color (dark)
-    accent: '#3498db'       // Accent color (light blue)
+    main: '#FFB6C1',        // Soft pink - Main/primary color
+    complementary: '#3F3F46', // Charcoal gray - Complementary color
+    accent: '#93C5FD'       // Sky blue - Accent color
   })
   
   // Base template for custom palette generation - this is your main color slider
