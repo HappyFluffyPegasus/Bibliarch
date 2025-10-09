@@ -51,8 +51,7 @@ export async function signUp(formData: FormData) {
     const { error: profileError } = await supabase.from('profiles').upsert({
       id: data.user.id,
       username,
-      email: email,
-      updated_at: new Date().toISOString()
+      email: email
     })
 
     if (profileError) {

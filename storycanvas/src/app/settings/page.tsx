@@ -160,8 +160,7 @@ export default function SettingsPage() {
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
-          username: newUsername.trim(),
-          updated_at: new Date().toISOString()
+          username: newUsername.trim()
         })
         .eq('id', userId)
 
