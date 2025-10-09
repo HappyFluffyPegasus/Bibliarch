@@ -2696,38 +2696,12 @@ export default function HTMLCanvas({
         {/* Divider */}
         <div className="w-8 h-px bg-border my-2" />
 
-        {/* Color Tools */}
+        {/* Delete Button */}
         <div className="flex flex-col items-center gap-1">
-          <PaletteSelector
-            mode="advanced"
-            scope="project"
-            contextId={storyId}
-            onColorSelect={(color) => {
-              if (selectedId) {
-                handleColorChange(selectedId, color)
-              } else {
-                toast.info('Select a node first to apply color')
-              }
-            }}
-            onPaletteChange={(palette) => {
-              // Apply palette globally to entire project (all sections)
-              colorContext.setProjectPalette(storyId, palette)
-
-              // Apply the palette immediately to all sections
-              colorContext.applyPalette(palette)
-
-              // Reset all nodes to use the new theme colors
-              resetAllNodesToThemeColors()
-
-              // Force re-render to update node colors
-              setPaletteRefresh(prev => prev + 1)
-            }}
-          />
           <ColorFilter
             nodes={nodes}
             onFilterChange={handleFilterChange}
           />
-
         </div>
       </div>
 
@@ -2736,6 +2710,45 @@ export default function HTMLCanvas({
         {/* Top-right buttons when help is shown */}
         {showHelp && (
           <div className="fixed top-16 right-4 z-50 flex gap-2 items-start">
+            <div className="flex items-center flex-shrink-0">
+              <PaletteSelector
+                mode="advanced"
+                scope="project"
+                contextId={storyId}
+                onColorSelect={(color) => {
+                  if (selectedId) {
+                    handleColorChange(selectedId, color)
+                  } else {
+                    toast.info('Select a node first to apply color')
+                  }
+                }}
+                onPaletteChange={(palette) => {
+                  // Apply palette globally to entire project (all sections)
+                  colorContext.setProjectPalette(storyId, palette)
+
+                  // Apply the palette immediately to all sections
+                  colorContext.applyPalette(palette)
+
+                  // Reset all nodes to use the new theme colors
+                  resetAllNodesToThemeColors()
+
+                  // Force re-render to update node colors
+                  setPaletteRefresh(prev => prev + 1)
+
+                  toast.success('Color palette updated')
+                }}
+                trigger={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 w-8 p-0 text-xs shadow-lg"
+                    title="Color Palette"
+                  >
+                    🎨
+                  </Button>
+                }
+              />
+            </div>
             <Button
               size="sm"
               variant="outline"
@@ -2784,6 +2797,45 @@ export default function HTMLCanvas({
         {/* Top-right buttons when help is hidden */}
         {!showHelp && (
           <div className="fixed top-16 right-4 z-50 flex gap-2">
+            <div className="flex items-center">
+              <PaletteSelector
+                mode="advanced"
+                scope="project"
+                contextId={storyId}
+                onColorSelect={(color) => {
+                  if (selectedId) {
+                    handleColorChange(selectedId, color)
+                  } else {
+                    toast.info('Select a node first to apply color')
+                  }
+                }}
+                onPaletteChange={(palette) => {
+                  // Apply palette globally to entire project (all sections)
+                  colorContext.setProjectPalette(storyId, palette)
+
+                  // Apply the palette immediately to all sections
+                  colorContext.applyPalette(palette)
+
+                  // Reset all nodes to use the new theme colors
+                  resetAllNodesToThemeColors()
+
+                  // Force re-render to update node colors
+                  setPaletteRefresh(prev => prev + 1)
+
+                  toast.success('Color palette updated')
+                }}
+                trigger={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 w-8 p-0 text-xs shadow-lg"
+                    title="Color Palette"
+                  >
+                    🎨
+                  </Button>
+                }
+              />
+            </div>
             <Button
               size="sm"
               variant="outline"
