@@ -202,15 +202,15 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50/80 to-blue-50/80 dark:from-gray-950 dark:to-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-sky-50/80 to-blue-50/80 dark:from-gray-950 dark:to-gray-900">
       <OnboardingModal />
-      
+
       {/* Header */}
       <header className="border-b bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-purple-600" />
-            <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+            <Sparkles className="w-6 h-6 text-sky-600 dark:text-blue-400" />
+            <h1 className="text-xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">
               StoryCanvas
             </h1>
           </div>
@@ -248,20 +248,20 @@ export default function DashboardPage() {
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <Sparkles className="w-8 h-8 text-purple-600 animate-pulse mx-auto mb-4" />
+              <Sparkles className="w-8 h-8 text-sky-600 dark:text-blue-400 animate-pulse mx-auto mb-4" />
               <p className="text-muted-foreground">Loading your stories...</p>
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Create New Story Card */}
-            <Card 
-              className="border-dashed border-2 hover:border-purple-400 cursor-pointer transition-all duration-200 hover:scale-[1.02] group"
+            <Card
+              className="border-dashed border-2 hover:border-sky-400 dark:hover:border-blue-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] group"
               onClick={createNewStory}
             >
               <CardHeader className="text-center">
-                <div className="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <Plus className="w-8 h-8 text-purple-600" />
+                <div className="w-16 h-16 rounded-full bg-sky-100 dark:bg-blue-900/20 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <Plus className="w-8 h-8 text-sky-600 dark:text-blue-400" />
                 </div>
                 <CardTitle>Create New Story</CardTitle>
                 <CardDescription>
@@ -280,7 +280,7 @@ export default function DashboardPage() {
                 <Card className="h-full hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer">
                   <CardHeader>
                     <div className="flex items-start justify-between mb-2">
-                      <FileText className="w-5 h-5 text-purple-600" />
+                      <FileText className="w-5 h-5 text-sky-600 dark:text-blue-400" />
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {formatDate(story.updated_at)}
@@ -302,22 +302,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Empty State */}
-        {!isLoading && stories.length === 0 && (
-          <Card className="text-center py-12">
-            <CardContent>
-              <Sparkles className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No stories yet</h3>
-              <p className="text-muted-foreground mb-4">
-                Create your first story and start building amazing narratives
-              </p>
-              <Button onClick={createNewStory} className="bg-gradient-to-r from-purple-600 to-blue-600">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Story
-              </Button>
-            </CardContent>
-          </Card>
-        )}
       </main>
 
       {/* Template Selection Dialog */}
@@ -336,16 +320,16 @@ export default function DashboardPage() {
                 key={template.id}
                 className={`cursor-pointer transition-all ${
                   selectedTemplate === template.id
-                    ? 'ring-2 ring-purple-600 bg-purple-50 dark:bg-purple-950/20'
-                    : 'hover:border-purple-400'
+                    ? 'ring-2 ring-sky-600 dark:ring-blue-500 bg-sky-50 dark:bg-blue-900/10'
+                    : 'hover:border-sky-400 dark:hover:border-blue-500'
                 }`}
                 onClick={() => setSelectedTemplate(template.id)}
               >
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <Layout className="w-5 h-5 text-purple-600" />
+                    <Layout className="w-5 h-5 text-sky-600 dark:text-blue-400" />
                     {selectedTemplate === template.id && (
-                      <div className="w-5 h-5 rounded-full bg-purple-600 flex items-center justify-center">
+                      <div className="w-5 h-5 rounded-full bg-sky-600 dark:bg-blue-500 flex items-center justify-center">
                         <span className="text-white text-xs">✓</span>
                       </div>
                     )}
@@ -368,7 +352,7 @@ export default function DashboardPage() {
             </Button>
             <Button
               onClick={handleCreateWithTemplate}
-              className="bg-gradient-to-r from-purple-600 to-blue-600"
+              className="bg-gradient-to-r from-sky-500 to-blue-600 dark:from-blue-500 dark:to-blue-700"
             >
               Create Story
             </Button>

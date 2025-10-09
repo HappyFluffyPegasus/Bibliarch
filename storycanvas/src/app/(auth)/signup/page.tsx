@@ -42,21 +42,21 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-100 to-blue-100 dark:from-gray-900 dark:to-gray-800">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 right-20 w-72 h-72 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div className="absolute bottom-20 left-20 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+        <div className="absolute top-20 right-20 w-72 h-72 bg-sky-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+        <div className="absolute bottom-20 left-20 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-cyan-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
       </div>
 
       {/* Signup card with smooth entrance animation */}
       <Card className="w-full max-w-md mx-4 relative backdrop-blur-sm bg-white/90 dark:bg-gray-900/90 animate-slide-up">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-2">
-            <Sparkles className="w-8 h-8 text-purple-600 animate-pulse" />
+            <Sparkles className="w-8 h-8 text-sky-600 dark:text-blue-400 animate-pulse" />
           </div>
-          <CardTitle className="text-2xl font-bold text-center bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <CardTitle className="text-2xl font-bold text-center bg-gradient-to-r from-sky-500 to-blue-600 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">
             Create Your Story
           </CardTitle>
           <CardDescription className="text-center">
@@ -115,9 +115,9 @@ export default function SignupPage() {
             )}
 
             {/* Submit button with loading state */}
-            <Button 
-              type="submit" 
-              className="w-full transition-all duration-200 hover:scale-[1.02] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            <Button
+              type="submit"
+              className="w-full transition-all duration-200 hover:scale-[1.02] bg-gradient-to-r from-sky-500 to-blue-600 dark:from-blue-500 dark:to-blue-700 hover:from-sky-600 hover:to-blue-700 dark:hover:from-blue-600 dark:hover:to-blue-800"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -147,7 +147,7 @@ export default function SignupPage() {
           <div className="text-center">
             <Link
               href="/login"
-              className="text-sm text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 transition-colors"
+              className="text-sm text-sky-600 hover:text-sky-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
             >
               Sign in instead
             </Link>
@@ -161,7 +161,7 @@ export default function SignupPage() {
           <Card className="w-full max-w-md animate-slide-up">
             <CardHeader>
               <div className="flex items-center justify-center mb-2">
-                <Sparkles className="w-12 h-12 text-green-500 animate-pulse" />
+                <Sparkles className="w-12 h-12 text-sky-500 dark:text-blue-400 animate-pulse" />
               </div>
               <CardTitle className="text-center">Check Your Email!</CardTitle>
               <CardDescription className="text-center">
@@ -169,11 +169,11 @@ export default function SignupPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 text-sm bg-blue-50 dark:bg-blue-900/20 rounded-md">
+              <div className="p-4 text-sm bg-sky-50 dark:bg-blue-900/20 rounded-md">
                 <p className="mb-2">
                   We sent a confirmation email to:
                 </p>
-                <p className="font-medium text-blue-700 dark:text-blue-300">
+                <p className="font-medium text-sky-700 dark:text-blue-300">
                   {signupEmail}
                 </p>
               </div>
@@ -187,7 +187,7 @@ export default function SignupPage() {
               <div className="flex flex-col gap-2">
                 <Button
                   onClick={() => router.push('/login')}
-                  className="w-full"
+                  className="w-full bg-gradient-to-r from-sky-500 to-blue-600 dark:from-blue-500 dark:to-blue-700"
                 >
                   Go to Login
                 </Button>
