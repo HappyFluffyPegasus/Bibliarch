@@ -780,36 +780,41 @@ export default function HTMLCanvas({
     }
   }, [selectedIds, selectedId])
 
-  // Cancel connecting mode when tool changes
+  // Cancel connecting mode and clear panning state when tool changes
   useEffect(() => {
     setConnectingFrom(null)
+    // Reset panning/selection state when switching to creation tools
+    if (!['select', 'relationships'].includes(tool)) {
+      setIsPanning(false)
+      setIsSelecting(false)
+      setIsMoving(false)
+    }
   }, [tool])
 
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
+    // Only handle clicks on the canvas background itself, not child elements
+    if (e.target !== canvasRef.current) {
+      return
+    }
+
     // Select tool: deselect nodes when clicking empty canvas, switch to moving mode
     if (tool === 'select') {
-      // Save before exiting edit mode
       if (editingField) {
-        console.log('🔵 handleCanvasClick: editingField detected, forcing blur', editingField)
         const activeElement = document.activeElement as HTMLElement
         if (activeElement && activeElement.getAttribute('contenteditable') === 'true') {
-          console.log('🔵 handleCanvasClick: calling blur on active element')
-          activeElement.blur() // Trigger blur event which will save
-        } else {
-          console.log('🔴 handleCanvasClick: no active contenteditable element found')
+          activeElement.blur()
         }
       }
       setSelectedId(null)
-      setEditingField(null) // Exit edit mode when clicking canvas background
+      setEditingField(null)
       setInteractionMode('moving')
       return
     }
 
-    // Don't create nodes while panning
-    if (isPanning) return
-    
     // Only create nodes when a creation tool is selected
-    if (!['text', 'character', 'event', 'location', 'folder', 'list', 'image', 'table', 'relationship-canvas'].includes(tool)) return
+    if (!['text', 'character', 'event', 'location', 'folder', 'list', 'image', 'table', 'relationship-canvas'].includes(tool)) {
+      return
+    }
 
     const rect = canvasRef.current?.getBoundingClientRect()
     if (!rect) return
@@ -839,7 +844,7 @@ export default function HTMLCanvas({
     setSelectedId(newNode.id)  // Select the newly created node
     setTool('select')  // Switch to select tool after creating node for immediate interaction
 
-  }, [tool, isPanning, nodes, connections, saveToHistory])
+  }, [tool, nodes, connections, saveToHistory, editingField])
 
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
     // Middle mouse (button 1) or right mouse (button 2) always pans
