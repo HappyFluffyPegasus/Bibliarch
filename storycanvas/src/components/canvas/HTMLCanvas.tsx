@@ -792,8 +792,9 @@ export default function HTMLCanvas({
   }, [tool])
 
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
-    // Only handle clicks on the canvas background itself, not child elements
-    if (e.target !== canvasRef.current) {
+    // Don't handle clicks on nodes or their children
+    const target = e.target as HTMLElement
+    if (target.closest('[data-node-id]')) {
       return
     }
 
