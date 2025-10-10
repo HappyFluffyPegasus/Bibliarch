@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Minus, Maximize2, MousePointer, Hand, Type, Trash2, Edit2, GitBranch, User, MapPin, Calendar, Folder, Image, Upload, X, List } from 'lucide-react'
-import { toast } from 'sonner'
 
 interface Node {
   id: string
@@ -331,7 +330,7 @@ export default function StoryCanvas({ initialNodes = [], initialConnections = []
           conn.from !== selectedId && conn.to !== selectedId
         ))
         setSelectedId(null)
-        toast.success('Node deleted')
+
       }
 
       if (e.key === 'Delete' && selectedId && !editingNodeId) {
@@ -452,7 +451,7 @@ export default function StoryCanvas({ initialNodes = [], initialConnections = []
     
     // Auto-resize container if needed
     updateContainerSize(containerId)
-    toast.success('Node added to container')
+
   }
 
   const removeNodeFromContainer = (nodeId: string) => {
@@ -485,7 +484,7 @@ export default function StoryCanvas({ initialNodes = [], initialConnections = []
 
     // Auto-resize container
     updateContainerSize(containerId)
-    toast.success(`${node.text} removed from container`)
+
   }
 
   const updateContainerSize = (containerId: string) => {
@@ -816,14 +815,6 @@ export default function StoryCanvas({ initialNodes = [], initialConnections = []
     }
     setNodes([...nodes, newNode])
     setSelectedId(newNode.id)
-    if (nodeType === 'list') {
-      toast.success('📋 List Container created! Drag other nodes onto it to organize them.', {
-        duration: 4000,
-        icon: '🎯'
-      })
-    } else {
-      toast.success(`Added new ${nodeType} node`)
-    }
   }
 
   // Update node position and handle container drops
@@ -852,7 +843,7 @@ export default function StoryCanvas({ initialNodes = [], initialConnections = []
     setDragOffset({ x: 0, y: 0 })
     
     if (!droppedInContainer && dropTargetId) {
-      toast.error('Cannot drop node here')
+
     }
   }
 
@@ -874,11 +865,11 @@ export default function StoryCanvas({ initialNodes = [], initialConnections = []
       if (!connectingFrom) {
         // Start connection
         setConnectingFrom(nodeId)
-        toast.info('Click another node to connect')
+
       } else if (connectingFrom === nodeId) {
         // Cancel if clicking same node
         setConnectingFrom(null)
-        toast.info('Connection cancelled')
+
       } else {
         // Complete connection
         const newConnection: Connection = {
@@ -889,7 +880,7 @@ export default function StoryCanvas({ initialNodes = [], initialConnections = []
         }
         setConnections([...connections, newConnection])
         setConnectingFrom(null)
-        toast.success('Nodes connected!')
+
       }
     } else {
       setSelectedId(nodeId)
@@ -899,7 +890,7 @@ export default function StoryCanvas({ initialNodes = [], initialConnections = []
   // Delete connection
   const handleDeleteConnection = (connId: string) => {
     setConnections(connections.filter(c => c.id !== connId))
-    toast.success('Connection removed')
+
   }
 
   // Get node center position for connections
@@ -919,7 +910,7 @@ export default function StoryCanvas({ initialNodes = [], initialConnections = []
       // Also remove connections to/from this node
       setConnections(connections.filter(c => c.from !== selectedId && c.to !== selectedId))
       setSelectedId(null)
-      toast.success('Node deleted')
+
     }
   }
 
@@ -957,7 +948,7 @@ export default function StoryCanvas({ initialNodes = [], initialConnections = []
       setEditContent('')
       setEditAttributes({})
       setImagePreview(null)
-      toast.success('Node updated')
+
     }
   }
 
@@ -993,12 +984,12 @@ export default function StoryCanvas({ initialNodes = [], initialConnections = []
     if (file) {
       // Basic validation
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast.error('Image size must be less than 5MB')
+
         return
       }
       
       if (!file.type.startsWith('image/')) {
-        toast.error('Please select an image file')
+
         return
       }
 
@@ -1974,7 +1965,7 @@ export default function StoryCanvas({ initialNodes = [], initialConnections = []
                               onClick={() => {
                                 // Single click: select the child node for editing
                                 setSelectedId(childId)
-                                toast.info(`Selected: ${childNode.text}`)
+
                               }}
                               onDblClick={() => {
                                 // Double click: remove from container

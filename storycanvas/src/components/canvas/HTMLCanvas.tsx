@@ -4,7 +4,6 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, ArrowUp, ArrowDown, Table, Heart, Settings, TextCursor } from 'lucide-react'
-import { toast } from 'sonner'
 import { PaletteSelector } from '@/components/ui/palette-selector'
 import { NodeStylePanel } from '@/components/ui/node-style-panel'
 import { PerformanceOptimizer } from '@/lib/performance-utils'
@@ -504,7 +503,6 @@ export default function HTMLCanvas({
     const timeoutId = setTimeout(() => {
       if (onSave && (nodes.length > 0 || connections.length > 0)) {
         onSave(nodes, connections)
-        toast.success('Auto-saved', { duration: 1000 })
       }
     }, 2000) // Give users more time between saves
     return () => clearTimeout(timeoutId)
@@ -641,7 +639,7 @@ export default function HTMLCanvas({
       setNodes(prevState.nodes)
       setConnections(prevState.connections)
       setHistoryIndex(newIndex)
-      toast.success('Undone')
+
     }
   }, [history, historyIndex])
 
@@ -653,7 +651,7 @@ export default function HTMLCanvas({
       setNodes(nextState.nodes)
       setConnections(nextState.connections)
       setHistoryIndex(newIndex)
-      toast.success('Redone')
+
     }
   }, [history, historyIndex])
 
@@ -840,7 +838,7 @@ export default function HTMLCanvas({
     saveToHistory(newNodes, connections)
     setSelectedId(newNode.id)  // Select the newly created node
     setTool('select')  // Switch to select tool after creating node for immediate interaction
-    toast.success(`Created ${tool} node`)
+
   }, [tool, isPanning, nodes, connections, saveToHistory])
 
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
@@ -1243,7 +1241,7 @@ export default function HTMLCanvas({
 
             setNodes(updatedNodes)
             saveToHistory(updatedNodes, connections)
-            toast.success(`Added ${draggedNodeObj.type} "${draggedNodeObj.text}" to ${listNode.text}`)
+
             droppedIntoList = true
             break
           }
@@ -1319,7 +1317,7 @@ export default function HTMLCanvas({
       setResizeStartPos({ x: 0, y: 0 })
       // Re-enable text selection after resize
       document.body.style.userSelect = ''
-      toast.success('Node resized')
+
     }
     
     if (isMoving) {
@@ -1810,12 +1808,12 @@ export default function HTMLCanvas({
       if (!connectingFrom) {
         // First click: start timeline connection
         setConnectingFrom(node.id)
-        toast.info(`Click another event to create timeline connection`)
+
         return
       } else if (connectingFrom === node.id) {
         // Same node: cancel connection
         setConnectingFrom(null)
-        toast.info('Timeline connection cancelled')
+
         return
       } else {
         // Second click: create timeline connection between events
@@ -1829,7 +1827,7 @@ export default function HTMLCanvas({
         setConnections(newConnections)
         saveToHistory(nodes, newConnections)
         setConnectingFrom(null)
-        toast.success('Timeline connection created!')
+
         return
       }
     }
@@ -1839,12 +1837,12 @@ export default function HTMLCanvas({
       if (!connectingFrom) {
         // First click: start connection
         setConnectingFrom(node.id)
-        toast.info(`Click another node to connect to ${node.text}`)
+
         return
       } else if (connectingFrom === node.id) {
         // Same node: cancel connection
         setConnectingFrom(null)
-        toast.info('Connection cancelled')
+
         return
       } else {
         // Second click: create connection
@@ -1858,7 +1856,7 @@ export default function HTMLCanvas({
         setConnections(newConnections)
         saveToHistory(nodes, newConnections)
         setConnectingFrom(null)
-        toast.success('Connection created!')
+
         return
       }
     }
@@ -2036,7 +2034,7 @@ export default function HTMLCanvas({
     setConnections(newConnections)
     saveToHistory(newNodes, newConnections)
     setSelectedId(null)
-    toast.success('Node deleted')
+
   }
 
   const handleColorChange = (nodeId: string, color: string) => {
@@ -2047,7 +2045,7 @@ export default function HTMLCanvas({
     )
     setNodes(newNodes)
     saveToHistory(newNodes, connections)
-    toast.success('Node color updated')
+
   }
 
   // Context menu handlers
@@ -2071,7 +2069,7 @@ export default function HTMLCanvas({
     })
     setNodes(newNodes)
     saveToHistory(newNodes, connections)
-    toast.success('Setting updated')
+
   }
 
   const handleDuplicateNode = (nodeId: string) => {
@@ -2092,7 +2090,7 @@ export default function HTMLCanvas({
     setNodes(newNodes)
     saveToHistory(newNodes, connections)
     setSelectedId(newNode.id)
-    toast.success('Node duplicated')
+
   }
 
   const handleBringToFront = (nodeId: string) => {
@@ -2104,7 +2102,7 @@ export default function HTMLCanvas({
     )
     setNodes(newNodes)
     saveToHistory(newNodes, connections)
-    toast.success('Brought to front')
+
   }
 
   const handleSendToBack = (nodeId: string) => {
@@ -2116,7 +2114,7 @@ export default function HTMLCanvas({
     )
     setNodes(newNodes)
     saveToHistory(newNodes, connections)
-    toast.success('Sent to back')
+
   }
 
   const resetNodeToThemeColor = (nodeId: string) => {
@@ -2127,14 +2125,14 @@ export default function HTMLCanvas({
     )
     setNodes(newNodes)
     saveToHistory(newNodes, connections)
-    toast.success('Reset to theme color')
+
   }
 
   const resetAllNodesToThemeColors = () => {
     const newNodes = nodes.map(node => ({ ...node, color: undefined }))
     setNodes(newNodes)
     saveToHistory(newNodes, connections)
-    toast.success('All nodes reset to theme colors')
+
   }
 
   // Drag and drop handlers for list containers
@@ -2171,7 +2169,7 @@ export default function HTMLCanvas({
     // Only allow folder, character, location, and event nodes to be added to list containers
     if (targetNode?.type === 'list' && draggedNodeObj && draggedNodeId !== targetNodeId && !draggedNodeObj.parentId) {
       if (draggedNodeObj.type !== 'folder' && draggedNodeObj.type !== 'character' && draggedNodeObj.type !== 'location' && draggedNodeObj.type !== 'event') {
-        toast.error('Lists can only contain folder, character, location, and event nodes.')
+
         setDraggedNode(null)
         setDropTarget(null)
         return
@@ -2204,9 +2202,8 @@ export default function HTMLCanvas({
       
       setNodes(newNodes)
       saveToHistory(newNodes, connections)
-      toast.success(`Added folder "${draggedNodeObj.text}" to ${targetNode.text} (${newChildCount} folders)`)
     }
-    
+
     setDraggedNode(null)
     setDropTarget(null)
   }
@@ -2242,7 +2239,6 @@ export default function HTMLCanvas({
 
     setNodes(newNodes)
     saveToHistory(newNodes, connections)
-    toast.success(`Removed from container (${newChildIds.length} items remaining)`)
   }
 
   const handleApplyTemplate = (templateNodes: Node[], templateConnections: Connection[]) => {
@@ -2342,7 +2338,7 @@ export default function HTMLCanvas({
       setPaletteRefresh(prev => prev + 1)
     }, 100)
     
-    toast.success(`Template added with ${templateNodes.length} nodes`)
+
   }
 
   const resizeCanvasAndRepositionNodes = (newWidth: number, newHeight: number, centerNodeText?: string) => {
@@ -2407,7 +2403,7 @@ export default function HTMLCanvas({
     setNodes(repositionedNodes)
     saveToHistory(repositionedNodes, connections)
     
-    toast.success(`Canvas resized to ${newWidth}x${newHeight}px and nodes repositioned around "${centerNode.text}"`)
+
   }
 
   // Function to crop image using canvas
@@ -2640,7 +2636,7 @@ export default function HTMLCanvas({
             variant="outline"
             onClick={() => {
               if (!selectedId) {
-                toast.info('Select a node first')
+
                 return
               }
               const selectedNode = nodes.find(n => n.id === selectedId)
@@ -2652,7 +2648,7 @@ export default function HTMLCanvas({
               )
               setNodes(updatedNodes)
               saveToHistory(updatedNodes, connections)
-              toast.success('Moved layer up')
+
             }}
             disabled={!selectedId}
             className="h-11 w-14 p-0"
@@ -2665,7 +2661,7 @@ export default function HTMLCanvas({
             variant="outline"
             onClick={() => {
               if (!selectedId) {
-                toast.info('Select a node first')
+
                 return
               }
               const selectedNode = nodes.find(n => n.id === selectedId)
@@ -2677,7 +2673,7 @@ export default function HTMLCanvas({
               )
               setNodes(updatedNodes)
               saveToHistory(updatedNodes, connections)
-              toast.success('Moved layer down')
+
             }}
             disabled={!selectedId}
             className="h-11 w-14 p-0"
@@ -2703,7 +2699,7 @@ export default function HTMLCanvas({
                   if (selectedId) {
                     handleColorChange(selectedId, color)
                   } else {
-                    toast.info('Select a node first to apply color')
+
                   }
                 }}
                 onPaletteChange={(palette) => {
@@ -2719,7 +2715,7 @@ export default function HTMLCanvas({
                   // Force re-render to update node colors
                   setPaletteRefresh(prev => prev + 1)
 
-                  toast.success('Color palette updated')
+
                 }}
                 trigger={
                   <Button
@@ -2790,7 +2786,7 @@ export default function HTMLCanvas({
                   if (selectedId) {
                     handleColorChange(selectedId, color)
                   } else {
-                    toast.info('Select a node first to apply color')
+
                   }
                 }}
                 onPaletteChange={(palette) => {
@@ -2806,7 +2802,7 @@ export default function HTMLCanvas({
                   // Force re-render to update node colors
                   setPaletteRefresh(prev => prev + 1)
 
-                  toast.success('Color palette updated')
+
                 }}
                 trigger={
                   <Button
@@ -3040,6 +3036,7 @@ export default function HTMLCanvas({
                         src={node.imageUrl}
                         alt="Image"
                         className="cursor-move flex-1"
+                        draggable={false}
                         style={{
                           display: 'block',
                           width: '100%',
@@ -3047,10 +3044,11 @@ export default function HTMLCanvas({
                           border: 'none',
                           outline: 'none',
                           userSelect: 'none',
-                          pointerEvents: 'none',
+                          pointerEvents: 'auto',
                           minHeight: 0
                         }}
                       onDoubleClick={(e) => {
+                        e.preventDefault()
                         e.stopPropagation()
                         const fileInput = document.createElement('input')
                         fileInput.type = 'file'
@@ -6068,7 +6066,7 @@ export default function HTMLCanvas({
                     setIsDraggingCrop(false)
                     setIsResizingCrop(false)
                     setResizeDirection(null)
-                    toast.success('Profile picture updated!')
+
                   }
                 }}
               >
@@ -6381,7 +6379,7 @@ export default function HTMLCanvas({
               <Button
                 onClick={() => {
                   setRelationshipCanvasModal(null)
-                  toast.success('Relationship map updated!')
+
                 }}
               >
                 Save Changes
@@ -6618,7 +6616,7 @@ export default function HTMLCanvas({
                     }
 
                     setRelationshipModal(null)
-                    toast.success('Relationship deleted!')
+
                   }}
                 >
                   Delete
@@ -6699,7 +6697,7 @@ export default function HTMLCanvas({
                     }
 
                     setRelationshipModal(null)
-                    toast.success('Relationship updated!')
+
                   } else {
                     // Check for existing relationship between these characters (in either direction)
                     const exactMatchIndex = existingRelationships.findIndex(rel =>
@@ -6737,7 +6735,7 @@ export default function HTMLCanvas({
                         index === exactMatchIndex ? overwrittenRelationship : rel
                       )
 
-                      toast.success('Relationship updated!')
+
                     } else if (reverseMatchIndex !== -1) {
                       // Reverse direction relationship exists - merge into two-way relationship
                       const existingRel = existingRelationships[reverseMatchIndex]
@@ -6767,7 +6765,7 @@ export default function HTMLCanvas({
                         index === reverseMatchIndex ? mergedRelationship : rel
                       )
 
-                      toast.success('Relationships merged into two-way relationship!')
+
                     } else {
                       // Create new relationship
                       const newRelationship = {
@@ -6814,7 +6812,7 @@ export default function HTMLCanvas({
                     }
 
                     setRelationshipModal(null)
-                    toast.success('Relationship created!')
+
                   }
                 }}
               >

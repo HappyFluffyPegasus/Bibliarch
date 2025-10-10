@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ArrowLeft, Edit2, Check, X, Sparkles, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
-import { toast } from 'sonner'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
 import { storyTemplates, subCanvasTemplates } from '@/lib/templates'
@@ -92,7 +91,6 @@ export default function StoryPage({ params }: PageProps) {
       
       if (authError) {
         console.error('Auth error:', authError)
-        toast.error(`Authentication error: ${authError.message}`)
         router.push('/login')
         return
       }
@@ -127,22 +125,13 @@ export default function StoryPage({ params }: PageProps) {
 
       if (storyError) {
         console.error('Story loading error:', storyError)
-        
-        if (storyError.code === 'PGRST116') {
-          toast.error('Story not found or access denied')
-        } else if (storyError.message?.includes('relation') || storyError.message?.includes('does not exist')) {
-          toast.error('Database tables not set up. Please run the setup script.')
-        } else {
-          toast.error(`Database error: ${storyError.message}`)
-        }
-        
+
         router.push('/dashboard')
         return
       }
 
       if (!storyData) {
         console.error('No story data returned')
-        toast.error('Story not found')
         router.push('/dashboard')
         return
       }
@@ -156,13 +145,6 @@ export default function StoryPage({ params }: PageProps) {
     if (isNewStory && templateId && currentCanvasId === 'main') {
       const template = storyTemplates.find(t => t.id === templateId)
       if (template) {
-        // Show a welcome message
-        toast.success(`${template.name} template loaded!`, {
-          description: 'Start building your story by editing the nodes',
-          duration: 4000,
-          icon: '✨'
-        })
-        
         // Clear the URL params after loading
         router.replace(`/story/${resolvedParams.id}`)
         // Don't return - continue to load from database
@@ -539,7 +521,6 @@ export default function StoryPage({ params }: PageProps) {
     setIsLoading(false)
     } catch (error) {
       console.error('Unexpected error in loadStory:', error)
-      toast.error(`Unexpected error: ${error}`)
       setIsLoading(false)
     }
   }
@@ -652,7 +633,6 @@ export default function StoryPage({ params }: PageProps) {
 
     if (!error) {
       setStory({ ...story, title: editedTitle.trim() })
-      toast.success('Title updated')
     }
     setIsEditingTitle(false)
   }
@@ -660,7 +640,6 @@ export default function StoryPage({ params }: PageProps) {
   // Navigate to nested canvas (max 3 levels)
   async function handleNavigateToCanvas(canvasId: string, nodeTitle: string) {
     if (canvasPath.length >= 3) {
-      toast.error('Maximum nesting level reached (3 levels)')
       return
     }
 
@@ -676,12 +655,6 @@ export default function StoryPage({ params }: PageProps) {
 
     // Update canvas ID IMMEDIATELY (no clearing, no delays)
     setCurrentCanvasId(canvasId)
-
-    // Show feedback
-    toast.success(`Entering: ${nodeTitle}`, {
-      icon: '📂',
-      duration: 2000
-    })
   }
 
 
@@ -702,11 +675,6 @@ export default function StoryPage({ params }: PageProps) {
     // Navigate to the previous location (last item in the new path, or main if empty)
     const previousLocation = newPath.length > 0 ? newPath[newPath.length - 1] : null
     setCurrentCanvasId(previousLocation?.id || 'main')
-
-    toast.success(`Returning to: ${previousLocation?.title || 'Main Canvas'}`, {
-      icon: '↩️',
-      duration: 2000
-    })
   }
 
   if (isLoading) {
@@ -758,7 +726,6 @@ export default function StoryPage({ params }: PageProps) {
                     colorContext.setCurrentFolderId(null)
                     setCanvasPath([])
                     setCurrentCanvasId('main')
-                    toast.success('Returning to main canvas', { icon: '🏠', duration: 2000 })
                   }}
                   className="hover:text-foreground transition-colors cursor-pointer"
                 >
@@ -785,7 +752,6 @@ export default function StoryPage({ params }: PageProps) {
 
                         setCanvasPath(newPath)
                         setCurrentCanvasId(pathItem.id)
-                        toast.success(`Navigating to: ${pathItem.title}`, { icon: '📂', duration: 2000 })
                       }}
                       className={`transition-colors ${
                         index === canvasPath.length - 1

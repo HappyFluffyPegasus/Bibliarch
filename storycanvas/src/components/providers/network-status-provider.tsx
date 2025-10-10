@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
-import { WifiOff, Wifi } from 'lucide-react'
+import { WifiOff } from 'lucide-react'
 
 export function NetworkStatusProvider({ children }: { children: React.ReactNode }) {
   const [isOnline, setIsOnline] = useState(true)
@@ -16,30 +15,11 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
     const handleOffline = () => {
       setIsOnline(false)
       setHasShownOfflineWarning(true)
-
-      toast.error('You are offline', {
-        description: 'Changes won\'t be saved until you reconnect',
-        icon: <WifiOff className="w-4 h-4" />,
-        duration: Infinity, // Keep showing until dismissed or back online
-        id: 'offline-status' // Unique ID to prevent duplicates
-      })
     }
 
     // Handle coming back online
     const handleOnline = () => {
       setIsOnline(true)
-
-      // Only show reconnection message if we previously showed offline warning
-      if (hasShownOfflineWarning) {
-        // Dismiss the offline toast
-        toast.dismiss('offline-status')
-
-        toast.success('You\'re back online!', {
-          description: 'Auto-save has resumed',
-          icon: <Wifi className="w-4 h-4" />,
-          duration: 3000
-        })
-      }
     }
 
     // Add event listeners

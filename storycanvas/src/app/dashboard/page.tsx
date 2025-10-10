@@ -13,7 +13,6 @@ import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { OnboardingModal } from '@/components/onboarding/OnboardingModal'
 import { storyTemplates } from '@/lib/templates'
 import { ensureDatabaseSetup } from '@/lib/database-init'
-import { toast } from 'sonner'
 
 type Story = {
   id: string
@@ -209,11 +208,9 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
-        toast.error('You must be logged in to duplicate stories')
+        console.error('User must be logged in to duplicate stories')
         return
       }
-
-      toast.info('Duplicating story...', { duration: 2000 })
 
       // Create new story with "(Copy)" suffix
       const { data: newStory, error: storyError } = await supabase
@@ -228,7 +225,6 @@ export default function DashboardPage() {
 
       if (storyError || !newStory) {
         console.error('Error duplicating story:', storyError)
-        toast.error('Failed to duplicate story')
         return
       }
 
@@ -240,7 +236,6 @@ export default function DashboardPage() {
 
       if (canvasError) {
         console.error('Error fetching canvas data:', canvasError)
-        toast.error('Failed to copy canvas data')
         return
       }
 
@@ -259,7 +254,6 @@ export default function DashboardPage() {
 
         if (insertError) {
           console.error('Error inserting canvas data:', insertError)
-          toast.error('Failed to copy canvas data')
           return
         }
       }
@@ -267,16 +261,10 @@ export default function DashboardPage() {
       // Add to local state
       setStories([newStory as Story, ...stories])
 
-      toast.success(`"${story.title}" duplicated successfully!`, {
-        icon: '📋',
-        duration: 3000
-      })
-
       // Navigate to the new story
       router.push(`/story/${(newStory as any).id}`)
     } catch (error) {
       console.error('Unexpected error duplicating story:', error)
-      toast.error('An unexpected error occurred')
     }
   }
 
@@ -289,7 +277,7 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
-        toast.error('You must be logged in to delete stories')
+        console.error('User must be logged in to delete stories')
         return
       }
 
@@ -301,7 +289,6 @@ export default function DashboardPage() {
 
       if (canvasError) {
         console.error('Error deleting canvas data:', canvasError)
-        toast.error('Failed to delete story data')
         return
       }
 
@@ -314,22 +301,15 @@ export default function DashboardPage() {
 
       if (storyError) {
         console.error('Error deleting story:', storyError)
-        toast.error('Failed to delete story')
         return
       }
 
       // Remove from local state
       setStories(stories.filter(s => s.id !== deleteDialog.story?.id))
 
-      toast.success(`"${deleteDialog.story.title}" has been deleted`, {
-        icon: '🗑️',
-        duration: 3000
-      })
-
       setDeleteDialog({ show: false, story: null })
     } catch (error) {
       console.error('Unexpected error deleting story:', error)
-      toast.error('An unexpected error occurred')
     } finally {
       setIsDeleting(false)
     }

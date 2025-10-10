@@ -11,14 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Palette, Plus, Trash2, Sun, Moon, Save, Sliders } from 'lucide-react'
-import { 
-  ColorPalette, 
-  ColorPaletteManager, 
-  PaletteGenerator, 
+import {
+  ColorPalette,
+  ColorPaletteManager,
+  PaletteGenerator,
   ColorUtils,
-  ColorTemplate 
+  ColorTemplate
 } from '@/lib/color-palette'
-import { toast } from 'sonner'
 
 // Helper functions for describing colors
 const getColorName = (hue: number): string => {
@@ -153,7 +152,7 @@ export function PaletteSelector({
       applyCurrentPalette()
       
       if (!hasShownInitialToast) {
-        toast.success('🎨 Live color preview active! Move the sliders to see changes.', { duration: 3000 })
+
         setHasShownInitialToast(true)
       }
     }
@@ -190,7 +189,7 @@ export function PaletteSelector({
         id: `custom-${Date.now()}`
       }
       ColorPaletteManager.savePalette(namedPalette)
-      toast.success(`💾 Saved "${namedPalette.name}" to your palette library!`, { duration: 2000 })
+
     }
   }
 
@@ -381,7 +380,7 @@ export function PaletteSelector({
                             onPaletteChange(customPalette)
                           }
 
-                          toast.success(`🎨 Applied "${customPalette.name}" to project!`, { duration: 2000 })
+
                           setIsOpen(false)
                         }
                       }}

@@ -1736,4 +1736,199 @@ StoryCanvas is now in a **fully functional state** with all critical bugs resolv
 
 ---
 
+## 🎯 **Latest Session Updates** (January 9, 2025)
+
+### **Authentication System Enhancement and UI/UX Improvements** ✅ **COMPLETED**
+
+#### **Issue 29: Complete Color Theme Redesign** ✅ **COMPLETED**
+- **Problem**: App used purple/blue color scheme but user requested light/dark blue theme only
+- **Solution**: Complete color system overhaul across entire application
+
+**🎨 New Color System:**
+- **Light Mode**:
+  - Backgrounds: `sky-100` to `blue-100` gradients
+  - Primary elements: `sky-500` to `blue-600` gradients
+  - Accents: `sky-600` for icons and links
+- **Dark Mode**:
+  - Backgrounds: `gray-900` to `gray-800` (plain, no gradients)
+  - Primary elements: `blue-400` to `blue-600` gradients
+  - Accents: `blue-400` for icons and links
+
+**📁 Files Updated:**
+- `src/app/(auth)/login/page.tsx` - Login page blue theme
+- `src/app/(auth)/signup/page.tsx` - Signup page with email confirmation modal
+- `src/app/(auth)/reset-password/page.tsx` - Password reset page
+- `src/app/settings/page.tsx` - Settings page blue theme
+- `src/app/dashboard/page.tsx` - Dashboard cards and buttons
+
+**🎨 Specific Changes:**
+- Changed confirmation modal from green to blue (`sky-500/blue-400`)
+- Updated email display background from `blue-50` to `sky-50`
+- Modified button gradients to blue theme throughout
+- Removed empty state card from dashboard (redundant with create button)
+
+#### **Issue 30: Professional Email Templates** ✅ **COMPLETED**
+- **Problem**: Email templates needed to match new blue color scheme
+- **Solution**: Created centered, blue-button HTML email templates for Supabase
+
+**📧 Email Templates Created:**
+1. **confirm-signup.html** - "Confirm your StoryCanvas signup"
+2. **reset-password.html** - "Reset your StoryCanvas password"
+3. **magic-link.html** - "Your StoryCanvas login link"
+4. **change-email.html** - "Confirm your new StoryCanvas email"
+
+**🎨 Template Design:**
+- **Layout**: Centered text with large blue button
+- **Button Color**: `#0EA5E9` (sky-500) with white text
+- **Button Style**: `16px padding`, `8px border-radius`, bold font
+- **Text Color**: Black for all body text
+- **Format**: Simple, minimal HTML for maximum email client compatibility
+
+**Example Structure:**
+```html
+<div style="text-align: center; font-family: Arial, sans-serif; color: #000000;">
+  <h2 style="color: #000000;">Confirm your StoryCanvas signup</h2>
+  <p>Follow this link to confirm your account:</p>
+  <p>
+    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 16px 32px; background-color: #0EA5E9; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">Confirm your email</a>
+  </p>
+</div>
+```
+
+#### **Issue 31: Username Management System** ✅ **COMPLETED**
+- **Problem**: Username not displayed in settings, no way to change it
+- **Solution**: Added complete username display and editing functionality
+
+**🔧 Implementation:**
+1. **Username Display in Settings**:
+   - Fetches username from profiles table on page load
+   - Displays with User icon above email address
+   - Fallback to user metadata if profile doesn't exist
+
+2. **Change Username Feature**:
+   - New "Change Username" card in settings page
+   - Input field with validation (3-20 characters)
+   - Real-time updates to database
+   - Success/error messages with loading states
+
+3. **Database Integration**:
+   - Updates profiles table without `updated_at` column (removed)
+   - Proper error handling and user feedback
+
+**📁 Files Modified:**
+- `src/app/settings/page.tsx` - Added username fetch, display, and edit functionality
+- `src/lib/auth/actions.ts` - Fixed profile creation without `updated_at`
+
+#### **Issue 32: Color Palette UI Relocation** ✅ **COMPLETED**
+- **Problem**: Color palette button in left sidebar, user wanted it with other meta controls
+- **Solution**: Moved palette selector to top-right toolbar
+
+**🎨 UI Reorganization:**
+- **Removed**: PaletteSelector and ColorFilter from left sidebar
+- **Added**: 🎨 palette button to top-right area (with Settings ⚙️ and Help ❓)
+- **Visibility**: Works in both help-shown and help-hidden states
+- **Placement**: Appears alongside node toggles and settings icon
+
+**Result**: Cleaner left sidebar with only drawing tools, all meta controls unified in top-right corner
+
+#### **Issue 33: Color System Terminology Update** ✅ **COMPLETED**
+- **Problem**: "Light Theme" didn't accurately describe the complementary color harmony system
+- **Solution**: Renamed to "Complementary Palette"
+
+**Changes Made:**
+- Updated button label in palette selector from "Light Theme" to "Complementary Palette"
+- Better describes the color harmony functionality
+- **File Modified**: `src/components/ui/palette-selector.tsx`
+
+#### **Issue 34: Custom Color Preset Enhancement** ✅ **COMPLETED**
+- **Problem**: Default custom colors (yellow/dark blue/light blue) weren't aesthetically pleasing
+- **Solution**: Updated to modern, harmonious color palette
+
+**🎨 New Preset Colors:**
+- **Main**: `#FFB6C1` (soft pink) 🌸
+- **Complementary**: `#3F3F46` (charcoal gray) 🖤
+- **Accent**: `#93C5FD` (sky blue) 💙
+
+**Result**: Much more elegant and modern default color combination
+
+#### **Issue 35: Filter Icon Removal** ✅ **COMPLETED**
+- **Problem**: Funnel/filter icon in sidebar served no purpose
+- **Solution**: Complete removal of ColorFilter component
+
+**Changes Made:**
+- Removed ColorFilter component from left sidebar
+- Removed unused `handleFilterChange` callback
+- Removed import for color-filter component
+- Cleaned up unnecessary divider
+- **Result**: Cleaner sidebar without unused functionality
+
+#### **Issue 36: Text Selection vs Node Dragging Conflict** ✅ **COMPLETED - MAJOR UX FIX**
+- **Problem**: Trying to drag-select text would move the node instead
+- **Solution**: Smart detection prevents dragging when clicking on contentEditable text
+
+**🎯 Implementation (Solution #2 - Smart Detection):**
+
+**Technical Approach:**
+```typescript
+// Check if clicking on contentEditable text
+const target = e.target as HTMLElement
+const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+
+if (isContentEditable) {
+  return // Don't start dragging, allow text selection
+}
+```
+
+**Applied to All Node Types:**
+- Regular text and folder nodes
+- Image nodes
+- Event nodes
+- Location nodes
+- Character nodes
+- Child nodes inside list containers
+- **Total**: 8 mousedown handlers updated
+
+**User Feedback**: "omg that works so well" ⭐
+
+**✨ User Experience Result:**
+- ✅ **Clicking on text**: Text selection works, node doesn't drag
+- ✅ **Clicking on borders/backgrounds**: Node dragging works normally
+- ✅ **No mode switching required**: Seamless interaction
+- ✅ **Universal application**: Works across all node types
+
+**📁 Files Modified:**
+- `src/components/canvas/HTMLCanvas.tsx` - Added contentEditable detection to all mousedown handlers
+
+#### **Quality Assurance & Git Commits**
+
+**Commits Created:**
+1. `c1eabb9` - "Update color scheme to blue theme and add email templates"
+2. `b587b6b` - "Add change username feature to settings page"
+3. `7d00d1e` - "Fix profiles table updated_at column error"
+4. `52f7653` - "Move color palette button to top-right toolbar"
+5. `828db5e` - "Rename 'Light Theme' to 'Complementary Palette' in color system"
+6. `5d0551d` - "Update custom color picker preset colors to prettier palette"
+7. `21e4cfe` - "Remove color filter funnel icon from left sidebar"
+8. `94a4dba` - "Fix text selection conflict with node dragging"
+
+#### **Current Status Summary:**
+- ✅ **Blue Color Theme**: Complete app-wide implementation
+- ✅ **Email Templates**: Ready for Supabase deployment
+- ✅ **Username Management**: Display and editing fully functional
+- ✅ **UI Organization**: Palette controls properly located
+- ✅ **Color Terminology**: Accurately describes functionality
+- ✅ **Custom Colors**: Beautiful default presets
+- ✅ **Clean Sidebar**: Unnecessary elements removed
+- ✅ **Text Selection**: Seamlessly works without dragging conflicts
+
+#### **User Satisfaction**: ✅ **HIGHLY SATISFIED**
+- All requested changes implemented successfully
+- Text selection feature received enthusiastic positive feedback
+- Color scheme modernized and consistent
+- Professional authentication system enhanced
+
+**Impact**: StoryCanvas now has a cohesive blue design system, professional email templates, complete username management, and intuitive text selection that doesn't conflict with node dragging - a major UX improvement that makes the canvas feel natural and responsive.
+
+---
+
 *This document serves as a comprehensive record of all achievements, current status, and future direction for the StoryCanvas project.*
