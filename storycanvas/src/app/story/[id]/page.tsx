@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
 import { storyTemplates, subCanvasTemplates } from '@/lib/templates'
+import FeedbackButton from '@/components/feedback/FeedbackButton'
 
 // Use the HTML canvas instead to avoid Jest worker issues completely
 const StoryCanvas = dynamic(
@@ -813,6 +814,7 @@ export default function StoryPage({ params }: PageProps) {
             <span className="text-xs text-muted-foreground">
               Auto-save enabled
             </span>
+            <FeedbackButton />
             <ThemeToggle />
           </div>
         </div>
