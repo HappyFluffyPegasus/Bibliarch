@@ -120,61 +120,8 @@ export const storyTemplates: StoryTemplate[] = [
     ],
     subCanvases: {
       'characters-canvas': {
-        nodes: [
-          {
-            id: 'main-character',
-            x: 100,
-            y: 100,
-            text: 'Protagonist',
-            content: 'Who is your main character?',
-            type: 'character',
-            width: 220,
-            height: 140
-          },
-          {
-            id: 'antagonist',
-            x: 400,
-            y: 100,
-            text: 'Antagonist',
-            content: 'Who opposes your main character?',
-            type: 'character',
-            width: 220,
-            height: 140
-          },
-          {
-            id: 'supporting-cast',
-            x: 250,
-            y: 300,
-            text: 'Supporting Characters',
-            content: 'Who else populates your story world?',
-            width: 220,
-            height: 160,
-            type: 'text',
-            color: '#f8fafc'
-          },
-          {
-            id: 'relationship-map',
-            x: 100,
-            y: 500,
-            text: 'Relationship Map',
-            content: 'Visual map of character relationships',
-            width: 600,
-            height: 400,
-            type: 'relationship-canvas',
-            relationshipData: {
-              selectedCharacters: [],
-              relationships: []
-            }
-          }
-        ],
-        connections: [
-          {
-            id: 'protagonist-antagonist-conflict',
-            from: 'main-character',
-            to: 'antagonist',
-            type: 'conflicts-with'
-          }
-        ]
+        nodes: [],
+        connections: []
       },
       'plot-canvas': {
         nodes: [
@@ -451,36 +398,8 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
   },
   // Template-specific character canvases
   'characters-canvas': {
-    nodes: [
-      {
-        id: 'main-character',
-        x: 100,
-        y: 100,
-        text: 'Protagonist',
-        content: 'Who is your main character?',
-        type: 'character',
-        width: 220,
-        height: 140
-      },
-      {
-        id: 'antagonist',
-        x: 400,
-        y: 100,
-        text: 'Antagonist',
-        content: 'Who opposes your main character?',
-        type: 'character',
-        width: 220,
-        height: 140
-      }
-    ],
-    connections: [
-      {
-        id: 'protagonist-antagonist-conflict',
-        from: 'main-character',
-        to: 'antagonist',
-        type: 'conflicts-with'
-      }
-    ]
+    nodes: [],
+    connections: []
   },
   'plot-folder': {
     nodes: [

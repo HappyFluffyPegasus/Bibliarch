@@ -9,6 +9,7 @@ import { NodeStylePanel } from '@/components/ui/node-style-panel'
 import { PerformanceOptimizer } from '@/lib/performance-utils'
 import { useColorContext } from '@/components/providers/color-provider'
 import { NodeContextMenu } from './NodeContextMenu'
+import { createClient } from '@/lib/supabase/client'
 
 interface Node {
   id: string
@@ -792,13 +793,15 @@ export default function HTMLCanvas({
   }, [tool])
 
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
-    // Don't handle clicks on nodes or their children
     const target = e.target as HTMLElement
-    if (target.closest('[data-node-id]')) {
+
+    // Only process clicks that land directly on the canvas background
+    // If we clicked on a node (has data-node-id attribute), ignore it
+    if (target.hasAttribute('data-node-id') || target.closest('[data-node-id]')) {
       return
     }
 
-    // Select tool: deselect nodes when clicking empty canvas, switch to moving mode
+    // Select tool: deselect nodes when clicking empty canvas
     if (tool === 'select') {
       if (editingField) {
         const activeElement = document.activeElement as HTMLElement
@@ -841,11 +844,13 @@ export default function HTMLCanvas({
 
     const newNodes = [...nodes, newNode]
     setNodes(newNodes)
+    setVisibleNodeIds([...visibleNodeIds, newNode.id])  // Add to visible nodes so it renders!
     saveToHistory(newNodes, connections)
+    onSave(newNodes, connections)  // Save to database immediately
     setSelectedId(newNode.id)  // Select the newly created node
     setTool('select')  // Switch to select tool after creating node for immediate interaction
 
-  }, [tool, nodes, connections, saveToHistory, editingField])
+  }, [tool, nodes, connections, saveToHistory, editingField, onSave, visibleNodeIds])
 
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
     // Middle mouse (button 1) or right mouse (button 2) always pans
@@ -1012,9 +1017,9 @@ export default function HTMLCanvas({
       if (resizingNodeObj.type === 'event') {
         minWidth = 220  // Event nodes minimum width
         minHeight = 280 // Event nodes minimum height
-      } else if (resizingNodeObj.type === 'character') {
-        minWidth = 320  // Character nodes minimum width
-        minHeight = 72  // Character nodes minimum height
+      } else if (resizingNodeObj.type === 'character' || resizingNodeObj.type === 'location') {
+        minWidth = 320  // Character/Location nodes minimum width
+        minHeight = 72  // Character/Location nodes minimum height
       }
 
       let newWidth = Math.max(minWidth, resizeStartSize.width + deltaX)
@@ -1382,16 +1387,66 @@ export default function HTMLCanvas({
     }
   }
 
-  // Character detection system - finds all character nodes for relationship canvas
+  // State to hold all characters from entire project
+  const [allProjectCharacters, setAllProjectCharacters] = useState<Array<{ id: string, name: string, profileImageUrl?: string }>>([])
+
+  // Fetch all character nodes from ALL canvases in the project
+  useEffect(() => {
+    const fetchAllProjectCharacters = async () => {
+      try {
+        const supabase = createClient()
+
+        // Fetch ALL canvas data for this story
+        const { data: allCanvases, error } = await supabase
+          .from('canvas_data')
+          .select('nodes')
+          .eq('story_id', storyId)
+
+        if (error) {
+          console.error('Error fetching all canvases:', error)
+          return
+        }
+
+        if (allCanvases) {
+          // Extract all character nodes from all canvases
+          const allCharacters: Array<{ id: string, name: string, profileImageUrl?: string }> = []
+
+          allCanvases.forEach(canvas => {
+            const canvasNodes = (canvas as any).nodes || []
+            const characterNodes = canvasNodes.filter((node: Node) => node.type === 'character')
+
+            characterNodes.forEach((charNode: Node) => {
+              // Skip template characters
+              const isTemplateChar =
+                charNode.id === 'antagonist' ||
+                charNode.id === 'main-character' ||
+                (charNode.text === 'Protagonist' || charNode.text === 'Antagonist')
+
+              // Avoid duplicates and template characters
+              if (!isTemplateChar && !allCharacters.find(c => c.id === charNode.id)) {
+                allCharacters.push({
+                  id: charNode.id,
+                  name: charNode.text,
+                  profileImageUrl: charNode.profileImageUrl
+                })
+              }
+            })
+          })
+
+          setAllProjectCharacters(allCharacters)
+        }
+      } catch (error) {
+        console.error('Error in fetchAllProjectCharacters:', error)
+      }
+    }
+
+    fetchAllProjectCharacters()
+  }, [storyId, nodes]) // Re-fetch when nodes change (in case new characters are added)
+
+  // Character detection system - returns ALL character nodes from entire project
   const getAllCharacters = useCallback(() => {
-    return nodes
-      .filter(node => node.type === 'character')
-      .map(node => ({
-        id: node.id,
-        name: node.text,
-        profileImageUrl: node.profileImageUrl
-      }))
-  }, [nodes])
+    return allProjectCharacters
+  }, [allProjectCharacters])
 
   // Real-time sync: Function to update relationship canvas when character profile pictures change
   const syncRelationshipCanvases = useCallback((updatedNodes: Node[]) => {
@@ -1973,7 +2028,7 @@ export default function HTMLCanvas({
       if (childCount > 0 && node.childIds) {
         const childNodes = nodes.filter(n => node.childIds?.includes(n.id))
         totalChildHeight = childNodes.reduce((sum, childNode) => {
-          const nodeHeight = childNode.type === 'character' ? 72 : childNode.type === 'event' ? 280 : 140 // Character=72px, Event=280px, Folder=140px
+          const nodeHeight = (childNode.type === 'character' || childNode.type === 'location') ? 72 : childNode.type === 'event' ? 280 : 140 // Character/Location=72px, Event=280px, Folder/Others=140px
           return sum + nodeHeight + uniformSpacing
         }, 0)
       }
@@ -1998,18 +2053,19 @@ export default function HTMLCanvas({
       }
     } else if (node.type === 'character') {
       // Character nodes: compact height for profile picture + name only
-      // Width should accommodate longer character names - make it much wider like the top example
+      // If inside a list, use 320px width; otherwise default to 600px
       const characterHeight = 72 // Height for square profile picture + name
-      const characterWidth = node.width || 600 // Much wider default to match the top example image
+      const characterWidth = node.parentId ? (node.width || 320) : (node.width || 600)
 
       return {
         width: characterWidth,
         height: characterHeight
       }
     } else if (node.type === 'location') {
-      // Location nodes: same compact height as character nodes but with location icon
+      // Location nodes: if inside a list, use compact 72px height
+      // Otherwise, use width from node or default to 600
       const locationHeight = 72 // Height for icon + name (same as character)
-      const locationWidth = node.width || 600 // Much wider default to match character nodes
+      const locationWidth = node.parentId ? (node.width || 320) : (node.width || 600)
 
       return {
         width: locationWidth,
@@ -4901,7 +4957,7 @@ export default function HTMLCanvas({
                           return sortedChildren
                         })().map((childNode, index) => {
                           // Determine height based on node type
-                          const childHeight = childNode.type === 'character' ? '72px' : childNode.type === 'event' ? '100px' : '140px'
+                          const childHeight = (childNode.type === 'character' || childNode.type === 'location') ? '72px' : childNode.type === 'event' ? '100px' : '140px'
 
                           return (
                           <div
