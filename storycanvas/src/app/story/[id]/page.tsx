@@ -601,16 +601,34 @@ export default function StoryPage({ params }: PageProps) {
         return
       }
 
-      const { error: updateError } = await supabase
+      // Try to update with canvas size first
+      let updateData: any = {
+        nodes: nodes,
+        connections: connections,
+        canvas_width: canvasSize.width,
+        canvas_height: canvasSize.height,
+        updated_at: new Date().toISOString()
+      }
+
+      let { error: updateError } = await supabase
         .from('canvas_data')
-        .update({
+        .update(updateData)
+        .eq('id', (existing as any)?.id)
+
+      // If schema error (columns don't exist yet), retry without canvas size fields
+      if (updateError && updateError.code === 'PGRST204') {
+        console.warn('Canvas size columns not found in database. Saving without size info. Please run the migration script.')
+        updateData = {
           nodes: nodes,
           connections: connections,
-          canvas_width: canvasSize.width,
-          canvas_height: canvasSize.height,
           updated_at: new Date().toISOString()
-        })
-        .eq('id', (existing as any)?.id)
+        }
+        const result = await supabase
+          .from('canvas_data')
+          .update(updateData)
+          .eq('id', (existing as any)?.id)
+        updateError = result.error
+      }
 
       if (updateError) {
         console.error('Error updating canvas:', updateError)
@@ -622,9 +640,24 @@ export default function StoryPage({ params }: PageProps) {
     } else {
       // Create new - this happens when first entering a folder
       console.log('Creating new canvas record')
-      const { error: insertError } = await supabase
+      let { error: insertError } = await supabase
         .from('canvas_data')
         .insert(canvasPayload)
+
+      // If schema error (columns don't exist yet), retry without canvas size fields
+      if (insertError && insertError.code === 'PGRST204') {
+        console.warn('Canvas size columns not found in database. Creating canvas without size info. Please run the migration script.')
+        const fallbackPayload = {
+          story_id: resolvedParams.id,
+          nodes: nodes,
+          connections: connections,
+          canvas_type: saveToCanvasId
+        }
+        const result = await supabase
+          .from('canvas_data')
+          .insert(fallbackPayload)
+        insertError = result.error
+      }
 
       if (insertError) {
         console.error('Error inserting canvas:', insertError)
