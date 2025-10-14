@@ -912,6 +912,7 @@ export default function StoryPage({ params }: PageProps) {
       {/* Canvas */}
       <div className="flex-1 relative overflow-hidden min-h-0">
         <NeighborNotes
+          key={currentCanvasId}
           storyId={resolvedParams.id}
           initialNodes={canvasData?.nodes || []}
           initialConnections={canvasData?.connections || []}
