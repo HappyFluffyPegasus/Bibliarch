@@ -333,14 +333,12 @@ export default function DashboardPage() {
             <ThemeToggle />
             <Link href="/settings">
               <Button variant="ghost" size="sm">
-                <Settings className="w-4 h-4 mr-2" />
-                Settings
+                <Settings className="w-4 h-4" />
               </Button>
             </Link>
             <form action={signOut}>
               <Button variant="ghost" size="sm" type="submit">
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign out
+                <LogOut className="w-4 h-4" />
               </Button>
             </form>
           </div>

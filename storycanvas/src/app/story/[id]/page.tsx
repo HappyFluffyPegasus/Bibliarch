@@ -706,6 +706,7 @@ export default function StoryPage({ params }: PageProps) {
               {/* Dashboard link */}
               <Link href="/dashboard" className="flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer">
                 <Home className="w-4 h-4" />
+                Home
               </Link>
 
               <ChevronRight className="w-4 h-4" />
