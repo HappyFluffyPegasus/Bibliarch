@@ -1,10 +1,10 @@
 # Saving Architecture Documentation
 
-This document explains how data persistence works in StoryCanvas across different contexts: the main canvas, folder nodes, and character nodes.
+This document explains how data persistence works in NeighborNotes across different contexts: the main canvas, folder nodes, and character nodes.
 
 ## Overview
 
-StoryCanvas uses a hierarchical canvas system where:
+NeighborNotes uses a hierarchical canvas system where:
 - The **main canvas** (`canvas_type: 'main'`) is the root level
 - **Folder nodes** and **character nodes** can have their own linked canvases
 - Each canvas is saved separately in the database with a unique `canvas_type` identifier

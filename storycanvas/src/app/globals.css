@@ -33,7 +33,7 @@
     /* Color Palette System Variables - Dynamically set by ColorPaletteManager */
     /* These are just fallbacks, real colors come from the palette system */
 
-    /* StoryCanvas Node Color System */
+    /* NeighborNotes Node Color System */
     --node-text: #e0f2fe;      /* Light blue for text nodes */
     --node-character: #fef3c7;  /* Light yellow for characters */
     --node-event: #fce7f3;     /* Light pink for events */
@@ -100,7 +100,7 @@
     /* Color Palette System Variables - Dynamically set by ColorPaletteManager */
     /* These are just fallbacks, real colors come from the palette system */
 
-    /* StoryCanvas Node Colors - Dark Mode */
+    /* NeighborNotes Node Colors - Dark Mode */
     --node-text: #0c4a6e;      /* Dark blue for text nodes */
     --node-character: #92400e;  /* Dark yellow for characters */
     --node-event: #831843;     /* Dark pink for events */

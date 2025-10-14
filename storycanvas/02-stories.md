@@ -1,4 +1,4 @@
-# StoryCanvas User Stories & Design Document
+# NeighborNotes User Stories & Design Document
 
 ## 1. User Personas
 

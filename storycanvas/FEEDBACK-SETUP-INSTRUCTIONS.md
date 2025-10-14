@@ -51,7 +51,7 @@ This controls who can access the admin dashboard at `/admin/feedback`.
 ### Step 3: Test the Feedback Flow
 
 1. **Start your dev server** (if not already running)
-2. **Open a story** in StoryCanvas
+2. **Open a story** in NeighborNotes
 3. **Look for the feedback button** - It's next to the theme toggle in the top-right
 4. **Click it and submit test feedback**:
    - Try submitting as a logged-in user

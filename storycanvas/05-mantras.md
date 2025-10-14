@@ -1,4 +1,4 @@
-# StoryCanvas MVP Implementation Mantras
+# NeighborNotes MVP Implementation Mantras
 
 ## 🎯 THE PRIME DIRECTIVE
 **SHIP THE MVP. NOTHING MORE.**

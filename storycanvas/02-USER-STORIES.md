@@ -1,4 +1,4 @@
-# StoryCanvas User Stories
+# NeighborNotes User Stories
 
 ## User Personas & Their Journey
 
@@ -32,7 +32,7 @@
 - Easy to understand without reading manuals
 - Fun to use, not like homework
 
-**Success Scenario**: Sarah opens StoryCanvas, picks "Basic Story Structure," sees helpful prompts that guide her through creating her first fantasy novel outline, adds character images from Pinterest, and shares her progress with her creative writing club.
+**Success Scenario**: Sarah opens NeighborNotes, picks "Basic Story Structure," sees helpful prompts that guide her through creating her first fantasy novel outline, adds character images from Pinterest, and shares her progress with her creative writing club.
 
 ---
 

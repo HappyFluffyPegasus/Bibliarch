@@ -1,4 +1,4 @@
-# **StoryCanvas Relationship System Implementation Plan**
+# **NeighborNotes Relationship System Implementation Plan**
 
 ## **Overview**
 A visual relationship mapping system using a special relationship canvas node that contains character profile pictures connected with colored lines to show different types of relationships, making story planning more intuitive and visual.

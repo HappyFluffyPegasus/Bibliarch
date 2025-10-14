@@ -65,7 +65,7 @@ interface Connection {
   type?: 'leads-to' | 'conflicts-with' | 'relates-to'
 }
 
-interface StoryCanvasProps {
+interface NeighborNotesProps {
   storyId: string
   initialNodes?: Node[]
   initialConnections?: Connection[]
@@ -73,7 +73,7 @@ interface StoryCanvasProps {
   onNavigateToCanvas?: (canvasId: string, nodeTitle: string) => void
 }
 
-export default function StoryCanvas({ initialNodes = [], initialConnections = [], onSave, onNavigateToCanvas }: StoryCanvasProps) {
+export default function NeighborNotes({ initialNodes = [], initialConnections = [], onSave, onNavigateToCanvas }: NeighborNotesProps) {
   // ALL HOOKS MUST BE DECLARED FIRST - before any conditional returns
   const stageRef = useRef<any>(null)
   const [nodes, setNodes] = useState<Node[]>(initialNodes)

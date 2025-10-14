@@ -5930,7 +5930,7 @@ export default function HTMLCanvas({
               <Card className="p-8 text-center max-w-md">
                 {nodes.length === 0 ? (
                   <>
-                    <h3 className="text-lg font-medium mb-2 text-card-foreground">Welcome to StoryCanvas</h3>
+                    <h3 className="text-lg font-medium mb-2 text-card-foreground">Welcome to NeighborNotes</h3>
                     <p className="text-muted-foreground mb-4">
                       Start building your story by adding nodes to the canvas.
                     </p>

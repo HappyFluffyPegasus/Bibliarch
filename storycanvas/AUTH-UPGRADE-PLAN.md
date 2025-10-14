@@ -1,4 +1,4 @@
-# StoryCanvas Authentication Upgrade Plan
+# NeighborNotes Authentication Upgrade Plan
 
 **Goal:** Add professional authentication features (email confirmation, password reset, password change)
 
@@ -12,7 +12,7 @@ We're upgrading from basic login/signup to a full professional auth system with:
 - ✅ Email confirmation when signing up
 - ✅ "Forgot password?" flow
 - ✅ Settings page to change password
-- ✅ Customized email templates with StoryCanvas branding
+- ✅ Customized email templates with NeighborNotes branding
 
 ---
 
@@ -85,7 +85,7 @@ We're upgrading from basic login/signup to a full professional auth system with:
 
 **Styling:**
 - Use existing components (Card, Button, Input)
-- Match StoryCanvas design system
+- Match NeighborNotes design system
 - Responsive layout
 
 ---
@@ -149,61 +149,61 @@ We're upgrading from basic login/signup to a full professional auth system with:
 
 **A) Confirm Signup**
 ```
-Subject: Welcome to StoryCanvas! Confirm your account
+Subject: Welcome to NeighborNotes! Confirm your account
 
 Hi there!
 
-Thanks for joining StoryCanvas - your visual story planning tool.
+Thanks for joining NeighborNotes - your visual story planning tool.
 
 Click the link below to confirm your email and start creating:
 {{ .ConfirmationURL }}
 
 Happy writing!
-- The StoryCanvas Team
+- The NeighborNotes Team
 ```
 
 **B) Reset Password**
 ```
-Subject: Reset your StoryCanvas password
+Subject: Reset your NeighborNotes password
 
 Hi!
 
-Someone (hopefully you!) requested to reset your StoryCanvas password.
+Someone (hopefully you!) requested to reset your NeighborNotes password.
 
 Click here to set a new password:
 {{ .ConfirmationURL }}
 
 If you didn't request this, you can safely ignore this email.
 
-- The StoryCanvas Team
+- The NeighborNotes Team
 ```
 
 **C) Magic Link** (optional - passwordless login)
 ```
-Subject: Your StoryCanvas login link
+Subject: Your NeighborNotes login link
 
 Hi!
 
-Click the link below to sign in to StoryCanvas:
+Click the link below to sign in to NeighborNotes:
 {{ .ConfirmationURL }}
 
 This link expires in 1 hour.
 
-- The StoryCanvas Team
+- The NeighborNotes Team
 ```
 
 **D) Change Email**
 ```
-Subject: Confirm your new email for StoryCanvas
+Subject: Confirm your new email for NeighborNotes
 
 Hi!
 
-You requested to change your email address for StoryCanvas.
+You requested to change your email address for NeighborNotes.
 
 Click here to confirm your new email:
 {{ .ConfirmationURL }}
 
-- The StoryCanvas Team
+- The NeighborNotes Team
 ```
 
 ---

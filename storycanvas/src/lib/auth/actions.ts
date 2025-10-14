@@ -1,4 +1,4 @@
-// Authentication actions for StoryCanvas
+// Authentication actions for NeighborNotes
 // Professional auth with email confirmations and password reset
 
 'use server'

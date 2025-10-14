@@ -1,4 +1,4 @@
-# StoryCanvas Technical Stack Document
+# NeighborNotes Technical Stack Document
 
 ## 1. Core Technology Decisions
 

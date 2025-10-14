@@ -13,7 +13,7 @@ interface OnboardingStep {
 
 const steps: OnboardingStep[] = [
   {
-    title: 'Welcome to StoryCanvas!',
+    title: 'Welcome to NeighborNotes!',
     description: 'Create immersive, interactive stories with our visual development tool. Let\'s get you started on your storytelling journey.',
     icon: <Sparkles className="w-12 h-12 text-purple-600" />
   },

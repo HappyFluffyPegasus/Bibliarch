@@ -1,4 +1,4 @@
-# 🎯 **StoryCanvas Mobile Editor - Complete Implementation Plan**
+# 🎯 **NeighborNotes Mobile Editor - Complete Implementation Plan**
 
 ## **Phase 1: Foundation & Detection (Week 1)**
 

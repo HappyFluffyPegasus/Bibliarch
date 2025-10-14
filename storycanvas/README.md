@@ -1,4 +1,4 @@
-# 🎨 **StoryCanvas - Visual Story Planning Tool**
+# 🎨 **NeighborNotes - Visual Story Planning Tool**
 
 **Status**: Active Development
 **Version**: Master State (September 29, 2025)

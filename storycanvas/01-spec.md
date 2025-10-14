@@ -1,9 +1,9 @@
-# StoryCanvas MVP Product Specification
+# NeighborNotes MVP Product Specification
 
 ## 1. Product Vision & Core Concept
 
 ### 1.1 Product Identity
-- **Name**: StoryCanvas (working title)
+- **Name**: NeighborNotes (working title)
 - **Type**: Writer-focused AI story development platform
 - **Target Users**: Fiction authors, storytellers, narrative designers
 - **Core Value**: Visual note-taking meets AI character simulation

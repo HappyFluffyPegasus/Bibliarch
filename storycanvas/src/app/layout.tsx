@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "StoryCanvas - Visual Story Development Tool",
+  title: "NeighborNotes - Visual Story Development Tool",
   description: "Create immersive, interactive stories with AI-powered character simulations",
 };
 

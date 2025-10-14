@@ -77,7 +77,7 @@ export default function LoginPage() {
             Welcome Back
           </CardTitle>
           <CardDescription className="text-center">
-            Sign in to your StoryCanvas account
+            Sign in to your NeighborNotes account
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -150,7 +150,7 @@ export default function LoginPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-white dark:bg-gray-900 px-2 text-muted-foreground">
-                New to StoryCanvas?
+                New to NeighborNotes?
               </span>
             </div>
           </div>

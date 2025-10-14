@@ -28,7 +28,7 @@ interface Connection {
   type?: 'leads-to' | 'conflicts-with' | 'relates-to'
 }
 
-interface SafeStoryCanvasProps {
+interface SafeNeighborNotesProps {
   storyId: string
   initialNodes?: Node[]
   initialConnections?: Connection[]
@@ -42,7 +42,7 @@ function FallbackCanvas({
   initialConnections = [],
   onSave,
   onNavigateToCanvas 
-}: SafeStoryCanvasProps) {
+}: SafeNeighborNotesProps) {
   const [nodes, setNodes] = useState<Node[]>(initialNodes)
 
   const handleAddTextNode = () => {
@@ -155,7 +155,7 @@ function CanvasErrorFallback({ error, retry }: { error: Error; retry: () => void
   )
 }
 
-export default function SafeStoryCanvas(props: SafeStoryCanvasProps) {
+export default function SafeNeighborNotes(props: SafeNeighborNotesProps) {
   const [isClient, setIsClient] = useState(false)
   const [HTMLCanvas, setHTMLCanvas] = useState<React.ComponentType<any> | null>(null)
 

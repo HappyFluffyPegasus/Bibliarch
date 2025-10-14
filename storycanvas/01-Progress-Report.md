@@ -1,9 +1,9 @@
-# StoryCanvas Progress Report
+# NeighborNotes Progress Report
 **Date**: September 15, 2025
 **Status**: Active Development
 
 ## 🎯 Project Overview
-StoryCanvas is an interactive visual story planning tool built with Next.js, React, and modern web technologies. It features a node-based canvas interface for organizing characters, plot points, world-building elements, and narrative structure through visual nodes and connections.
+NeighborNotes is an interactive visual story planning tool built with Next.js, React, and modern web technologies. It features a node-based canvas interface for organizing characters, plot points, world-building elements, and narrative structure through visual nodes and connections.
 
 ## 🏗️ Architecture & Tech Stack
 - **Frontend**: Next.js 15, React 19, TypeScript
@@ -198,7 +198,7 @@ src/
 ├── components/
 │   ├── canvas/
 │   │   ├── HTMLCanvas.tsx       # Main canvas implementation
-│   │   └── StoryCanvas.tsx      # Alternative Konva implementation
+│   │   └── NeighborNotes.tsx      # Alternative Konva implementation
 │   └── ui/                      # Radix UI components
 ├── lib/
 │   └── templates.ts             # Story templates & node structures
@@ -667,7 +667,7 @@ All fixes maintain the existing architecture and enhance user experience while p
 - **Clean Interface**: Minimal, focused design without unnecessary complexity
 - **Reliable Sizing**: Consistent behavior regardless of canvas changes
 
-**Impact**: StoryCanvas now has a fully functional, professional-grade image node system that rivals commercial tools like Milanote, enabling visual storytelling and mood board creation alongside text-based planning.
+**Impact**: NeighborNotes now has a fully functional, professional-grade image node system that rivals commercial tools like Milanote, enabling visual storytelling and mood board creation alongside text-based planning.
 
 ---
 
@@ -850,7 +850,7 @@ const handleNodeMouseDown = (node: Node, e: React.MouseEvent) => {
 - **Performance Optimization**: Efficient event handling with proper propagation control
 - **Cross-Platform Compatibility**: Mouse-based system works consistently across devices
 
-**Impact**: StoryCanvas now has a modern, intuitive drag system that feels natural and responsive, eliminating visual clutter while providing better user experience than traditional drag handles.
+**Impact**: NeighborNotes now has a modern, intuitive drag system that feels natural and responsive, eliminating visual clutter while providing better user experience than traditional drag handles.
 
 #### **Current Status Summary**:
 - ✅ **Drag Handle Removal**: All 3-line icons completely removed
@@ -960,7 +960,7 @@ const handleNodeMouseDown = (node: Node, e: React.MouseEvent) => {
 - **Content Simplification**: Removed unnecessary body text for cleaner appearance
 - **Size Optimization**: Compact 320×72px default size optimized for character cards
 
-**Impact**: StoryCanvas now has a completely conflict-free navigation system where users can freely select text while having clear, intuitive navigation through single-click arrows. Character nodes function as professional character development tools with visual profile management.
+**Impact**: NeighborNotes now has a completely conflict-free navigation system where users can freely select text while having clear, intuitive navigation through single-click arrows. Character nodes function as professional character development tools with visual profile management.
 
 #### **Current Status Summary**:
 - ✅ **Double-Click Navigation**: Completely eliminated from entire application
@@ -1732,7 +1732,7 @@ The onClick preventDefault approach is not preventing the blur event from firing
 - ✅ **User Experience**: Smooth, intuitive interaction model
 
 **🎯 Current State:**
-StoryCanvas is now in a **fully functional state** with all critical bugs resolved. The application provides a professional, stable visual story planning experience.
+NeighborNotes is now in a **fully functional state** with all critical bugs resolved. The application provides a professional, stable visual story planning experience.
 
 ---
 
@@ -1772,10 +1772,10 @@ StoryCanvas is now in a **fully functional state** with all critical bugs resolv
 - **Solution**: Created centered, blue-button HTML email templates for Supabase
 
 **📧 Email Templates Created:**
-1. **confirm-signup.html** - "Confirm your StoryCanvas signup"
-2. **reset-password.html** - "Reset your StoryCanvas password"
-3. **magic-link.html** - "Your StoryCanvas login link"
-4. **change-email.html** - "Confirm your new StoryCanvas email"
+1. **confirm-signup.html** - "Confirm your NeighborNotes signup"
+2. **reset-password.html** - "Reset your NeighborNotes password"
+3. **magic-link.html** - "Your NeighborNotes login link"
+4. **change-email.html** - "Confirm your new NeighborNotes email"
 
 **🎨 Template Design:**
 - **Layout**: Centered text with large blue button
@@ -1787,7 +1787,7 @@ StoryCanvas is now in a **fully functional state** with all critical bugs resolv
 **Example Structure:**
 ```html
 <div style="text-align: center; font-family: Arial, sans-serif; color: #000000;">
-  <h2 style="color: #000000;">Confirm your StoryCanvas signup</h2>
+  <h2 style="color: #000000;">Confirm your NeighborNotes signup</h2>
   <p>Follow this link to confirm your account:</p>
   <p>
     <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 16px 32px; background-color: #0EA5E9; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">Confirm your email</a>
@@ -1927,8 +1927,8 @@ if (isContentEditable) {
 - Color scheme modernized and consistent
 - Professional authentication system enhanced
 
-**Impact**: StoryCanvas now has a cohesive blue design system, professional email templates, complete username management, and intuitive text selection that doesn't conflict with node dragging - a major UX improvement that makes the canvas feel natural and responsive.
+**Impact**: NeighborNotes now has a cohesive blue design system, professional email templates, complete username management, and intuitive text selection that doesn't conflict with node dragging - a major UX improvement that makes the canvas feel natural and responsive.
 
 ---
 
-*This document serves as a comprehensive record of all achievements, current status, and future direction for the StoryCanvas project.*
+*This document serves as a comprehensive record of all achievements, current status, and future direction for the NeighborNotes project.*

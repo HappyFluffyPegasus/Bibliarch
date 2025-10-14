@@ -1,4 +1,4 @@
-# StoryCanvas Phased Implementation Plan
+# NeighborNotes Phased Implementation Plan
 
 ## Implementation Strategy Overview
 

@@ -1,6 +1,6 @@
-# StoryCanvas Setup Guide
+# NeighborNotes Setup Guide
 
-This guide will help you set up StoryCanvas locally and fix any issues you encounter.
+This guide will help you set up NeighborNotes locally and fix any issues you encounter.
 
 ## Quick Setup
 

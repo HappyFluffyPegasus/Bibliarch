@@ -1,7 +1,7 @@
 'use client'
 
 // Beautiful signup page with smooth animations
-// Where new users create their StoryCanvas account
+// Where new users create their NeighborNotes account
 
 import { useState } from 'react'
 import Link from 'next/link'
@@ -60,7 +60,7 @@ export default function SignupPage() {
             Create Your Story
           </CardTitle>
           <CardDescription className="text-center">
-            Join StoryCanvas and bring your stories to life
+            Join NeighborNotes and bring your stories to life
           </CardDescription>
         </CardHeader>
         <CardContent>
