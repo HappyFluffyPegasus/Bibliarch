@@ -696,10 +696,13 @@ export default function StoryPage({ params }: PageProps) {
   }
 
   async function handleSaveCanvasSize() {
-    const width = parseInt(tempCanvasWidth) || 3000
-    const height = parseInt(tempCanvasHeight) || 3000
+    // Parse and clamp values between 500 and 25000
+    const width = Math.max(500, Math.min(25000, parseInt(tempCanvasWidth) || 3000))
+    const height = Math.max(500, Math.min(25000, parseInt(tempCanvasHeight) || 2000))
 
     setCanvasSize({ width, height })
+    setTempCanvasWidth(String(width))
+    setTempCanvasHeight(String(height))
     setIsCanvasSizeModalOpen(false)
 
     // Save to database immediately
@@ -912,7 +915,7 @@ export default function StoryPage({ params }: PageProps) {
           <DialogHeader>
             <DialogTitle>Canvas Size Settings</DialogTitle>
             <DialogDescription>
-              Customize the size of this canvas in pixels. Default is 3000x2000px.
+              Customize the size of this canvas in pixels. Default is 3000x2000px. Minimum 500px, maximum 25000px.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -921,6 +924,8 @@ export default function StoryPage({ params }: PageProps) {
               <Input
                 id="canvas-width"
                 type="number"
+                min="500"
+                max="25000"
                 value={tempCanvasWidth}
                 onChange={(e) => setTempCanvasWidth(e.target.value)}
                 placeholder="3000"
@@ -931,6 +936,8 @@ export default function StoryPage({ params }: PageProps) {
               <Input
                 id="canvas-height"
                 type="number"
+                min="500"
+                max="25000"
                 value={tempCanvasHeight}
                 onChange={(e) => setTempCanvasHeight(e.target.value)}
                 placeholder="2000"
