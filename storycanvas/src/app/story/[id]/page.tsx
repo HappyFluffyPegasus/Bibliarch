@@ -708,12 +708,17 @@ export default function StoryPage({ params }: PageProps) {
     const width = Math.max(500, Math.min(25000, parseInt(tempCanvasWidth) || 3000))
     const height = Math.max(500, Math.min(25000, parseInt(tempCanvasHeight) || 2000))
 
-    setCanvasSize({ width, height })
+    const newSize = { width, height }
+
+    // CRITICAL: Update both state AND ref immediately
+    setCanvasSize(newSize)
+    canvasSizeRef.current = newSize  // Update ref synchronously before saving
+
     setTempCanvasWidth(String(width))
     setTempCanvasHeight(String(height))
     setIsCanvasSizeModalOpen(false)
 
-    // Save to database immediately
+    // Save to database immediately (now uses the correct size from ref)
     await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
   }
 
