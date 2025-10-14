@@ -204,15 +204,17 @@ export default function StoryPage({ params }: PageProps) {
       if ((canvas as any)?.canvas_width && (canvas as any)?.canvas_height) {
         const width = (canvas as any).canvas_width
         const height = (canvas as any).canvas_height
+        console.log(`✅ Canvas ${currentCanvasId} has saved size:`, { width, height })
         setCanvasSize({ width, height })
         setTempCanvasWidth(String(width))
         setTempCanvasHeight(String(height))
       } else {
-        // Set default size
-        setCanvasSize({ width: 3000, height: 2000 })
-        setTempCanvasWidth('3000')
-        setTempCanvasHeight('2000')
+        // No saved size - inherit current size from previous canvas
+        console.log(`📏 Canvas ${currentCanvasId} has no saved size, inheriting:`, canvasSize)
+        setTempCanvasWidth(String(canvasSize.width))
+        setTempCanvasHeight(String(canvasSize.height))
       }
+      // This prevents size from resetting when navigating to new canvases
 
       // CRITICAL: Only apply template if canvas exists but is EMPTY
       if (loadedData.nodes.length === 0) {
@@ -557,11 +559,12 @@ export default function StoryPage({ params }: PageProps) {
   const handleSaveCanvas = useCallback(async (nodes: any[], connections: any[] = []) => {
     const saveToCanvasId = currentCanvasIdRef.current
 
-    console.log('handleSaveCanvas called:', {
+    console.log('💾 handleSaveCanvas called:', {
       storyId: resolvedParams.id,
       canvasId: saveToCanvasId,
       nodeCount: nodes.length,
       connectionCount: connections.length,
+      canvasSize: canvasSizeRef.current,
       nodes
     })
 
@@ -643,7 +646,7 @@ export default function StoryPage({ params }: PageProps) {
         console.error('Update error message:', updateError.message)
         console.error('Update error code:', updateError.code)
       } else {
-        console.log('Canvas updated successfully')
+        console.log(`✅ Canvas ${saveToCanvasId} updated successfully with size ${canvasSizeRef.current.width}x${canvasSizeRef.current.height}`)
       }
     } else {
       // Create new - this happens when first entering a folder
@@ -670,7 +673,7 @@ export default function StoryPage({ params }: PageProps) {
       if (insertError) {
         console.error('Error inserting canvas:', insertError)
       } else {
-        console.log('Canvas created successfully')
+        console.log(`✅ Canvas ${saveToCanvasId} created successfully with size ${canvasSizeRef.current.width}x${canvasSizeRef.current.height}`)
       }
     }
 
@@ -710,6 +713,8 @@ export default function StoryPage({ params }: PageProps) {
 
     const newSize = { width, height }
 
+    console.log(`📐 User changed canvas size for ${currentCanvasId}:`, newSize)
+
     // CRITICAL: Update both state AND ref immediately
     setCanvasSize(newSize)
     canvasSizeRef.current = newSize  // Update ref synchronously before saving
@@ -720,6 +725,8 @@ export default function StoryPage({ params }: PageProps) {
 
     // Save to database immediately (now uses the correct size from ref)
     await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+
+    console.log(`✅ Canvas size saved and applied for ${currentCanvasId}`)
   }
 
   // Navigate to nested canvas (max 3 levels)
