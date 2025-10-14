@@ -6,14 +6,12 @@ import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Edit2, Check, X, Sparkles, ChevronRight, Home, Settings2 } from 'lucide-react'
+import { ArrowLeft, Edit2, Check, X, Sparkles, ChevronRight, Home } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
 import { storyTemplates, subCanvasTemplates } from '@/lib/templates'
 import FeedbackButton from '@/components/feedback/FeedbackButton'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
 
 // Use the HTML canvas instead to avoid Jest worker issues completely
 const NeighborNotes = dynamic(
@@ -45,10 +43,6 @@ export default function StoryPage({ params }: PageProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [currentCanvasId, setCurrentCanvasId] = useState('main')
   const [canvasPath, setCanvasPath] = useState<{id: string, title: string}[]>([])
-  const [canvasSize, setCanvasSize] = useState<{ width: number; height: number }>({ width: 3000, height: 2000 })
-  const [isCanvasSizeModalOpen, setIsCanvasSizeModalOpen] = useState(false)
-  const [tempCanvasWidth, setTempCanvasWidth] = useState('3000')
-  const [tempCanvasHeight, setTempCanvasHeight] = useState('2000')
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -64,8 +58,6 @@ export default function StoryPage({ params }: PageProps) {
   // Track current canvas ID to prevent stale closures
   const currentCanvasIdRef = useRef(currentCanvasId)
 
-  // Track current canvas size to prevent stale closures
-  const canvasSizeRef = useRef(canvasSize)
 
   // Apply canvas-page class to body to prevent scrolling
   useEffect(() => {
@@ -79,10 +71,6 @@ export default function StoryPage({ params }: PageProps) {
   const isNewStory = searchParams.get('isNew') === 'true'
   const templateId = searchParams.get('template')
 
-  // Update canvas size ref whenever canvas size changes
-  useEffect(() => {
-    canvasSizeRef.current = canvasSize
-  }, [canvasSize])
 
   useEffect(() => {
     // CRITICAL: Clear canvas data when changing canvases to prevent data mixing
@@ -200,23 +188,6 @@ export default function StoryPage({ params }: PageProps) {
         connections: (canvas as any)?.connections || []
       }
 
-      // Load canvas size if available
-      if ((canvas as any)?.canvas_width && (canvas as any)?.canvas_height) {
-        const width = (canvas as any).canvas_width
-        const height = (canvas as any).canvas_height
-        console.log(`✅ Canvas ${currentCanvasId} has saved custom size:`, { width, height })
-        setCanvasSize({ width, height })
-        setTempCanvasWidth(String(width))
-        setTempCanvasHeight(String(height))
-      } else {
-        // No saved size - use defaults for this folder's interior
-        const defaultSize = { width: 3000, height: 2000 }
-        console.log(`📏 Canvas ${currentCanvasId} has no saved size, using defaults:`, defaultSize)
-        setCanvasSize(defaultSize)
-        setTempCanvasWidth('3000')
-        setTempCanvasHeight('2000')
-      }
-      // Each folder interior maintains its own independent size
 
       // CRITICAL: Only apply template if canvas exists but is EMPTY
       if (loadedData.nodes.length === 0) {
@@ -566,7 +537,6 @@ export default function StoryPage({ params }: PageProps) {
       canvasId: saveToCanvasId,
       nodeCount: nodes.length,
       connectionCount: connections.length,
-      canvasSize: canvasSizeRef.current,
       nodes
     })
 
@@ -584,9 +554,7 @@ export default function StoryPage({ params }: PageProps) {
       story_id: resolvedParams.id,
       nodes: nodes,
       connections: connections,
-      canvas_type: saveToCanvasId, // Use the ref value to prevent stale closures
-      canvas_width: canvasSizeRef.current.width,
-      canvas_height: canvasSizeRef.current.height
+      canvas_type: saveToCanvasId // Use the ref value to prevent stale closures
     }
 
     // Check if canvas data exists
@@ -614,68 +582,35 @@ export default function StoryPage({ params }: PageProps) {
         return
       }
 
-      // Try to update with canvas size first
-      let updateData: any = {
+      const updateData = {
         nodes: nodes,
         connections: connections,
-        canvas_width: canvasSizeRef.current.width,
-        canvas_height: canvasSizeRef.current.height,
         updated_at: new Date().toISOString()
       }
 
-      let { error: updateError } = await supabase
+      const { error: updateError } = await supabase
         .from('canvas_data')
         .update(updateData)
         .eq('id', (existing as any)?.id)
-
-      // If schema error (columns don't exist yet), retry without canvas size fields
-      if (updateError && updateError.code === 'PGRST204') {
-        console.warn('Canvas size columns not found in database. Saving without size info. Please run the migration script.')
-        updateData = {
-          nodes: nodes,
-          connections: connections,
-          updated_at: new Date().toISOString()
-        }
-        const result = await supabase
-          .from('canvas_data')
-          .update(updateData)
-          .eq('id', (existing as any)?.id)
-        updateError = result.error
-      }
 
       if (updateError) {
         console.error('Error updating canvas:', updateError)
         console.error('Update error message:', updateError.message)
         console.error('Update error code:', updateError.code)
       } else {
-        console.log(`✅ Canvas ${saveToCanvasId} updated successfully with size ${canvasSizeRef.current.width}x${canvasSizeRef.current.height}`)
+        console.log(`✅ Canvas ${saveToCanvasId} updated successfully`)
       }
     } else {
       // Create new - this happens when first entering a folder
       console.log('Creating new canvas record')
-      let { error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('canvas_data')
         .insert(canvasPayload)
-
-      // If schema error (columns don't exist yet), retry without canvas size fields
-      if (insertError && insertError.code === 'PGRST204') {
-        console.warn('Canvas size columns not found in database. Creating canvas without size info. Please run the migration script.')
-        const fallbackPayload = {
-          story_id: resolvedParams.id,
-          nodes: nodes,
-          connections: connections,
-          canvas_type: saveToCanvasId
-        }
-        const result = await supabase
-          .from('canvas_data')
-          .insert(fallbackPayload)
-        insertError = result.error
-      }
 
       if (insertError) {
         console.error('Error inserting canvas:', insertError)
       } else {
-        console.log(`✅ Canvas ${saveToCanvasId} created successfully with size ${canvasSizeRef.current.width}x${canvasSizeRef.current.height}`)
+        console.log(`✅ Canvas ${saveToCanvasId} created successfully`)
       }
     }
 
@@ -708,28 +643,6 @@ export default function StoryPage({ params }: PageProps) {
     setIsEditingTitle(false)
   }
 
-  async function handleSaveCanvasSize() {
-    // Parse and clamp values between 500 and 25000
-    const width = Math.max(500, Math.min(25000, parseInt(tempCanvasWidth) || 3000))
-    const height = Math.max(500, Math.min(25000, parseInt(tempCanvasHeight) || 2000))
-
-    const newSize = { width, height }
-
-    console.log(`📐 User changed canvas size for ${currentCanvasId}:`, newSize)
-
-    // CRITICAL: Update both state AND ref immediately
-    setCanvasSize(newSize)
-    canvasSizeRef.current = newSize  // Update ref synchronously before saving
-
-    setTempCanvasWidth(String(width))
-    setTempCanvasHeight(String(height))
-    setIsCanvasSizeModalOpen(false)
-
-    // Save to database immediately (now uses the correct size from ref)
-    await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
-
-    console.log(`✅ Canvas size saved and applied for ${currentCanvasId}`)
-  }
 
   // Navigate to nested canvas (max 3 levels)
   async function handleNavigateToCanvas(canvasId: string, nodeTitle: string) {
@@ -904,14 +817,6 @@ export default function StoryPage({ params }: PageProps) {
                 )}
               </>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsCanvasSizeModalOpen(true)}
-              className="h-8 text-muted-foreground hover:text-foreground"
-            >
-              <Settings2 className="w-4 h-4" />
-            </Button>
             <FeedbackButton />
             <ThemeToggle />
           </div>
@@ -927,56 +832,11 @@ export default function StoryPage({ params }: PageProps) {
           initialConnections={canvasData?.connections || []}
           onSave={handleSaveCanvas}
           onNavigateToCanvas={handleNavigateToCanvas}
-          canvasWidth={canvasSize.width}
-          canvasHeight={canvasSize.height}
+          canvasWidth={3000}
+          canvasHeight={2000}
         />
       </div>
 
-      {/* Canvas Size Settings Modal */}
-      <Dialog open={isCanvasSizeModalOpen} onOpenChange={setIsCanvasSizeModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Canvas Size Settings</DialogTitle>
-            <DialogDescription>
-              Customize the size of this canvas in pixels. Default is 3000x2000px. Minimum 500px, maximum 25000px.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="canvas-width">Width (px)</Label>
-              <Input
-                id="canvas-width"
-                type="number"
-                min="500"
-                max="25000"
-                value={tempCanvasWidth}
-                onChange={(e) => setTempCanvasWidth(e.target.value)}
-                placeholder="3000"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="canvas-height">Height (px)</Label>
-              <Input
-                id="canvas-height"
-                type="number"
-                min="500"
-                max="25000"
-                value={tempCanvasHeight}
-                onChange={(e) => setTempCanvasHeight(e.target.value)}
-                placeholder="2000"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsCanvasSizeModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveCanvasSize}>
-              Save
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
