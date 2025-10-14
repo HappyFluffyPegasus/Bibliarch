@@ -706,7 +706,6 @@ export default function StoryPage({ params }: PageProps) {
               {/* Dashboard link */}
               <Link href="/dashboard" className="flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer">
                 <Home className="w-4 h-4" />
-                Home
               </Link>
 
               <ChevronRight className="w-4 h-4" />
@@ -811,8 +810,7 @@ export default function StoryPage({ params }: PageProps) {
                     onClick={() => setIsEditingTitle(true)}
                     className="h-8 text-muted-foreground hover:text-foreground"
                   >
-                    <Edit2 className="w-4 h-4 mr-2" />
-                    Rename
+                    <Edit2 className="w-4 h-4" />
                   </Button>
                 )}
               </>
