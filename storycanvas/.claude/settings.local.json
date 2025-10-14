@@ -32,7 +32,8 @@
       "Bash(cp:*)",
       "Bash(git stash:*)",
       "Bash(git push:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

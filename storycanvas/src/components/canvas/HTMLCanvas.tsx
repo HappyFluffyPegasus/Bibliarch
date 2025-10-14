@@ -107,15 +107,19 @@ interface HTMLCanvasProps {
   initialConnections?: Connection[]
   onSave?: (nodes: Node[], connections: Connection[]) => void
   onNavigateToCanvas?: (canvasId: string, nodeTitle: string) => void
+  canvasWidth?: number
+  canvasHeight?: number
 }
 
 // Updated with smaller sidebar and trackpad support
-export default function HTMLCanvas({ 
-  storyId, 
-  initialNodes = [], 
-  initialConnections = [], 
-  onSave, 
-  onNavigateToCanvas 
+export default function HTMLCanvas({
+  storyId,
+  initialNodes = [],
+  initialConnections = [],
+  onSave,
+  onNavigateToCanvas,
+  canvasWidth = 3000,
+  canvasHeight = 2000
 }: HTMLCanvasProps) {
   const colorContext = useColorContext()
   const [nodes, setNodes] = useState<Node[]>(initialNodes)
@@ -2991,10 +2995,10 @@ export default function HTMLCanvas({
           onContextMenu={(e) => e.preventDefault()}
           onWheel={handleWheel}
           style={{
-            width: '2000px',
-            height: '1500px',
-            minWidth: '2000px',
-            minHeight: '1500px',
+            width: `${canvasWidth}px`,
+            height: `${canvasHeight}px`,
+            minWidth: `${canvasWidth}px`,
+            minHeight: `${canvasHeight}px`,
             transform: `scale(${zoom})`,
             transformOrigin: zoom !== 1 ? `${zoomCenter.x}px ${zoomCenter.y}px` : 'center center',
             transition: 'transform 0.1s ease-out'
@@ -5890,8 +5894,8 @@ export default function HTMLCanvas({
           <svg
             className="absolute inset-0 pointer-events-none"
             style={{
-              width: '2000px',
-              height: '1500px',
+              width: `${canvasWidth}px`,
+              height: `${canvasHeight}px`,
               zIndex: 1
             }}
           >

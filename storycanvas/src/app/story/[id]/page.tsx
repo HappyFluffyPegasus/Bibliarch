@@ -6,12 +6,14 @@ import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Edit2, Check, X, Sparkles, ChevronRight, Home } from 'lucide-react'
+import { ArrowLeft, Edit2, Check, X, Sparkles, ChevronRight, Home, Settings2 } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
 import { storyTemplates, subCanvasTemplates } from '@/lib/templates'
 import FeedbackButton from '@/components/feedback/FeedbackButton'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 
 // Use the HTML canvas instead to avoid Jest worker issues completely
 const NeighborNotes = dynamic(
@@ -43,6 +45,10 @@ export default function StoryPage({ params }: PageProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [currentCanvasId, setCurrentCanvasId] = useState('main')
   const [canvasPath, setCanvasPath] = useState<{id: string, title: string}[]>([])
+  const [canvasSize, setCanvasSize] = useState<{ width: number; height: number }>({ width: 3000, height: 2000 })
+  const [isCanvasSizeModalOpen, setIsCanvasSizeModalOpen] = useState(false)
+  const [tempCanvasWidth, setTempCanvasWidth] = useState('3000')
+  const [tempCanvasHeight, setTempCanvasHeight] = useState('2000')
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -184,6 +190,20 @@ export default function StoryPage({ params }: PageProps) {
       const loadedData = {
         nodes: (canvas as any)?.nodes || [],
         connections: (canvas as any)?.connections || []
+      }
+
+      // Load canvas size if available
+      if ((canvas as any)?.canvas_width && (canvas as any)?.canvas_height) {
+        const width = (canvas as any).canvas_width
+        const height = (canvas as any).canvas_height
+        setCanvasSize({ width, height })
+        setTempCanvasWidth(String(width))
+        setTempCanvasHeight(String(height))
+      } else {
+        // Set default size
+        setCanvasSize({ width: 3000, height: 2000 })
+        setTempCanvasWidth('3000')
+        setTempCanvasHeight('2000')
       }
 
       // CRITICAL: Only apply template if canvas exists but is EMPTY
@@ -551,7 +571,9 @@ export default function StoryPage({ params }: PageProps) {
       story_id: resolvedParams.id,
       nodes: nodes,
       connections: connections,
-      canvas_type: saveToCanvasId // Use the ref value to prevent stale closures
+      canvas_type: saveToCanvasId, // Use the ref value to prevent stale closures
+      canvas_width: canvasSize.width,
+      canvas_height: canvasSize.height
     }
 
     // Check if canvas data exists
@@ -584,6 +606,8 @@ export default function StoryPage({ params }: PageProps) {
         .update({
           nodes: nodes,
           connections: connections,
+          canvas_width: canvasSize.width,
+          canvas_height: canvasSize.height,
           updated_at: new Date().toISOString()
         })
         .eq('id', (existing as any)?.id)
@@ -626,7 +650,7 @@ export default function StoryPage({ params }: PageProps) {
 
     const { error } = await supabase
       .from('stories')
-      .update({ 
+      .update({
         title: editedTitle.trim(),
         updated_at: new Date().toISOString()
       })
@@ -636,6 +660,17 @@ export default function StoryPage({ params }: PageProps) {
       setStory({ ...story, title: editedTitle.trim() })
     }
     setIsEditingTitle(false)
+  }
+
+  async function handleSaveCanvasSize() {
+    const width = parseInt(tempCanvasWidth) || 3000
+    const height = parseInt(tempCanvasHeight) || 3000
+
+    setCanvasSize({ width, height })
+    setIsCanvasSizeModalOpen(false)
+
+    // Save to database immediately
+    await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
   }
 
   // Navigate to nested canvas (max 3 levels)
@@ -811,9 +846,14 @@ export default function StoryPage({ params }: PageProps) {
                 )}
               </>
             )}
-            <span className="text-xs text-muted-foreground">
-              Auto-save enabled
-            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsCanvasSizeModalOpen(true)}
+              className="h-8 text-muted-foreground hover:text-foreground"
+            >
+              <Settings2 className="w-4 h-4" />
+            </Button>
             <FeedbackButton />
             <ThemeToggle />
           </div>
@@ -828,8 +868,52 @@ export default function StoryPage({ params }: PageProps) {
           initialConnections={canvasData?.connections || []}
           onSave={handleSaveCanvas}
           onNavigateToCanvas={handleNavigateToCanvas}
+          canvasWidth={canvasSize.width}
+          canvasHeight={canvasSize.height}
         />
       </div>
+
+      {/* Canvas Size Settings Modal */}
+      <Dialog open={isCanvasSizeModalOpen} onOpenChange={setIsCanvasSizeModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Canvas Size Settings</DialogTitle>
+            <DialogDescription>
+              Customize the size of this canvas in pixels. Default is 3000x2000px.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="canvas-width">Width (px)</Label>
+              <Input
+                id="canvas-width"
+                type="number"
+                value={tempCanvasWidth}
+                onChange={(e) => setTempCanvasWidth(e.target.value)}
+                placeholder="3000"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="canvas-height">Height (px)</Label>
+              <Input
+                id="canvas-height"
+                type="number"
+                value={tempCanvasHeight}
+                onChange={(e) => setTempCanvasHeight(e.target.value)}
+                placeholder="2000"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsCanvasSizeModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveCanvasSize}>
+              Save
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

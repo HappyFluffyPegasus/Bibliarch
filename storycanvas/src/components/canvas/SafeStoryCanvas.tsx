@@ -34,6 +34,8 @@ interface SafeNeighborNotesProps {
   initialConnections?: Connection[]
   onSave?: (nodes: Node[], connections: Connection[]) => void
   onNavigateToCanvas?: (canvasId: string, nodeTitle: string) => void
+  canvasWidth?: number
+  canvasHeight?: number
 }
 
 // Simple fallback canvas when Konva fails
