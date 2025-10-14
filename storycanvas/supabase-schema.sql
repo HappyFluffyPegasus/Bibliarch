@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS public.canvas_data (
   parent_id UUID REFERENCES public.canvas_data(id) ON DELETE CASCADE,
   nodes JSONB DEFAULT '[]'::jsonb,
   connections JSONB DEFAULT '[]'::jsonb,
+  canvas_width INTEGER DEFAULT 3000,
+  canvas_height INTEGER DEFAULT 2000,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW())
 );
 
