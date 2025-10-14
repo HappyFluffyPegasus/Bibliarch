@@ -2119,11 +2119,11 @@ if (isContentEditable) {
 
 **🔧 Implementation Details:**
 
-1. **Size Inheritance Logic** ✅ **COMPLETED**
+1. **Independent Folder Size Logic** ✅ **COMPLETED**
    - When navigating to a canvas WITH saved dimensions: Load and use them
-   - When navigating to a canvas WITHOUT saved dimensions: Inherit current canvas size
-   - Only use defaults (3000x2000) on very first load when canvasSize has never been set
-   - **Files Modified**: `src/app/story/[id]/page.tsx` (lines 203-217)
+   - When navigating to a canvas WITHOUT saved dimensions: Use default 3000x2000
+   - Each folder interior starts with default size, can be customized independently
+   - **Files Modified**: `src/app/story/[id]/page.tsx` (lines 203-219)
 
 2. **Modal State Synchronization** ✅ **COMPLETED**
    - Updated tempCanvasWidth/Height to reflect inherited size
@@ -2132,8 +2132,8 @@ if (isContentEditable) {
 
 3. **Enhanced Console Logging** ✅ **COMPLETED**
    - Added detailed logging for canvas size operations:
-     - `✅ Canvas X has saved size:` - When loading saved dimensions
-     - `📏 Canvas X has no saved size, inheriting:` - When inheriting from previous canvas
+     - `✅ Canvas X has saved custom size:` - When loading saved dimensions
+     - `📏 Canvas X has no saved size, using defaults:` - When using default dimensions
      - `📐 User changed canvas size for X:` - When user changes size via modal
      - `💾 handleSaveCanvas called:` - Shows canvas size being saved
      - `✅ Canvas X updated/created successfully with size WxH` - Confirmation of save
@@ -2145,26 +2145,27 @@ if (isContentEditable) {
 ```
 1. Main canvas loads → Uses default 3000x2000
 2. User changes to 5000x3000 → Saves to database for "main"
-3. User navigates to Character folder → Inherits 5000x3000 (no reset!)
+3. User navigates to Character folder → Starts with default 3000x2000
 4. User changes to 4000x2500 → Saves to database for "character-123"
 5. User navigates back to main → Loads saved 5000x3000 from database
 6. User navigates back to Character folder → Loads saved 4000x2500 from database
 ```
 
-**Scenario 2: Each Canvas Maintains Its Own Size**
+**Scenario 2: Each Folder Interior Has Independent Size**
 ```
-Main canvas: 5000x3000 (saved)
-├── Characters folder: 4000x2500 (saved)
-├── Plot folder: 6000x4000 (saved)
-└── World folder: 5000x3000 (inherited from main, will save when changed)
+Main canvas: 5000x3000 (saved, user customized)
+├── Characters folder: 4000x2500 (saved, user customized)
+├── Plot folder: 6000x4000 (saved, user customized)
+└── World folder: 3000x2000 (default, not yet customized by user)
 ```
 
 **🎨 User Experience Improvements:**
-1. **No More Reset Frustration**: Size stays consistent when navigating to new canvases
-2. **Per-Canvas Flexibility**: Each canvas can have its own size once changed
-3. **Intelligent Inheritance**: New canvases inherit sensible size from current canvas
-4. **Visual Feedback**: Console logs help users understand what's happening
-5. **Modal Accuracy**: Settings modal always shows true current size
+1. **Folder-Specific Sizing**: Each folder interior has its own independent dimensions
+2. **Default Starting Point**: New folders start with default 3000x2000 for consistency
+3. **Per-Canvas Customization**: Each canvas can be resized independently via Settings modal
+4. **Persistent Sizing**: Canvas sizes save to database and persist across sessions
+5. **Visual Feedback**: Console logs help users understand what's happening
+6. **Modal Accuracy**: Settings modal always shows true current size
 
 **📁 Code Changes Summary:**
 - **File**: `src/app/story/[id]/page.tsx`
@@ -2179,16 +2180,17 @@ Main canvas: 5000x3000 (saved)
 - To be committed: "Fix canvas size inheritance - prevent reset on navigation"
 
 **✅ Current Status:**
-- Canvas size inheritance working correctly
-- Per-canvas size persistence functional
+- Per-canvas size customization working correctly
+- Each folder interior has independent dimensions
+- Default size (3000x2000) for new folders
 - Modal displays accurate current size
 - Enhanced logging for transparency
-- No more frustrating resets on navigation
+- Sizes persist across sessions
 
 **User Satisfaction**: ✅ **FEATURE NOW WORKING**
-- Size no longer resets when navigating
-- Each canvas maintains independent size
-- Inheritance provides sensible defaults
+- Each folder starts with default dimensions
+- Folder-specific size customization works independently
+- Sizes save to database per canvas_type
 - Feature is now fully functional
 
 ---
@@ -2203,14 +2205,14 @@ Main canvas: 5000x3000 (saved)
 - Settings modal UI created and functional
 - Size validation implemented (500px min, 25000px max)
 - Database migration script created
-- **Canvas size inheritance system** ✅ **NEW - WORKING!**
+- **Folder-specific canvas sizing** ✅ **NEW - WORKING!**
 - **Per-canvas size persistence** ✅ **NEW - WORKING!**
 - **Enhanced canvas size logging** ✅ **NEW!**
 
 **✅ Previously Broken - Now Fixed:**
-- ~~Canvas sizes reset on navigation~~ → **FIXED with inheritance**
-- ~~Individual folders don't maintain separate sizes~~ → **FIXED - each canvas has own size**
-- ~~Visual scaling overridden~~ → **FIXED - proper state management**
+- ~~Canvas sizes reset on navigation~~ → **FIXED - defaults for new folders, saved for customized ones**
+- ~~Individual folders don't maintain separate sizes~~ → **FIXED - each folder interior has own size**
+- ~~Visual scaling overridden~~ → **FIXED - proper state management with refs**
 
 **Database Notes:**
 - Schema file (`supabase-schema.sql`) already includes canvas_width/height columns (lines 33-34)
@@ -2220,10 +2222,11 @@ Main canvas: 5000x3000 (saved)
 
 **Technical Achievements:**
 - Solved stale closure issues with refs
-- Implemented intelligent size inheritance
-- Maintained per-canvas independence
+- Implemented folder-specific size persistence
+- Maintained per-canvas independence with default starting points
 - Added comprehensive debugging logs
 - Clean separation of concerns
+- Each canvas_type in database has own width/height
 
 ---
 

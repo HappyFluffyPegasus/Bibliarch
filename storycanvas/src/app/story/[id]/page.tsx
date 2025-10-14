@@ -204,17 +204,19 @@ export default function StoryPage({ params }: PageProps) {
       if ((canvas as any)?.canvas_width && (canvas as any)?.canvas_height) {
         const width = (canvas as any).canvas_width
         const height = (canvas as any).canvas_height
-        console.log(`✅ Canvas ${currentCanvasId} has saved size:`, { width, height })
+        console.log(`✅ Canvas ${currentCanvasId} has saved custom size:`, { width, height })
         setCanvasSize({ width, height })
         setTempCanvasWidth(String(width))
         setTempCanvasHeight(String(height))
       } else {
-        // No saved size - inherit current size from previous canvas
-        console.log(`📏 Canvas ${currentCanvasId} has no saved size, inheriting:`, canvasSize)
-        setTempCanvasWidth(String(canvasSize.width))
-        setTempCanvasHeight(String(canvasSize.height))
+        // No saved size - use defaults for this folder's interior
+        const defaultSize = { width: 3000, height: 2000 }
+        console.log(`📏 Canvas ${currentCanvasId} has no saved size, using defaults:`, defaultSize)
+        setCanvasSize(defaultSize)
+        setTempCanvasWidth('3000')
+        setTempCanvasHeight('2000')
       }
-      // This prevents size from resetting when navigating to new canvases
+      // Each folder interior maintains its own independent size
 
       // CRITICAL: Only apply template if canvas exists but is EMPTY
       if (loadedData.nodes.length === 0) {
