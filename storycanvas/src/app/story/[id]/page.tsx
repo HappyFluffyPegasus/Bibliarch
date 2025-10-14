@@ -64,6 +64,9 @@ export default function StoryPage({ params }: PageProps) {
   // Track current canvas ID to prevent stale closures
   const currentCanvasIdRef = useRef(currentCanvasId)
 
+  // Track current canvas size to prevent stale closures
+  const canvasSizeRef = useRef(canvasSize)
+
   // Apply canvas-page class to body to prevent scrolling
   useEffect(() => {
     document.body.classList.add('canvas-page')
@@ -75,6 +78,11 @@ export default function StoryPage({ params }: PageProps) {
   // Check if this is a new story with a template
   const isNewStory = searchParams.get('isNew') === 'true'
   const templateId = searchParams.get('template')
+
+  // Update canvas size ref whenever canvas size changes
+  useEffect(() => {
+    canvasSizeRef.current = canvasSize
+  }, [canvasSize])
 
   useEffect(() => {
     // CRITICAL: Clear canvas data when changing canvases to prevent data mixing
@@ -572,8 +580,8 @@ export default function StoryPage({ params }: PageProps) {
       nodes: nodes,
       connections: connections,
       canvas_type: saveToCanvasId, // Use the ref value to prevent stale closures
-      canvas_width: canvasSize.width,
-      canvas_height: canvasSize.height
+      canvas_width: canvasSizeRef.current.width,
+      canvas_height: canvasSizeRef.current.height
     }
 
     // Check if canvas data exists
@@ -605,8 +613,8 @@ export default function StoryPage({ params }: PageProps) {
       let updateData: any = {
         nodes: nodes,
         connections: connections,
-        canvas_width: canvasSize.width,
-        canvas_height: canvasSize.height,
+        canvas_width: canvasSizeRef.current.width,
+        canvas_height: canvasSizeRef.current.height,
         updated_at: new Date().toISOString()
       }
 
