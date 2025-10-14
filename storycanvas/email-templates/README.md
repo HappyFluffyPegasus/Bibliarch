@@ -1,10 +1,10 @@
-# StoryCanvas Email Templates
+# NeighborNotes Email Templates
 
 Beautiful blue-themed HTML email templates for Supabase authentication.
 
 ## Color Palette
 
-These templates use the StoryCanvas blue color scheme:
+These templates use the NeighborNotes blue color scheme:
 
 ### Light Mode Colors
 - **Primary Blue**: `#0EA5E9` (sky-500) - Main buttons and links
@@ -47,7 +47,7 @@ Supabase provides these variables you can use in templates:
 ## Features
 
 ✅ Responsive design (works on mobile and desktop)
-✅ Blue gradient theme matching StoryCanvas
+✅ Blue gradient theme matching NeighborNotes
 ✅ Clear call-to-action buttons
 ✅ Security notices where appropriate
 ✅ Professional and friendly tone

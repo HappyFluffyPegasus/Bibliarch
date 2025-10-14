@@ -138,7 +138,7 @@ export default function HTMLCanvas({
   // Node style preferences state
   const [nodeStylePreferences, setNodeStylePreferences] = useState<NodeStylePreferences>(() => {
     // Load from localStorage on init
-    const saved = localStorage.getItem('storycanvas-node-styles')
+    const saved = localStorage.getItem('neighbornotes-node-styles')
     return saved ? JSON.parse(saved) : {
       corners: 'rounded',
       outlines: 'mixed',
@@ -661,7 +661,7 @@ export default function HTMLCanvas({
     setNodeStylePreferences(prev => {
       const newPrefs = { ...prev, [key]: value }
       // Save to localStorage
-      localStorage.setItem('storycanvas-node-styles', JSON.stringify(newPrefs))
+      localStorage.setItem('neighbornotes-node-styles', JSON.stringify(newPrefs))
       return newPrefs
     })
   }, [])
@@ -1448,6 +1448,56 @@ export default function HTMLCanvas({
     return allProjectCharacters
   }, [allProjectCharacters])
 
+  // Manual refresh function to force refetch of all characters
+  const refreshAllCharacters = useCallback(async () => {
+    try {
+      const supabase = createClient()
+
+      // Fetch ALL canvas data for this story
+      const { data: allCanvases, error } = await supabase
+        .from('canvas_data')
+        .select('nodes')
+        .eq('story_id', storyId)
+
+      if (error) {
+        console.error('Error fetching all canvases:', error)
+        return
+      }
+
+      if (allCanvases) {
+        // Extract all character nodes from all canvases
+        const allCharacters: Array<{ id: string, name: string, profileImageUrl?: string }> = []
+
+        allCanvases.forEach(canvas => {
+          const canvasNodes = (canvas as any).nodes || []
+          const characterNodes = canvasNodes.filter((node: Node) => node.type === 'character')
+
+          characterNodes.forEach((charNode: Node) => {
+            // Skip template characters
+            const isTemplateChar =
+              charNode.id === 'antagonist' ||
+              charNode.id === 'main-character' ||
+              (charNode.text === 'Protagonist' || charNode.text === 'Antagonist')
+
+            // Avoid duplicates and template characters
+            if (!isTemplateChar && !allCharacters.find(c => c.id === charNode.id)) {
+              allCharacters.push({
+                id: charNode.id,
+                name: charNode.text,
+                profileImageUrl: charNode.profileImageUrl
+              })
+            }
+          })
+        })
+
+        setAllProjectCharacters(allCharacters)
+        console.log('Refreshed character list:', allCharacters.length, 'characters found')
+      }
+    } catch (error) {
+      console.error('Error in refreshAllCharacters:', error)
+    }
+  }, [storyId])
+
   // Real-time sync: Function to update relationship canvas when character profile pictures change
   const syncRelationshipCanvases = useCallback((updatedNodes: Node[]) => {
     let hasUpdates = false
@@ -1856,6 +1906,8 @@ export default function HTMLCanvas({
 
     // Handle double-click on relationship-canvas nodes
     if (e.detail === 2 && node.type === 'relationship-canvas') {
+      // Refresh character list to ensure dropdown is populated
+      refreshAllCharacters()
       setRelationshipCanvasModal({
         isOpen: true,
         nodeId: node.id,
@@ -4003,7 +4055,11 @@ export default function HTMLCanvas({
                 <div
                   key={node.id}
                   data-node-id={node.id}
-                  className={`absolute cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm border-2 rounded-lg ${
+                  className={`absolute cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm border-2 ${
+                    nodeStylePreferences.corners === 'sharp' ? '' :
+                    nodeStylePreferences.corners === 'very-rounded' ? 'rounded-2xl' :
+                    'rounded-lg'
+                  } ${
                     connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
                   }`}
                   style={{
@@ -4080,13 +4136,19 @@ export default function HTMLCanvas({
 
                   {/* Character Display Area */}
                   <div
-                    className="relative flex-1 rounded bg-white border border-border"
+                    className={`relative flex-1 bg-white border border-border ${
+                      nodeStylePreferences.corners === 'sharp' ? '' :
+                      nodeStylePreferences.corners === 'very-rounded' ? 'rounded-xl' :
+                      'rounded'
+                    }`}
                     style={{ height: node.height - 80 }}
                     onDoubleClick={(e) => {
                       // Only open modal if clicking on empty space (not on characters)
                       if (e.target === e.currentTarget) {
                         e.preventDefault()
                         e.stopPropagation()
+                        // Refresh character list to ensure dropdown is populated
+                        refreshAllCharacters()
                         setRelationshipCanvasModal({
                           isOpen: true,
                           nodeId: node.id,
@@ -4096,12 +4158,8 @@ export default function HTMLCanvas({
                     }}
                   >
                     {selectedCharacters.map(character => {
-                      // Scale profile picture size based on node dimensions
-                      const minSize = 60; // minimum size in pixels
-                      const scaleX = node.width / 400; // scale based on default width of 400
-                      const scaleY = node.height / 300; // scale based on default height of 300
-                      const scale = Math.min(scaleX, scaleY, 2); // max scale of 2x
-                      const profileSize = Math.max(minSize, minSize * scale);
+                      // Keep profile pictures at a fixed size
+                      const profileSize = 60; // fixed size in pixels
 
                       return (
                         <div
@@ -4179,11 +4237,13 @@ export default function HTMLCanvas({
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center">
+                              <div className="w-full h-full flex items-center justify-center" style={{
+                                backgroundColor: getNodeColor(node.type || 'text', node.color, node.id)
+                              }}>
                                 <User
                                   style={{
-                                    width: profileSize * 0.3,
-                                    height: profileSize * 0.3,
+                                    width: 18,
+                                    height: 18,
                                     color: getIconColor(node.type || 'text', getNodeColor(node.type || 'text', node.color, node.id))
                                   }}
                                 />
@@ -4205,12 +4265,8 @@ export default function HTMLCanvas({
 
                         if (!fromChar || !toChar) return null
 
-                        // Get character positions and profile sizes
-                        const minSize = 60
-                        const scaleX = node.width / 400
-                        const scaleY = node.height / 300
-                        const scale = Math.min(scaleX, scaleY, 2)
-                        const profileSize = Math.max(minSize, minSize * scale)
+                        // Use fixed profile size to match character rendering
+                        const profileSize = 60
 
                         const fromX = Math.min(fromChar.position.x, node.width - profileSize - 20) + profileSize / 2
                         const fromY = Math.min(fromChar.position.y, node.height - profileSize - 100) + profileSize / 2
@@ -6249,7 +6305,7 @@ export default function HTMLCanvas({
                       {(relationshipCanvasModal.node.relationshipData?.selectedCharacters || []).map(character => (
                         <div key={character.id} className="flex items-center justify-between p-2 bg-muted rounded">
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full overflow-hidden bg-background border border-border flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-sky-100 dark:bg-blue-900/20 border border-border flex items-center justify-center">
                               {character.profileImageUrl ? (
                                 <img
                                   src={character.profileImageUrl}
@@ -6257,7 +6313,7 @@ export default function HTMLCanvas({
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <User className="w-4 h-4 text-muted-foreground" />
+                                <User className="w-4 h-4 text-sky-600 dark:text-blue-400" />
                               )}
                             </div>
                             <span className="text-sm font-medium text-foreground">{character.name}</span>
@@ -6408,8 +6464,8 @@ export default function HTMLCanvas({
                             className="w-full h-full object-cover pointer-events-none"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <User className="w-6 h-6 text-muted-foreground" />
+                          <div className="w-full h-full flex items-center justify-center bg-sky-100 dark:bg-blue-900/20">
+                            <User className="w-6 h-6 text-sky-600 dark:text-blue-400" />
                           </div>
                         )}
                       </div>

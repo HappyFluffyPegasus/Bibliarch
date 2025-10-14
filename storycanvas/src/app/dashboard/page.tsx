@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Plus, LogOut, Sparkles, FileText, Clock, Layout, Settings, Trash2, Copy } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
-import { OnboardingModal } from '@/components/onboarding/OnboardingModal'
 import { storyTemplates } from '@/lib/templates'
 import { ensureDatabaseSetup } from '@/lib/database-init'
 
@@ -317,8 +316,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50/80 to-blue-50/80 dark:from-gray-950 dark:to-gray-900">
-      <OnboardingModal />
-
       {/* Header */}
       <header className="border-b bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">

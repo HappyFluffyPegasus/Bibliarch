@@ -269,10 +269,10 @@ export const simplePalettes: SimpleColorPalette[] = [
 ]
 
 export class ColorPaletteManager {
-  private static STORAGE_KEY = 'storycanvas-color-palettes'
-  private static THEME_KEY = 'storycanvas-theme-preference'
-  private static PROJECT_PALETTE_KEY = 'storycanvas-project-palette'
-  private static FOLDER_PALETTE_KEY = 'storycanvas-folder-palettes'
+  private static STORAGE_KEY = 'neighbornotes-color-palettes'
+  private static THEME_KEY = 'neighbornotes-theme-preference'
+  private static PROJECT_PALETTE_KEY = 'neighbornotes-project-palette'
+  private static FOLDER_PALETTE_KEY = 'neighbornotes-folder-palettes'
 
   // Enhanced palette management
   static getSavedPalettes(): ColorPalette[] {

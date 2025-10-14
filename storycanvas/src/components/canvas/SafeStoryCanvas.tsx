@@ -116,7 +116,7 @@ function FallbackCanvas({
       {nodes.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center">
           <Card className="p-8 text-center">
-            <Sparkles className="w-8 h-8 text-purple-600 mx-auto mb-4" />
+            <Sparkles className="w-8 h-8 text-sky-600 dark:text-blue-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">Empty Canvas</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
               Add your first node to get started
@@ -193,7 +193,7 @@ export default function SafeNeighborNotes(props: SafeNeighborNotesProps) {
   if (!isClient) {
     return (
       <div className="w-full h-full flex items-center justify-center">
-        <Sparkles className="w-8 h-8 text-purple-600 animate-pulse" />
+        <Sparkles className="w-8 h-8 text-sky-600 dark:text-blue-400 animate-pulse" />
       </div>
     )
   }

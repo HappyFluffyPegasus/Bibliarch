@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Edit2, Check, X, Sparkles, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Edit2, Check, X, Sparkles, ChevronRight, Home } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
@@ -16,12 +16,12 @@ import FeedbackButton from '@/components/feedback/FeedbackButton'
 // Use the HTML canvas instead to avoid Jest worker issues completely
 const NeighborNotes = dynamic(
   () => import('@/components/canvas/HTMLCanvas'),
-  { 
+  {
     ssr: false,
     loading: () => (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <Sparkles className="w-8 h-8 text-purple-600 animate-pulse mx-auto mb-4" />
+          <Sparkles className="w-8 h-8 text-sky-600 dark:text-blue-400 animate-pulse mx-auto mb-4" />
           <p className="text-muted-foreground">Loading canvas...</p>
         </div>
       </div>
@@ -682,7 +682,7 @@ export default function StoryPage({ params }: PageProps) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Sparkles className="w-12 h-12 text-purple-600 animate-pulse mx-auto mb-4" />
+          <Sparkles className="w-12 h-12 text-sky-600 dark:text-blue-400 animate-pulse mx-auto mb-4" />
           <p className="text-muted-foreground">Loading your story...</p>
         </div>
       </div>
@@ -695,122 +695,122 @@ export default function StoryPage({ params }: PageProps) {
       <header className="border-b border-gray-600 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            {canvasPath.length === 0 ? (
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back
-                </Button>
-              </Link>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleNavigateBack}
-                className="h-8"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-              </Button>
-            )}
-
             {/* Breadcrumb navigation */}
-            {canvasPath.length > 0 ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <button
-                  onClick={async () => {
-                    // Save current canvas
-                    if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
-                      await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
-                    }
-                    // Reset folder context and navigate to main
-                    colorContext.setCurrentFolderId(null)
-                    setCanvasPath([])
-                    setCurrentCanvasId('main')
-                  }}
-                  className="hover:text-foreground transition-colors cursor-pointer"
-                >
-                  {story.title}
-                </button>
-                {canvasPath.map((pathItem, index) => (
-                  <React.Fragment key={pathItem.id}>
-                    <ChevronRight className="w-4 h-4" />
-                    <button
-                      onClick={async () => {
-                        if (index === canvasPath.length - 1) return // Already at this location
+            <div className="flex items-center gap-2 text-sm text-muted-foreground ml-4">
+              {/* Dashboard link */}
+              <Link href="/dashboard" className="flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer">
+                <Home className="w-4 h-4" />
+                Home
+              </Link>
 
-                        // Save current canvas
-                        if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
-                          await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
-                        }
+              <ChevronRight className="w-4 h-4" />
 
-                        // Navigate to clicked path level
-                        const newPath = canvasPath.slice(0, index + 1)
+              {/* Story title - clickable to go to main canvas */}
+              <button
+                onClick={async () => {
+                  if (canvasPath.length === 0) return // Already on main canvas
 
-                        // Extract folder ID from the canvas ID (remove prefixes like 'folder-canvas-')
-                        const folderId = pathItem.id.replace(/^(folder-canvas-|character-canvas-|location-canvas-)/, '')
-                        colorContext.setCurrentFolderId(folderId)
-
-                        setCanvasPath(newPath)
-                        setCurrentCanvasId(pathItem.id)
-                      }}
-                      className={`transition-colors ${
-                        index === canvasPath.length - 1
-                          ? "text-foreground font-medium cursor-default"
-                          : "hover:text-foreground cursor-pointer"
-                      }`}
-                    >
-                      {pathItem.title}
-                    </button>
-                  </React.Fragment>
-                ))}
-              </div>
-            ) : (
-              <>
-                {/* Editable title - only on main canvas */}
-                {isEditingTitle ? (
-            <div className="flex items-center gap-2">
-              <Input
-                value={editedTitle}
-                onChange={(e) => setEditedTitle(e.target.value)}
-                className="h-8"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleUpdateTitle()
-                  if (e.key === 'Escape') {
-                    setEditedTitle(story.title)
-                    setIsEditingTitle(false)
+                  // Save current canvas
+                  if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+                    await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
                   }
+                  // Reset folder context and navigate to main
+                  colorContext.setCurrentFolderId(null)
+                  setCanvasPath([])
+                  setCurrentCanvasId('main')
                 }}
-              />
-              <Button size="sm" variant="ghost" onClick={handleUpdateTitle}>
-                <Check className="w-4 h-4" />
-              </Button>
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                onClick={() => {
-                  setEditedTitle(story.title)
-                  setIsEditingTitle(false)
-                }}
+                className={`transition-colors ${
+                  canvasPath.length === 0
+                    ? "text-foreground font-medium cursor-default"
+                    : "hover:text-foreground cursor-pointer"
+                }`}
               >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-                ) : (
+                {story.title}
+              </button>
+
+              {/* Folder path */}
+              {canvasPath.map((pathItem, index) => (
+                <React.Fragment key={pathItem.id}>
+                  <ChevronRight className="w-4 h-4" />
                   <button
-                    onClick={() => setIsEditingTitle(true)}
-                    className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 px-2 py-1 rounded transition-colors"
+                    onClick={async () => {
+                      if (index === canvasPath.length - 1) return // Already at this location
+
+                      // Save current canvas
+                      if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+                        await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+                      }
+
+                      // Navigate to clicked path level
+                      const newPath = canvasPath.slice(0, index + 1)
+
+                      // Extract folder ID from the canvas ID (remove prefixes like 'folder-canvas-')
+                      const folderId = pathItem.id.replace(/^(folder-canvas-|character-canvas-|location-canvas-)/, '')
+                      colorContext.setCurrentFolderId(folderId)
+
+                      setCanvasPath(newPath)
+                      setCurrentCanvasId(pathItem.id)
+                    }}
+                    className={`transition-colors ${
+                      index === canvasPath.length - 1
+                        ? "text-foreground font-medium cursor-default"
+                        : "hover:text-foreground cursor-pointer"
+                    }`}
                   >
-                    <h1 className="text-lg font-semibold">{story.title}</h1>
-                    <Edit2 className="w-4 h-4 text-gray-400" />
+                    {pathItem.title}
                   </button>
-                )}
-              </>
-            )}
+                </React.Fragment>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Story title editor - only show on main canvas */}
+            {canvasPath.length === 0 && (
+              <>
+                {isEditingTitle ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={editedTitle}
+                      onChange={(e) => setEditedTitle(e.target.value)}
+                      className="h-8 w-64"
+                      autoFocus
+                      placeholder="Story title"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleUpdateTitle()
+                        if (e.key === 'Escape') {
+                          setEditedTitle(story.title)
+                          setIsEditingTitle(false)
+                        }
+                      }}
+                    />
+                    <Button size="sm" variant="ghost" onClick={handleUpdateTitle}>
+                      <Check className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditedTitle(story.title)
+                        setIsEditingTitle(false)
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEditingTitle(true)}
+                    className="h-8 text-muted-foreground hover:text-foreground"
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Rename
+                  </Button>
+                )}
+              </>
+            )}
             <span className="text-xs text-muted-foreground">
               Auto-save enabled
             </span>
