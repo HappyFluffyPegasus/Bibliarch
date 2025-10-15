@@ -2581,7 +2581,7 @@ export default function HTMLCanvas({
             size="sm"
             variant={tool === 'select' ? 'default' : 'outline'}
             onClick={() => setTool('select')}
-            className={`h-12 w-14 p-0 ${tool === 'select' ? 'bg-green-600 text-white' : ''}`}
+            className={`h-12 w-14 p-0 ${tool === 'select' ? 'bg-sky-600 text-white' : ''}`}
             title="Select Tool - Move nodes, multi-select with drag or shift-click"
           >
             <MousePointer className="w-7 h-7" />
@@ -2593,47 +2593,47 @@ export default function HTMLCanvas({
 
         {/* Creation Tools */}
         <div className="flex flex-col gap-1">
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant={tool === 'text' ? 'default' : 'outline'}
             onClick={() => setTool('text')}
-            className={`h-12 w-14 p-0 ${tool === 'text' ? 'bg-gray-600 text-white' : ''}`}
+            className={`h-12 w-14 p-0 ${tool === 'text' ? 'bg-sky-600 text-white' : ''}`}
             title="Add Text Node - Click canvas to create"
           >
             <Type className="w-7 h-7" />
           </Button>
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant={tool === 'character' ? 'default' : 'outline'}
             onClick={() => setTool('character')}
-            className={`h-12 w-14 p-0 ${tool === 'character' ? 'bg-amber-600 text-white' : ''}`}
+            className={`h-12 w-14 p-0 ${tool === 'character' ? 'bg-sky-600 text-white' : ''}`}
             title="Add Character - Click canvas to create"
           >
             <User className="w-7 h-7" />
           </Button>
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant={tool === 'event' ? 'default' : 'outline'}
             onClick={() => setTool('event')}
-            className={`h-12 w-14 p-0 ${tool === 'event' ? 'bg-pink-600 text-white' : ''}`}
+            className={`h-12 w-14 p-0 ${tool === 'event' ? 'bg-sky-600 text-white' : ''}`}
             title="Add Event - Click canvas to create | Click events to connect timeline"
           >
             <Calendar className="w-7 h-7" />
           </Button>
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant={tool === 'location' ? 'default' : 'outline'}
             onClick={() => setTool('location')}
-            className={`h-12 w-14 p-0 ${tool === 'location' ? 'bg-green-600 text-white' : ''}`}
+            className={`h-12 w-14 p-0 ${tool === 'location' ? 'bg-sky-600 text-white' : ''}`}
             title="Add Location - Click canvas to create"
           >
             <MapPin className="w-7 h-7" />
           </Button>
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant={tool === 'folder' ? 'default' : 'outline'}
             onClick={() => setTool('folder')}
-            className={`h-12 w-14 p-0 ${tool === 'folder' ? 'bg-indigo-600 text-white' : ''}`}
+            className={`h-12 w-14 p-0 ${tool === 'folder' ? 'bg-sky-600 text-white' : ''}`}
             title="Add Section/Folder - Click canvas to create"
           >
             <Folder className="w-7 h-7" />
@@ -2642,7 +2642,7 @@ export default function HTMLCanvas({
             size="sm"
             variant={tool === 'list' ? 'default' : 'outline'}
             onClick={() => setTool('list')}
-            className={`h-12 w-14 p-0 ${tool === 'list' ? 'bg-purple-600 text-white' : ''}`}
+            className={`h-12 w-14 p-0 ${tool === 'list' ? 'bg-sky-600 text-white' : ''}`}
             title="Add List - Click canvas to create"
           >
             <List className="w-7 h-7" />
@@ -2651,7 +2651,7 @@ export default function HTMLCanvas({
             size="sm"
             variant={tool === 'image' ? 'default' : 'outline'}
             onClick={() => setTool('image')}
-            className={`h-12 w-14 p-0 ${tool === 'image' ? 'bg-teal-600 text-white' : ''}`}
+            className={`h-12 w-14 p-0 ${tool === 'image' ? 'bg-sky-600 text-white' : ''}`}
             title="Add Image - Click canvas to create"
           >
             <ImageIcon className="w-7 h-7" />
@@ -2660,7 +2660,7 @@ export default function HTMLCanvas({
             size="sm"
             variant={tool === 'table' ? 'default' : 'outline'}
             onClick={() => setTool('table')}
-            className={`h-12 w-14 p-0 ${tool === 'table' ? 'bg-teal-600 text-white' : ''}`}
+            className={`h-12 w-14 p-0 ${tool === 'table' ? 'bg-sky-600 text-white' : ''}`}
             title="Add Table - Click canvas to create"
           >
             <Table className="w-7 h-7" />
@@ -2669,7 +2669,7 @@ export default function HTMLCanvas({
             size="sm"
             variant={tool === 'relationship-canvas' ? 'default' : 'outline'}
             onClick={() => setTool('relationship-canvas')}
-            className={`h-12 w-14 p-0 ${tool === 'relationship-canvas' ? 'bg-red-600 text-white' : ''}`}
+            className={`h-12 w-14 p-0 ${tool === 'relationship-canvas' ? 'bg-sky-600 text-white' : ''}`}
             title="Add Relationship Canvas - Click canvas to create"
           >
             <Heart className="w-7 h-7" />
