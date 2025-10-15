@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette } from 'lucide-react'
+import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette, ArrowRight } from 'lucide-react'
 import { PaletteSelector } from '@/components/ui/palette-selector'
 import { NodeStylePanel } from '@/components/ui/node-style-panel'
 import { PerformanceOptimizer } from '@/lib/performance-utils'
@@ -2827,7 +2827,7 @@ export default function HTMLCanvas({
                 {tool === 'event' && (
                   <div><strong>Timeline:</strong> Click events to connect them in sequence</div>
                 )}
-                <div><strong>Navigate:</strong> Click arrow (→) on folder/character nodes to enter</div>
+                <div><strong>Navigate:</strong> Click arrow on folder/character nodes to enter</div>
                 <div><strong>Organize:</strong> Drag nodes into list containers</div>
                 <div><strong>Delete:</strong> Select node and press Delete or Backspace</div>
                 <div><strong>Undo/Redo:</strong> Ctrl+Z / Ctrl+Y</div>
@@ -3984,7 +3984,7 @@ export default function HTMLCanvas({
                       }}
                       title="Break down event"
                     >
-                      <span className="text-2xl font-normal" style={{ color: getIconColor('event', getNodeColor('event', node.color, node.id)) }}>→</span>
+                      <ArrowRight className="w-5 h-5" style={{ color: getIconColor('event', getNodeColor('event', node.color, node.id)), strokeWidth: 1.5 }} />
                     </div>
                   </div>
 
@@ -4694,7 +4694,7 @@ export default function HTMLCanvas({
                       }}
                       title="Open character development"
                     >
-                      <span className="text-2xl font-normal" style={{ color: getIconColor('character', getNodeColor('character', node.color, node.id)) }}>→</span>
+                      <ArrowRight className="w-5 h-5" style={{ color: getIconColor('character', getNodeColor('character', node.color, node.id)), strokeWidth: 1.5 }} />
                     </div>
                   </div>
 
@@ -5218,7 +5218,7 @@ export default function HTMLCanvas({
                                       }}
                                       title="Open character development"
                                     >
-                                      <span className="text-2xl font-normal" style={{ color: getIconColor('character', getNodeColor('character', childNode.color, childNode.id), true) }}>→</span>
+                                      <ArrowRight className="w-5 h-5" style={{ color: getIconColor('character', getNodeColor('character', childNode.color, childNode.id), true), strokeWidth: 1.5 }} />
                                     </div>
                                   </div>
                                 </>
@@ -5338,7 +5338,7 @@ export default function HTMLCanvas({
                                       }}
                                       title="Open location details"
                                     >
-                                      <span className="text-lg font-normal" style={{ color: getIconColor('location', getNodeColor('location', childNode.color, childNode.id), true) }}>→</span>
+                                      <ArrowRight className="w-4 h-4" style={{ color: getIconColor('location', getNodeColor('location', childNode.color, childNode.id), true), strokeWidth: 1.5 }} />
                                     </div>
                                   </div>
 </>
@@ -5626,7 +5626,7 @@ export default function HTMLCanvas({
                                   }}
                                   title="Open folder"
                                 >
-                                  <span className="text-2xl font-normal" style={{ color: getIconColor('folder', getNodeColor('folder', childNode.color, childNode.id), true) }}>→</span>
+                                  <ArrowRight className="w-5 h-5" style={{ color: getIconColor('folder', getNodeColor('folder', childNode.color, childNode.id), true), strokeWidth: 1.5 }} />
                                 </div>
                               </div>
                                 </>
@@ -5758,7 +5758,7 @@ export default function HTMLCanvas({
                     }}
                     title="Open folder"
                   >
-                    <span className="text-2xl font-normal" style={{ color: getIconColor('folder', getNodeColor('folder', node.color, node.id)) }}>→</span>
+                    <ArrowRight className="w-5 h-5" style={{ color: getIconColor('folder', getNodeColor('folder', node.color, node.id)), strokeWidth: 1.5 }} />
                   </div>
                 </div>
               )}

@@ -6,7 +6,7 @@
   :root {
     --background: 240 20% 97%;
     --foreground: 222.2 84% 4.9%;
-    --card: 240 25% 94%;
+    --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 240 25% 94%;
     --popover-foreground: 222.2 84% 4.9%;
@@ -67,7 +67,7 @@
 
     /* Node styling variables - can be overridden by toggle classes */
     --node-border-radius: 8px;          /* Default: rounded corners */
-    --node-font-weight: 400;            /* Default: normal text weight */
+    --node-font-weight: 600;            /* Default: bold text weight */
     --node-padding: 12px 16px;          /* Default: compact padding */
     --node-text-align: left;            /* Default: left aligned text */
   }
@@ -134,7 +134,7 @@
 
     /* Node styling variables - Dark Mode */
     --node-border-radius: 8px;            /* Default: rounded corners */
-    --node-font-weight: 400;              /* Default: normal text weight */
+    --node-font-weight: 600;              /* Default: bold text weight */
     --node-padding: 12px 16px;            /* Default: compact padding */
     --node-text-align: left;              /* Default: left aligned text */
   }
