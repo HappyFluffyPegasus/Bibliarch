@@ -7,7 +7,7 @@ import { signOut } from '@/lib/auth/actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Plus, LogOut, Sparkles, FileText, Clock, Layout, Settings, Trash2, Copy } from 'lucide-react'
+import { Plus, LogOut, Sparkles, FileText, Clock, Settings, Trash2, Copy } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { storyTemplates } from '@/lib/templates'
@@ -459,16 +459,8 @@ export default function DashboardPage() {
                 }`}
                 onClick={() => setSelectedTemplate(template.id)}
               >
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <Layout className="w-5 h-5 text-sky-600 dark:text-blue-400" />
-                    {selectedTemplate === template.id && (
-                      <div className="w-5 h-5 rounded-full bg-sky-600 dark:bg-blue-500 flex items-center justify-center">
-                        <span className="text-white text-xs">✓</span>
-                      </div>
-                    )}
-                  </div>
-                  <CardTitle className="text-base">{template.name}</CardTitle>
+                <CardHeader className="flex items-center justify-center min-h-[100px]">
+                  <CardTitle className="text-base text-center">{template.name}</CardTitle>
                 </CardHeader>
               </Card>
             ))}
