@@ -284,6 +284,13 @@
   box-shadow: none !important;
 }
 
+/* Body content should use normal font weight, not inherit bold from parent */
+[contenteditable="true"][data-content-type="content"],
+[contenteditable="true"][data-content-type="summary"],
+[contenteditable="true"][data-content-type="caption"] {
+  font-weight: 400 !important;
+}
+
 [contenteditable="true"]:focus {
   outline: none !important;
   border: none !important;
