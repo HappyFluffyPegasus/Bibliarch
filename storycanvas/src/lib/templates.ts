@@ -3,7 +3,6 @@
 export interface StoryTemplate {
   id: string
   name: string
-  description: string
   category: 'beginner' | 'intermediate' | 'advanced'
   features: string[]  // List of what this template provides
   estimatedTime: string  // How long to complete
@@ -16,7 +15,6 @@ export const storyTemplates: StoryTemplate[] = [
   {
     id: 'blank',
     name: 'Blank Canvas',
-    description: 'Start with an empty canvas - perfect for experienced writers who know exactly what they want',
     category: 'advanced',
     features: ['Complete creative freedom', 'No structure constraints', 'Build from scratch'],
     estimatedTime: 'Variable',
@@ -25,8 +23,7 @@ export const storyTemplates: StoryTemplate[] = [
   },
   {
     id: 'basic',
-    name: 'Professional Story Planner',
-    description: 'A comprehensive, beautifully organized template for serious storytellers - from concept to completion',
+    name: 'Story Planner Template',
     category: 'intermediate',
     features: ['Complete story development workflow', 'Visual organization', 'Character & plot frameworks', 'Theme & conflict mapping'],
     estimatedTime: '3-6 hours to complete',

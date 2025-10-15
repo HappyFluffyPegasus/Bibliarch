@@ -469,9 +469,6 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <CardTitle className="text-base">{template.name}</CardTitle>
-                  <CardDescription className="text-sm">
-                    {template.description}
-                  </CardDescription>
                 </CardHeader>
               </Card>
             ))}
