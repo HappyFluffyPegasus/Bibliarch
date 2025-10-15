@@ -1,6 +1,6 @@
-# NeighborNotes Setup Guide
+# Bibliarch Setup Guide
 
-This guide will help you set up NeighborNotes locally and fix any issues you encounter.
+This guide will help you set up Bibliarch locally and fix any issues you encounter.
 
 ## Quick Setup
 

@@ -1,7 +1,7 @@
-# NeighborNotes Phased Implementation Plan
+# Bibliarch Phased Implementation Plan
 
 ## Overview
-Four phases delivering increasingly complete versions of NeighborNotes. Each phase produces a deployable, testable application that users can interact with in their browser via Vercel preview/production URLs.
+Four phases delivering increasingly complete versions of Bibliarch. Each phase produces a deployable, testable application that users can interact with in their browser via Vercel preview/production URLs.
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document details the **exact code paths** for saving in NeighborNotes, comparing what works (Characters & Relationships) versus what fails (Plot Structure & Events, World & Settings).
+This document details the **exact code paths** for saving in Bibliarch, comparing what works (Characters & Relationships) versus what fails (Plot Structure & Events, World & Settings).
 
 ---
 
@@ -659,7 +659,7 @@ useEffect(() => {
 }, [nodes, connections, onSave])
 
 // Modify parent to pass canvas context:
-<NeighborNotes
+<Bibliarch
   storyId={resolvedParams.id}
   currentCanvasId={currentCanvasId}  // ← Pass as prop
   initialNodes={canvasData?.nodes || []}

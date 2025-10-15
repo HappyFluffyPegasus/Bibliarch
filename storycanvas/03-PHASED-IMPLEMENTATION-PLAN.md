@@ -1,4 +1,4 @@
-# NeighborNotes Phased Implementation Plan
+# Bibliarch Phased Implementation Plan
 
 ## Implementation Strategy Overview
 

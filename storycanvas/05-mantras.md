@@ -1,4 +1,4 @@
-# NeighborNotes MVP Implementation Mantras
+# Bibliarch MVP Implementation Mantras
 
 ## 🎯 THE PRIME DIRECTIVE
 **SHIP THE MVP. NOTHING MORE.**

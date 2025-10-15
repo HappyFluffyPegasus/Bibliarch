@@ -322,7 +322,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <Sparkles className="w-6 h-6 text-sky-600 dark:text-blue-400" />
             <h1 className="text-xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">
-              NeighborNotes
+              Bibliarch
             </h1>
           </div>
           

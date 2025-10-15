@@ -1,4 +1,4 @@
-# **NeighborNotes Timeline System Implementation Plan**
+# **Bibliarch Timeline System Implementation Plan**
 
 ## **Overview**
 A simplified, storyboard-style timeline system that focuses on visual storytelling rather than precise scheduling. Event nodes become storyboard panels that writers can use to outline their story visually, with duration giving a sense of pacing.

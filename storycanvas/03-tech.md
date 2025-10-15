@@ -1,4 +1,4 @@
-# NeighborNotes Technical Stack Document
+# Bibliarch Technical Stack Document
 
 ## 1. Core Technology Decisions
 

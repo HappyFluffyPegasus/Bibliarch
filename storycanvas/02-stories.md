@@ -1,4 +1,4 @@
-# NeighborNotes User Stories & Design Document
+# Bibliarch User Stories & Design Document
 
 ## 1. User Personas
 

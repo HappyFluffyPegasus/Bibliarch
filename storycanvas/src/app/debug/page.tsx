@@ -150,7 +150,7 @@ export default function DebugPage() {
     <div className="container mx-auto p-8 space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>NeighborNotes Database Diagnostics</CardTitle>
+          <CardTitle>Bibliarch Database Diagnostics</CardTitle>
         </CardHeader>
         <CardContent>
           <Button onClick={runDiagnostics} className="mb-4">

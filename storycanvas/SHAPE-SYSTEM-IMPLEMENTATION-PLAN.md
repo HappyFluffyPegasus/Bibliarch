@@ -1,4 +1,4 @@
-# 🎨 **NeighborNotes Decorative Shape System - Complete Implementation Plan**
+# 🎨 **Bibliarch Decorative Shape System - Complete Implementation Plan**
 
 **Date**: September 29, 2025
 **Feature**: Purely Decorative Shape System with Maximum Creative Freedom
@@ -8,7 +8,7 @@
 
 ## **🎯 System Overview**
 
-A comprehensive decorative shape system that provides users with unlimited creative freedom to enhance their story canvases with visual elements. Shapes are purely aesthetic, non-functional elements that integrate seamlessly with the existing NeighborNotes architecture.
+A comprehensive decorative shape system that provides users with unlimited creative freedom to enhance their story canvases with visual elements. Shapes are purely aesthetic, non-functional elements that integrate seamlessly with the existing Bibliarch architecture.
 
 ### **Core Principles:**
 - **Purely Decorative** - No functional behavior, only visual enhancement
@@ -529,7 +529,7 @@ interface ShapeState {
 ### **Primary UX Objectives:**
 1. **Immediate Satisfaction** - Shapes appear instantly and look beautiful
 2. **Creative Freedom** - No artificial limitations on colors or styling
-3. **Consistent Feel** - Integrates seamlessly with existing NeighborNotes patterns
+3. **Consistent Feel** - Integrates seamlessly with existing Bibliarch patterns
 4. **Progressive Disclosure** - Simple by default, powerful when needed
 
 ### **Success Metrics:**
@@ -734,4 +734,4 @@ const handleShapeToolSelect = (shapeType: ShapeType) => {
 - ✅ User acceptance testing completed
 - ✅ Code review and quality assurance passed
 
-**This implementation plan provides a complete roadmap for building a world-class decorative shape system that enhances NeighborNotes while maintaining its core story planning focus.**
+**This implementation plan provides a complete roadmap for building a world-class decorative shape system that enhances Bibliarch while maintaining its core story planning focus.**

@@ -1,4 +1,4 @@
-# NeighborNotes Authentication Upgrade Plan
+# Bibliarch Authentication Upgrade Plan
 
 **Goal:** Add professional authentication features (email confirmation, password reset, password change)
 
@@ -12,7 +12,7 @@ We're upgrading from basic login/signup to a full professional auth system with:
 - ✅ Email confirmation when signing up
 - ✅ "Forgot password?" flow
 - ✅ Settings page to change password
-- ✅ Customized email templates with NeighborNotes branding
+- ✅ Customized email templates with Bibliarch branding
 
 ---
 
@@ -85,7 +85,7 @@ We're upgrading from basic login/signup to a full professional auth system with:
 
 **Styling:**
 - Use existing components (Card, Button, Input)
-- Match NeighborNotes design system
+- Match Bibliarch design system
 - Responsive layout
 
 ---
@@ -149,61 +149,61 @@ We're upgrading from basic login/signup to a full professional auth system with:
 
 **A) Confirm Signup**
 ```
-Subject: Welcome to NeighborNotes! Confirm your account
+Subject: Welcome to Bibliarch! Confirm your account
 
 Hi there!
 
-Thanks for joining NeighborNotes - your visual story planning tool.
+Thanks for joining Bibliarch - your visual story planning tool.
 
 Click the link below to confirm your email and start creating:
 {{ .ConfirmationURL }}
 
 Happy writing!
-- The NeighborNotes Team
+- The Bibliarch Team
 ```
 
 **B) Reset Password**
 ```
-Subject: Reset your NeighborNotes password
+Subject: Reset your Bibliarch password
 
 Hi!
 
-Someone (hopefully you!) requested to reset your NeighborNotes password.
+Someone (hopefully you!) requested to reset your Bibliarch password.
 
 Click here to set a new password:
 {{ .ConfirmationURL }}
 
 If you didn't request this, you can safely ignore this email.
 
-- The NeighborNotes Team
+- The Bibliarch Team
 ```
 
 **C) Magic Link** (optional - passwordless login)
 ```
-Subject: Your NeighborNotes login link
+Subject: Your Bibliarch login link
 
 Hi!
 
-Click the link below to sign in to NeighborNotes:
+Click the link below to sign in to Bibliarch:
 {{ .ConfirmationURL }}
 
 This link expires in 1 hour.
 
-- The NeighborNotes Team
+- The Bibliarch Team
 ```
 
 **D) Change Email**
 ```
-Subject: Confirm your new email for NeighborNotes
+Subject: Confirm your new email for Bibliarch
 
 Hi!
 
-You requested to change your email address for NeighborNotes.
+You requested to change your email address for Bibliarch.
 
 Click here to confirm your new email:
 {{ .ConfirmationURL }}
 
-- The NeighborNotes Team
+- The Bibliarch Team
 ```
 
 ---

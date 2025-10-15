@@ -65,7 +65,7 @@ interface Connection {
   type?: 'leads-to' | 'conflicts-with' | 'relates-to'
 }
 
-interface NeighborNotesProps {
+interface BibliarchProps {
   storyId: string
   initialNodes?: Node[]
   initialConnections?: Connection[]
@@ -73,7 +73,7 @@ interface NeighborNotesProps {
   onNavigateToCanvas?: (canvasId: string, nodeTitle: string) => void
 }
 
-export default function NeighborNotes({ initialNodes = [], initialConnections = [], onSave, onNavigateToCanvas }: NeighborNotesProps) {
+export default function Bibliarch({ initialNodes = [], initialConnections = [], onSave, onNavigateToCanvas }: BibliarchProps) {
   // ALL HOOKS MUST BE DECLARED FIRST - before any conditional returns
   const stageRef = useRef<any>(null)
   const [nodes, setNodes] = useState<Node[]>(initialNodes)

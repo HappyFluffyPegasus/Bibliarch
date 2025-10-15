@@ -1,4 +1,4 @@
-// Authentication actions for NeighborNotes
+// Authentication actions for Bibliarch
 // Professional auth with email confirmations and password reset
 
 'use server'

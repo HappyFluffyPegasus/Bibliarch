@@ -83,7 +83,7 @@
 
 ## Current Functional Status ✅ **SUPERSEDED**
 
-This document captured the working state of NeighborNotes as of 2025-09-12 with the complete advanced color palette system.
+This document captured the working state of Bibliarch as of 2025-09-12 with the complete advanced color palette system.
 
 **WHAT WORKED AT THE TIME:**
 - ✅ **Complete Color Palette System** - Advanced palette selection with sliders and base templates

@@ -22,7 +22,7 @@ If this works, you're all set! ✅
 
 1. **Open Supabase Dashboard**
    - Go to: https://supabase.com
-   - Select your NeighborNotes project
+   - Select your Bibliarch project
 
 2. **Open SQL Editor**
    - Click "SQL Editor" in the left sidebar

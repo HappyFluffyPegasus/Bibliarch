@@ -1,7 +1,7 @@
-# NeighborNotes Product Specification
+# Bibliarch Product Specification
 
 ## Overview
-NeighborNotes is an interactive visual story planning tool that enables writers to organize characters, plot points, world-building elements, and narrative structure through an intuitive node-based canvas interface.
+Bibliarch is an interactive visual story planning tool that enables writers to organize characters, plot points, world-building elements, and narrative structure through an intuitive node-based canvas interface.
 
 ## Core Product Vision
 Create a seamless, visual storytelling workspace where writers can brainstorm, organize, and develop their stories without the friction of traditional text-based planning tools.
@@ -130,7 +130,7 @@ Create a seamless, visual storytelling workspace where writers can brainstorm, o
 - **Calendar Integration**: Writing schedule and deadline management
 - **Social Media Integration**: Share progress and inspiration
 
-**Success Criteria**: NeighborNotes becomes the central hub of a writer's workflow
+**Success Criteria**: Bibliarch becomes the central hub of a writer's workflow
 
 ---
 

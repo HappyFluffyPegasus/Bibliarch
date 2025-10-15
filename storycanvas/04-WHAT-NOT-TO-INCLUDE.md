@@ -1,4 +1,4 @@
-# NeighborNotes Anti-Features & Development Guardrails
+# Bibliarch Anti-Features & Development Guardrails
 
 ## Philosophy: Focus Over Feature Creep
 
@@ -9,7 +9,7 @@ This document defines what NOT to build, preventing scope creep and maintaining 
 ## ANTI-FEATURES: What NOT to Build
 
 ### 1. Do NOT Build a Full Writing Editor
-**Why This Seems Good**: Users could write entire stories within NeighborNotes
+**Why This Seems Good**: Users could write entire stories within Bibliarch
 **Why We Won't**: 
 - Dilutes focus from story planning to story writing
 - Competes with established tools (Word, Scrivener, Google Docs)

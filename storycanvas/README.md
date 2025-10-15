@@ -1,4 +1,4 @@
-# 🎨 **NeighborNotes - Visual Story Planning Tool**
+# 🎨 **Bibliarch - Visual Story Planning Tool**
 
 **Status**: Active Development
 **Version**: Master State (September 29, 2025)

@@ -51,7 +51,7 @@ export default function SetupPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full bg-white dark:bg-gray-900 rounded-lg shadow-xl p-8">
         <h1 className="text-3xl font-bold mb-4 text-gray-900 dark:text-white">
-          NeighborNotes Setup
+          Bibliarch Setup
         </h1>
         <p className="text-gray-600 dark:text-gray-400 mb-8">
           Click the button below to set up the feedback system. This will create the necessary database table.

@@ -14,7 +14,7 @@ import { storyTemplates, subCanvasTemplates } from '@/lib/templates'
 import FeedbackButton from '@/components/feedback/FeedbackButton'
 
 // Use the HTML canvas instead to avoid Jest worker issues completely
-const NeighborNotes = dynamic(
+const Bibliarch = dynamic(
   () => import('@/components/canvas/HTMLCanvas'),
   {
     ssr: false,
@@ -47,7 +47,7 @@ export default function StoryPage({ params }: PageProps) {
   const searchParams = useSearchParams()
   const supabase = createClient()
   
-  // Store the latest canvas state from NeighborNotes component
+  // Store the latest canvas state from Bibliarch component
   const latestCanvasData = useRef<{ nodes: any[], connections: any[] }>({ nodes: [], connections: [] })
 
   // Set project context for color palette persistence
@@ -824,7 +824,7 @@ export default function StoryPage({ params }: PageProps) {
 
       {/* Canvas */}
       <div className="flex-1 relative overflow-hidden min-h-0">
-        <NeighborNotes
+        <Bibliarch
           key={currentCanvasId}
           storyId={resolvedParams.id}
           initialNodes={canvasData?.nodes || []}
