@@ -448,19 +448,42 @@ export default function DashboardPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-2 gap-4 my-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
             {storyTemplates.map((template) => (
               <Card
                 key={template.id}
-                className={`cursor-pointer transition-all ${
+                className={`cursor-pointer transition-all hover:shadow-lg ${
                   selectedTemplate === template.id
                     ? 'ring-2 ring-sky-600 dark:ring-blue-500 bg-sky-50 dark:bg-blue-900/10'
                     : 'hover:border-sky-400 dark:hover:border-blue-500'
                 }`}
                 onClick={() => setSelectedTemplate(template.id)}
               >
-                <CardHeader className="flex items-center justify-center min-h-[100px]">
-                  <CardTitle className="text-base text-center">{template.name}</CardTitle>
+                <CardHeader className="space-y-4 pb-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{template.name}</CardTitle>
+                    {selectedTemplate === template.id && (
+                      <div className="w-6 h-6 rounded-full bg-sky-600 dark:bg-blue-500 flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-sm">✓</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {template.features.slice(0, 3).map((feature, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-1 text-xs rounded-full bg-sky-100 dark:bg-blue-900/30 text-sky-700 dark:text-blue-300"
+                      >
+                        {feature}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="w-3 h-3" />
+                    {template.estimatedTime}
+                  </div>
                 </CardHeader>
               </Card>
             ))}
