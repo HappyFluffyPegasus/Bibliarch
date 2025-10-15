@@ -53,16 +53,18 @@ interface PaletteSelectorProps {
   contextId?: string
   className?: string
   mode?: 'simple' | 'advanced' // Simple for single colors, advanced for full palettes
+  trigger?: React.ReactNode // Custom trigger button
 }
 
-export function PaletteSelector({ 
-  onColorSelect, 
-  onPaletteChange, 
+export function PaletteSelector({
+  onColorSelect,
+  onPaletteChange,
   currentPalette,
   scope = 'global',
   contextId,
   className,
-  mode = 'advanced' // Default to advanced mode for slider-based system
+  mode = 'advanced', // Default to advanced mode for slider-based system
+  trigger
 }: PaletteSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   
@@ -75,7 +77,7 @@ export function PaletteSelector({
   const [customColors, setCustomColors] = useState({
     main: '#FFB6C1',        // Soft pink - Main/primary color
     complementary: '#3F3F46', // Charcoal gray - Complementary color
-    accent: '#93C5FD'       // Sky blue - Accent color
+    accent: '#E0F2FE'       // Very light sky blue - Accent color (canvas background)
   })
   
   // Base template for custom palette generation - this is your main color slider
@@ -244,25 +246,23 @@ export function PaletteSelector({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className={`flex items-center gap-2 ${className}`}
-          title="Color Palette"
-          onClick={() => setIsOpen(true)}
-        >
-          <Palette className="w-4 h-4" />
-        </Button>
+        {trigger || (
+          <Button
+            variant="outline"
+            size="sm"
+            className={`h-8 w-8 p-0 text-xs shadow-lg ${className}`}
+            title="Color Palette"
+            onClick={() => setIsOpen(true)}
+          >
+            <Palette className="w-4 h-4" />
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Palette className="w-5 h-5" />
-            Color Palette System
-            <Badge variant="outline" className="ml-2">
-              {scope === 'global' ? '🌐 Website' : 
-               scope === 'project' ? '📁 Project' : '📂 Folder'} Colors
-            </Badge>
+            Color Palette
           </DialogTitle>
         </DialogHeader>
 
@@ -296,9 +296,6 @@ export function PaletteSelector({
                 /* Custom Color Picker */
                 <div className="space-y-6">
                   <div>
-                    <Label className="text-base font-semibold">🎨 Custom Color Picker</Label>
-                    <p className="text-sm text-gray-500 mb-4">Choose your 3 main colors - the system will create a complete palette from these</p>
-
                     <div className="space-y-4">
                       {Object.entries(customColors).map(([key, value]) => (
                         <div key={key} className="flex items-center gap-3">
@@ -343,7 +340,7 @@ export function PaletteSelector({
                 /* Single Main Color Slider */
                 <div className="space-y-6">
                   <div>
-                    <Label htmlFor="hue-adjustment" className="text-base font-semibold">🎨 Main Color Slider</Label>
+                    <Label htmlFor="hue-adjustment" className="text-base font-semibold">Main Color Slider</Label>
                     <p className="text-sm text-gray-500 mb-3">Slide to change the overall color theme while keeping perfect harmony</p>
                     <div className="mt-2 space-y-3">
                       <Slider
@@ -360,9 +357,6 @@ export function PaletteSelector({
                       />
                       <div className="text-sm text-gray-600 space-y-1">
                         <div className="font-medium text-lg leading-tight">{getColorName(ColorUtils.adjustHue(baseTemplate.baseHue, hueAdjustment[0]))}</div>
-                        {hueAdjustment[0] !== 0 && (
-                          <div className="text-xs text-gray-500 leading-tight">({hueAdjustment[0] > 0 ? '+' : ''}{hueAdjustment[0]}° from base blue)</div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -384,10 +378,9 @@ export function PaletteSelector({
                           setIsOpen(false)
                         }
                       }}
-                      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                      className="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700"
                     >
-                      <Palette className="w-4 h-4 mr-2" />
-                      Apply Palette to Project
+                      Apply Palette
                     </Button>
 
                     <Button
@@ -395,8 +388,7 @@ export function PaletteSelector({
                       variant="outline"
                       className="w-full"
                     >
-                      <Save className="w-4 h-4 mr-2" />
-                      Save This Palette
+                      Save Palette
                     </Button>
                   </div>
                 </div>
@@ -405,36 +397,10 @@ export function PaletteSelector({
               {/* Live Preview */}
               <div className="space-y-4">
                 <div>
-                  <Label>🎨 Live Preview</Label>
                   {customPalette && (
                     <div className="mt-2 p-4 border rounded-lg">
-                      <h4 className="font-medium mb-3">{customPalette.name}</h4>
                       <ColorPreview colors={customPalette.colors} />
-                      <div className="mt-4 text-xs text-gray-600 space-y-1">
-                        <p><strong>Main:</strong> Nodes & Cards</p>
-                        <p><strong>Complementary:</strong> Text & Borders</p>
-                        <p><strong>Accent:</strong> Canvas Background</p>
-                        <p className="mt-2 text-xs italic text-gray-500">Dark mode swaps Main ↔ Complementary</p>
-                      </div>
                     </div>
-                  )}
-                </div>
-
-                <div className="text-sm text-gray-600">
-                  <h5 className="font-medium mb-2">✨ How It Works:</h5>
-                  {selectedTheme === 'custom' ? (
-                    <ul className="space-y-1 text-xs">
-                      <li>• <strong>Full Control:</strong> Pick exact colors for every element</li>
-                      <li>• <strong>Live Preview:</strong> See changes instantly as you pick colors</li>
-                      <li>• <strong>Precise Colors:</strong> Use color picker or enter hex codes directly</li>
-                      <li>• <strong>Complete Freedom:</strong> No automatic harmony - you choose everything</li>
-                    </ul>
-                  ) : (
-                    <ul className="space-y-1 text-xs">
-                      <li>• <strong>Magic Slider:</strong> Changes all colors together while keeping perfect harmony</li>
-                      <li>• <strong>3-Color System:</strong> Main + Complementary + Accent</li>
-                      <li>• <strong>Smart Relationships:</strong> Colors always work well together</li>
-                    </ul>
                   )}
                 </div>
               </div>

@@ -1,17 +1,20 @@
 'use client'
 
 import React, { useEffect, useState, use, useRef, useCallback } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Edit2, Check, X, Sparkles, ChevronRight, Home } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Sparkles, ChevronRight, Settings, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
-import { storyTemplates, subCanvasTemplates } from '@/lib/templates'
+import { subCanvasTemplates } from '@/lib/templates'
 import FeedbackButton from '@/components/feedback/FeedbackButton'
+import { signOut } from '@/lib/auth/actions'
 
 // Use the HTML canvas instead to avoid Jest worker issues completely
 const Bibliarch = dynamic(
@@ -38,13 +41,14 @@ export default function StoryPage({ params }: PageProps) {
   const colorContext = useColorContext()
   const [story, setStory] = useState<any>(null)
   const [canvasData, setCanvasData] = useState<any>(null)
-  const [isEditingTitle, setIsEditingTitle] = useState(false)
-  const [editedTitle, setEditedTitle] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [currentCanvasId, setCurrentCanvasId] = useState('main')
   const [canvasPath, setCanvasPath] = useState<{id: string, title: string}[]>([])
+  const [username, setUsername] = useState<string>('')
+  const [showCanvasSettings, setShowCanvasSettings] = useState(false)
+  const [editedTitle, setEditedTitle] = useState('')
+  const [editedBio, setEditedBio] = useState('')
   const router = useRouter()
-  const searchParams = useSearchParams()
   const supabase = createClient()
   
   // Store the latest canvas state from Bibliarch component
@@ -67,11 +71,6 @@ export default function StoryPage({ params }: PageProps) {
     }
   }, [])
   
-  // Check if this is a new story with a template
-  const isNewStory = searchParams.get('isNew') === 'true'
-  const templateId = searchParams.get('template')
-
-
   useEffect(() => {
     // CRITICAL: Clear canvas data when changing canvases to prevent data mixing
     setCanvasData({ nodes: [], connections: [] })
@@ -84,11 +83,9 @@ export default function StoryPage({ params }: PageProps) {
   async function loadStory() {
     console.log('loadStory called:', {
       storyId: resolvedParams.id,
-      currentCanvasId,
-      isNewStory,
-      templateId
+      currentCanvasId
     })
-    
+
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       
@@ -105,6 +102,20 @@ export default function StoryPage({ params }: PageProps) {
       }
 
       console.log('User authenticated:', user.id)
+
+      // Get user profile for username
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single()
+
+      if (profileError) {
+        console.error('Error getting profile:', profileError)
+        setUsername('Storyteller') // Default if profile doesn't exist yet
+      } else if (profile && 'username' in profile) {
+        setUsername((profile as any).username || 'Storyteller')
+      }
 
       // Load story details
       console.log('Loading story from database...', {
@@ -143,16 +154,7 @@ export default function StoryPage({ params }: PageProps) {
 
       setStory(storyData)
       setEditedTitle((storyData as any)?.title || '')
-
-    // For new stories with templates, show a welcome message
-    if (isNewStory && templateId && currentCanvasId === 'main') {
-      const template = storyTemplates.find(t => t.id === templateId)
-      if (template) {
-        // Clear the URL params after loading
-        router.replace(`/story/${resolvedParams.id}`)
-        // Don't return - continue to load from database
-      }
-    }
+      setEditedBio((storyData as any)?.bio || '')
 
     // Load canvas data for current canvas
     // Use canvas_type for navigation (main canvas or folder-specific canvases)
@@ -623,24 +625,50 @@ export default function StoryPage({ params }: PageProps) {
     // No toast for auto-save - too spammy
   }, [resolvedParams.id])
 
-  async function handleUpdateTitle() {
-    if (!editedTitle.trim() || editedTitle === story.title) {
-      setIsEditingTitle(false)
+  async function handleSaveCanvasSettings() {
+    if (!editedTitle.trim()) {
+      alert('Project name cannot be empty')
       return
     }
 
-    const { error } = await supabase
+    console.log('Saving canvas settings:', {
+      title: editedTitle.trim(),
+      bio: editedBio.trim()
+    })
+
+    const { data, error } = await supabase
       .from('stories')
       .update({
         title: editedTitle.trim(),
+        bio: editedBio.trim(),
         updated_at: new Date().toISOString()
       })
       .eq('id', resolvedParams.id)
+      .select()
 
-    if (!error) {
-      setStory({ ...story, title: editedTitle.trim() })
+    console.log('Update result:', { data, error })
+
+    if (error) {
+      console.error('Error saving canvas settings:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
+
+      // Check if it's a column doesn't exist error
+      if (error.message?.includes('column') && error.message?.includes('bio')) {
+        alert('The bio field needs to be added to your database. Please add a "bio" column (type: text) to the "stories" table in Supabase.')
+      } else {
+        alert(`Failed to save settings: ${error.message || 'Unknown error'}`)
+      }
+      return
     }
-    setIsEditingTitle(false)
+
+    // Update local state with new values
+    setStory((prevStory: any) => ({
+      ...prevStory,
+      title: editedTitle.trim(),
+      bio: editedBio.trim()
+    }))
+
+    setShowCanvasSettings(false)
   }
 
 
@@ -698,14 +726,16 @@ export default function StoryPage({ params }: PageProps) {
   return (
     <div className="h-screen max-h-screen overflow-hidden flex flex-col bg-gray-50 dark:bg-gray-950">
       {/* Header */}
-      <header className="border-b border-gray-600 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-3">
+      <header className="border-b border-gray-600 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
+            {/* Logo Icon */}
+            <Sparkles className="w-6 h-6 text-sky-600 dark:text-blue-400" />
+
             {/* Breadcrumb navigation */}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground ml-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               {/* Dashboard link */}
-              <Link href="/dashboard" className="flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer">
-                <Home className="w-4 h-4" />
+              <Link href="/dashboard" className="hover:text-foreground transition-colors cursor-pointer">
                 Home
               </Link>
 
@@ -771,53 +801,21 @@ export default function StoryPage({ params }: PageProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Story title editor - only show on main canvas */}
-            {canvasPath.length === 0 && (
-              <>
-                {isEditingTitle ? (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={editedTitle}
-                      onChange={(e) => setEditedTitle(e.target.value)}
-                      className="h-8 w-64"
-                      autoFocus
-                      placeholder="Story title"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleUpdateTitle()
-                        if (e.key === 'Escape') {
-                          setEditedTitle(story.title)
-                          setIsEditingTitle(false)
-                        }
-                      }}
-                    />
-                    <Button size="sm" variant="ghost" onClick={handleUpdateTitle}>
-                      <Check className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setEditedTitle(story.title)
-                        setIsEditingTitle(false)
-                      }}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsEditingTitle(true)}
-                    className="h-8 text-muted-foreground hover:text-foreground"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </Button>
-                )}
-              </>
-            )}
-            <FeedbackButton />
             <ThemeToggle />
+            <FeedbackButton />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowCanvasSettings(true)}
+              title="Canvas Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+            <form action={signOut}>
+              <Button variant="ghost" size="sm" type="submit">
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </form>
           </div>
         </div>
       </header>
@@ -835,6 +833,75 @@ export default function StoryPage({ params }: PageProps) {
           canvasHeight={2000}
         />
       </div>
+
+      {/* Canvas Settings Dialog */}
+      <Dialog open={showCanvasSettings} onOpenChange={setShowCanvasSettings}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Canvas Settings</DialogTitle>
+            <DialogDescription>
+              Update your project name and description
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="project-name" className="text-sm font-medium">
+                Project Name
+              </label>
+              <Input
+                id="project-name"
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                placeholder="Enter project name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor="project-bio" className="text-sm font-medium">
+                  Project Description
+                </label>
+                <span className="text-xs text-muted-foreground">
+                  {editedBio.length}/150
+                </span>
+              </div>
+              <Textarea
+                id="project-bio"
+                value={editedBio}
+                onChange={(e) => {
+                  if (e.target.value.length <= 150) {
+                    setEditedBio(e.target.value)
+                  }
+                }}
+                placeholder="Describe your story project..."
+                rows={5}
+                maxLength={150}
+                className="resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditedTitle(story.title)
+                setEditedBio(story.bio || '')
+                setShowCanvasSettings(false)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveCanvasSettings}
+              className="bg-gradient-to-r from-sky-500 to-blue-600 dark:from-blue-500 dark:to-blue-700"
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   )

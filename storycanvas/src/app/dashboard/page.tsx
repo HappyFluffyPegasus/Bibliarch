@@ -7,15 +7,19 @@ import { signOut } from '@/lib/auth/actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Plus, LogOut, Sparkles, FileText, Clock, Settings, Trash2, Copy } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { storyTemplates } from '@/lib/templates'
 import { ensureDatabaseSetup } from '@/lib/database-init'
+import FeedbackButton from '@/components/feedback/FeedbackButton'
 
 type Story = {
   id: string
   title: string
+  bio?: string
   created_at: string
   updated_at: string
   settings?: any
@@ -27,6 +31,9 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showTemplateDialog, setShowTemplateDialog] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<string>('blank')
+  const [showProjectSettings, setShowProjectSettings] = useState(false)
+  const [newProjectName, setNewProjectName] = useState('')
+  const [newProjectBio, setNewProjectBio] = useState('')
   const [deleteDialog, setDeleteDialog] = useState<{ show: boolean; story: Story | null }>({ show: false, story: null })
   const [isDeleting, setIsDeleting] = useState(false)
   const router = useRouter()
@@ -112,21 +119,35 @@ export default function DashboardPage() {
     setShowTemplateDialog(true)
   }
 
-  async function handleCreateWithTemplate() {
+  function handleCreateWithTemplate() {
+    // Close template dialog and open project settings dialog
+    setShowTemplateDialog(false)
+    setNewProjectName(`Untitled Story ${stories.length + 1}`)
+    setNewProjectBio('')
+    setShowProjectSettings(true)
+  }
+
+  async function handleSaveNewProject() {
+    if (!newProjectName.trim()) {
+      alert('Project name cannot be empty')
+      return
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      
+
       if (!user) {
         alert('Please log in to create a story.')
         return
       }
 
       const template = storyTemplates.find(t => t.id === selectedTemplate)
-      
+
       const { data: newStory, error } = await supabase
         .from('stories')
         .insert({
-          title: `Untitled Story ${stories.length + 1}`,
+          title: newProjectName.trim(),
+          bio: newProjectBio.trim(),
           user_id: user.id
         } as any)
         .select()
@@ -153,12 +174,12 @@ export default function DashboardPage() {
               nodes: template.nodes,
               connections: template.connections
             } as any)
-          
+
           if (insertError) {
             console.error('Error saving template:', insertError)
             return
           }
-          
+
           console.log('Template saved successfully for story:', (newStory as any).id)
         }
 
@@ -173,7 +194,7 @@ export default function DashboardPage() {
                 nodes: canvasData.nodes,
                 connections: canvasData.connections
               } as any)
-            
+
             if (subCanvasError) {
               console.error('Error saving sub-canvas:', canvasId, subCanvasError)
             } else {
@@ -181,14 +202,14 @@ export default function DashboardPage() {
             }
           }
         }
-        
-        // Navigate with a query parameter to indicate it's a new story with template
-        router.push(`/story/${(newStory as any).id}?isNew=true&template=${selectedTemplate}`)
+
+        // Navigate to the new story
+        router.push(`/story/${(newStory as any).id}`)
       }
-      
-      setShowTemplateDialog(false)
+
+      setShowProjectSettings(false)
     } catch (error) {
-      console.error('Error in handleCreateWithTemplate:', error)
+      console.error('Error in handleSaveNewProject:', error)
       alert('An unexpected error occurred. Please try again.')
     }
   }
@@ -331,6 +352,7 @@ export default function DashboardPage() {
               Welcome back, <span className="font-medium">{username}</span>
             </span>
             <ThemeToggle />
+            <FeedbackButton />
             <Link href="/settings">
               <Button variant="ghost" size="sm">
                 <Settings className="w-4 h-4" />
@@ -421,7 +443,7 @@ export default function DashboardPage() {
                       </div>
                       <CardTitle className="line-clamp-1">{story.title}</CardTitle>
                       <CardDescription className="line-clamp-2">
-                        Click to open and edit your story
+                        {story.bio || 'Click to open and edit your story'}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -541,6 +563,76 @@ export default function DashboardPage() {
               disabled={isDeleting}
             >
               {isDeleting ? 'Deleting...' : 'Delete Story'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Project Settings Dialog */}
+      <Dialog open={showProjectSettings} onOpenChange={setShowProjectSettings}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Name Your Project</DialogTitle>
+            <DialogDescription>
+              Give your story a name and description
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="new-project-name" className="text-sm font-medium">
+                Project Name
+              </label>
+              <Input
+                id="new-project-name"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                placeholder="Enter project name"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor="new-project-bio" className="text-sm font-medium">
+                  Project Description
+                </label>
+                <span className="text-xs text-muted-foreground">
+                  {newProjectBio.length}/150
+                </span>
+              </div>
+              <Textarea
+                id="new-project-bio"
+                value={newProjectBio}
+                onChange={(e) => {
+                  if (e.target.value.length <= 150) {
+                    setNewProjectBio(e.target.value)
+                  }
+                }}
+                placeholder="Describe your story project..."
+                rows={5}
+                maxLength={150}
+                className="resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowProjectSettings(false)
+                setNewProjectName('')
+                setNewProjectBio('')
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveNewProject}
+              className="bg-gradient-to-r from-sky-500 to-blue-600 dark:from-blue-500 dark:to-blue-700"
+            >
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

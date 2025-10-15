@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, ArrowUp, ArrowDown, Table, Heart, Settings, TextCursor } from 'lucide-react'
+import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette } from 'lucide-react'
 import { PaletteSelector } from '@/components/ui/palette-selector'
 import { NodeStylePanel } from '@/components/ui/node-style-panel'
 import { PerformanceOptimizer } from '@/lib/performance-utils'
@@ -64,8 +64,6 @@ interface Node {
     // Folder node settings
     icon?: 'folder' | 'book' | 'archive' | 'box'
     expand_by_default?: boolean
-    // List node settings
-    auto_sort?: 'manual' | 'alphabetical' | 'by-type'
     // Table node settings
     show_header_row?: boolean
     alternate_row_colors?: boolean
@@ -129,7 +127,15 @@ export default function HTMLCanvas({
   const [editingField, setEditingField] = useState<{nodeId: string, field: string} | null>(null)
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
-  const [showHelp, setShowHelp] = useState(true)
+  const [showHelp, setShowHelp] = useState(() => {
+    // Only show help automatically on first visit
+    const hasVisitedBefore = localStorage.getItem('bibliarch-help-seen')
+    if (!hasVisitedBefore) {
+      localStorage.setItem('bibliarch-help-seen', 'true')
+      return true
+    }
+    return false
+  })
   const [showStylePanel, setShowStylePanel] = useState(false)
   const [visibleNodeIds, setVisibleNodeIds] = useState<string[]>([])
   const [viewportNodes, setViewportNodes] = useState<Node[]>([])
@@ -146,7 +152,7 @@ export default function HTMLCanvas({
     return saved ? JSON.parse(saved) : {
       corners: 'rounded',
       outlines: 'mixed',
-      textColor: 'mixed',
+      textColor: 'dark',
       textAlign: 'left'
     }
   })
@@ -2747,106 +2753,50 @@ export default function HTMLCanvas({
         <div className="w-8 h-px bg-border my-2" />
 
         {/* Canvas Controls */}
-        {/* Layer Controls */}
-        <div className="flex flex-col gap-1">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              if (!selectedId) {
-
-                return
-              }
-              const selectedNode = nodes.find(n => n.id === selectedId)
-              if (!selectedNode) return
-
-              const currentZ = selectedNode.zIndex ?? 0
-              const updatedNodes = nodes.map(n =>
-                n.id === selectedId ? { ...n, zIndex: currentZ + 1 } : n
-              )
-              setNodes(updatedNodes)
-              saveToHistory(updatedNodes, connections)
-
-            }}
-            disabled={!selectedId}
-            className="h-11 w-14 p-0"
-            title="Move Layer Up (bring forward)"
-          >
-            <ArrowUp className="w-6 h-6" />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              if (!selectedId) {
-
-                return
-              }
-              const selectedNode = nodes.find(n => n.id === selectedId)
-              if (!selectedNode) return
-
-              const currentZ = selectedNode.zIndex ?? 0
-              const updatedNodes = nodes.map(n =>
-                n.id === selectedId ? { ...n, zIndex: currentZ - 1 } : n
-              )
-              setNodes(updatedNodes)
-              saveToHistory(updatedNodes, connections)
-
-            }}
-            disabled={!selectedId}
-            className="h-11 w-14 p-0"
-            title="Move Layer Down (send backward)"
-          >
-            <ArrowDown className="w-6 h-6" />
-          </Button>
-        </div>
-
       </div>
 
       {/* Canvas Area */}
       <div className="flex-1 relative overflow-auto" style={{ backgroundColor: 'var(--color-canvas-bg, hsl(var(--background)))' }}>
         {/* Top-right buttons when help is shown */}
         {showHelp && (
-          <div className="fixed top-16 right-4 z-50 flex gap-2 items-start">
-            <div className="flex items-center flex-shrink-0">
-              <PaletteSelector
-                mode="advanced"
-                scope="project"
-                contextId={storyId}
-                onColorSelect={(color) => {
-                  if (selectedId) {
-                    handleColorChange(selectedId, color)
-                  } else {
+          <div className="fixed top-[72px] right-4 z-50 flex gap-2 items-start">
+            <PaletteSelector
+              mode="advanced"
+              scope="project"
+              contextId={storyId}
+              onColorSelect={(color) => {
+                if (selectedId) {
+                  handleColorChange(selectedId, color)
+                } else {
 
-                  }
-                }}
-                onPaletteChange={(palette) => {
-                  // Apply palette globally to entire project (all sections)
-                  colorContext.setProjectPalette(storyId, palette)
-
-                  // Apply the palette immediately to all sections
-                  colorContext.applyPalette(palette)
-
-                  // Reset all nodes to use the new theme colors
-                  resetAllNodesToThemeColors()
-
-                  // Force re-render to update node colors
-                  setPaletteRefresh(prev => prev + 1)
-
-
-                }}
-                trigger={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 w-8 p-0 text-xs shadow-lg"
-                    title="Color Palette"
-                  >
-                    🎨
-                  </Button>
                 }
-              />
-            </div>
+              }}
+              onPaletteChange={(palette) => {
+                // Apply palette globally to entire project (all sections)
+                colorContext.setProjectPalette(storyId, palette)
+
+                // Apply the palette immediately to all sections
+                colorContext.applyPalette(palette)
+
+                // Reset all nodes to use the new theme colors
+                resetAllNodesToThemeColors()
+
+                // Force re-render to update node colors
+                setPaletteRefresh(prev => prev + 1)
+
+
+              }}
+              trigger={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
+                  title="Color Palette"
+                >
+                  <Palette className="w-4 h-4" />
+                </Button>
+              }
+            />
             <Button
               size="sm"
               variant="outline"
@@ -2854,7 +2804,7 @@ export default function HTMLCanvas({
               className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
               title="Node Style Settings"
             >
-              <Settings className="w-4 h-4" />
+              <SlidersHorizontal className="w-4 h-4" />
             </Button>
             <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs sm:text-sm shadow-lg max-w-xs sm:max-w-sm">
               <div className="flex items-center justify-between mb-1">
@@ -2894,8 +2844,9 @@ export default function HTMLCanvas({
         
         {/* Top-right buttons when help is hidden */}
         {!showHelp && (
-          <div className="fixed top-16 right-4 z-50 flex gap-2">
-            <div className="flex items-center">
+          <>
+            {/* Color Palette - moves when style panel opens */}
+            <div className={`fixed top-[72px] z-50 transition-all ${showStylePanel ? 'right-[309px]' : 'right-24'}`}>
               <PaletteSelector
                 mode="advanced"
                 scope="project"
@@ -2929,35 +2880,39 @@ export default function HTMLCanvas({
                     className="h-8 w-8 p-0 text-xs shadow-lg"
                     title="Color Palette"
                   >
-                    🎨
+                    <Palette className="w-4 h-4" />
                   </Button>
                 }
               />
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowStylePanel(!showStylePanel)}
-              className="h-8 w-8 p-0 text-xs shadow-lg"
-              title="Node Style Settings"
-            >
-              <Settings className="w-4 h-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowHelp(true)}
-              className="h-8 w-8 p-0 text-xs shadow-lg"
-              title="Show help"
-            >
-              ?
-            </Button>
-          </div>
+
+            {/* Node Settings and Help - stay fixed */}
+            <div className="fixed top-[72px] right-4 z-50 flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowStylePanel(!showStylePanel)}
+                className="h-8 w-8 p-0 text-xs shadow-lg"
+                title="Node Style Settings"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowHelp(true)}
+                className="h-8 w-8 p-0 text-xs shadow-lg"
+                title="Show help"
+              >
+                ?
+              </Button>
+            </div>
+          </>
         )}
 
         {/* Style Panel Popup */}
         {showStylePanel && (
-          <div className={`fixed top-16 z-50 w-64 ${showHelp ? 'right-80 sm:right-96' : 'right-[calc(3rem+2px)]'}`}>
+          <div className={`fixed top-[72px] z-50 w-64 ${showHelp ? 'right-80 sm:right-96' : 'right-[calc(3rem+2px)]'}`}>
             <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg">
               <div className="flex items-center justify-between mb-3">
                 <span className="font-medium text-foreground flex items-center gap-2">
@@ -3369,8 +3324,8 @@ export default function HTMLCanvas({
                   {/* Add corner resize handle for image nodes when selected */}
                   {selectedId === node.id && (
                     <div
-                      className="absolute -bottom-1 -right-1 w-3 h-3 rounded-sm cursor-se-resize border border-background"
-                      style={{ backgroundColor: getResizeHandleColor(node.type || 'text') }}
+                      className="absolute -bottom-1 -right-1 w-3 h-3 rounded-sm cursor-se-resize border border-black"
+                      style={{ backgroundColor: '#ffffff' }}
                       onMouseDown={(e) => {
                         e.preventDefault() // Prevent text selection during resize
                         e.stopPropagation()
@@ -3556,7 +3511,7 @@ export default function HTMLCanvas({
                   {selectedId === node.id && (
                     <>
                       <div
-                        className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-sm cursor-se-resize hover:bg-primary/80 border border-background"
+                        className="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-sm cursor-se-resize hover:bg-white/80 border border-black"
                         onMouseDown={(e) => {
                           e.stopPropagation()
                           setResizingNode(node.id)
@@ -4037,7 +3992,7 @@ export default function HTMLCanvas({
                   {selectedId === node.id && (
                     <>
                       <div
-                        className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-sm cursor-se-resize hover:bg-primary/80 border border-background"
+                        className="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-sm cursor-se-resize hover:bg-white/80 border border-black"
                         onMouseDown={(e) => {
                           e.stopPropagation()
                           setResizingNode(node.id)
@@ -4468,7 +4423,7 @@ export default function HTMLCanvas({
                     <>
                       {/* Bottom-right corner resize handle */}
                       <div
-                        className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-sm cursor-se-resize hover:bg-primary/80 border border-background z-10"
+                        className="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-sm cursor-se-resize hover:bg-white/80 border border-black z-10"
                         onMouseDown={(e) => {
                           e.preventDefault()
                           e.stopPropagation()
@@ -4995,27 +4950,7 @@ export default function HTMLCanvas({
                             : 'space-y-1'
                         }
                       >
-                        {(() => {
-                          // Sort child nodes based on auto_sort setting
-                          let sortedChildren = [...childNodes]
-                          const autoSort = node.settings?.auto_sort || 'manual'
-
-                          if (autoSort === 'alphabetical') {
-                            sortedChildren.sort((a, b) => {
-                              const aText = a.text || a.title || ''
-                              const bText = b.text || b.title || ''
-                              return aText.localeCompare(bText)
-                            })
-                          } else if (autoSort === 'by-type') {
-                            sortedChildren.sort((a, b) => {
-                              const aType = a.type || 'text'
-                              const bType = b.type || 'text'
-                              return aType.localeCompare(bType)
-                            })
-                          }
-
-                          return sortedChildren
-                        })().map((childNode, index) => {
+                        {childNodes.map((childNode, index) => {
                           // Determine height based on node type
                           const childHeight = (childNode.type === 'character' || childNode.type === 'location') ? '72px' : childNode.type === 'event' ? '100px' : '140px'
 
@@ -5833,7 +5768,7 @@ export default function HTMLCanvas({
                 <>
                   {/* Bottom-right corner resize handle */}
                   <div
-                    className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-sm cursor-se-resize hover:bg-primary/80 border border-background z-10"
+                    className="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-sm cursor-se-resize hover:bg-white/80 border border-black z-10"
                     onMouseDown={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
@@ -5882,7 +5817,7 @@ export default function HTMLCanvas({
 
               {/* Indicator for child nodes that cannot be resized individually */}
               {selectedId === node.id && node.parentId && (
-                <div className="absolute -top-6 left-0 text-xs bg-background rounded px-1" style={{ color: 'color-mix(in srgb, var(--node-border-default, hsl(var(--border))) 75%, transparent)', borderColor: 'color-mix(in srgb, var(--node-border-default, hsl(var(--border))) 75%, transparent)' }}>
+                <div className="absolute -top-6 left-0 text-xs bg-background rounded px-1 text-muted-foreground border border-border">
                   Scales with container
                 </div>
               )}
