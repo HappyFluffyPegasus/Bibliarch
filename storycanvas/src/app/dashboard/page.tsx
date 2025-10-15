@@ -7,7 +7,7 @@ import { signOut } from '@/lib/auth/actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Plus, LogOut, Sparkles, FileText, Clock, Settings, Trash2, Copy } from 'lucide-react'
+import { Plus, LogOut, Sparkles, FileText, Settings, Trash2, Copy } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { storyTemplates } from '@/lib/templates'
@@ -454,7 +454,7 @@ export default function DashboardPage() {
                 key={template.id}
                 className={`cursor-pointer transition-all hover:shadow-lg ${
                   selectedTemplate === template.id
-                    ? 'ring-2 ring-sky-600 dark:ring-blue-500 bg-sky-50 dark:bg-blue-900/10'
+                    ? 'ring-2 ring-sky-600 dark:ring-blue-500'
                     : 'hover:border-sky-400 dark:hover:border-blue-500'
                 }`}
                 onClick={() => setSelectedTemplate(template.id)}
@@ -478,11 +478,6 @@ export default function DashboardPage() {
                         {feature}
                       </span>
                     ))}
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="w-3 h-3" />
-                    {template.estimatedTime}
                   </div>
                 </CardHeader>
               </Card>
