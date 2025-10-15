@@ -387,7 +387,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Create New Story Card */}
             <Card
-              className="border-dashed border-2 hover:border-sky-400 dark:hover:border-blue-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] group"
+              className="border-dashed border-2 hover:border-sky-400 dark:hover:border-blue-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] group bg-white dark:bg-card"
               onClick={createNewStory}
             >
               <CardHeader className="text-center">
@@ -408,7 +408,7 @@ export default function DashboardPage() {
                   href={`/story/${story.id}`}
                   className="block"
                 >
-                  <Card className="h-full hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer">
+                  <Card className="h-full hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer bg-white dark:bg-card">
                     <CardHeader>
                       <div className="flex items-start justify-between mb-2">
                         <FileText className="w-5 h-5 text-sky-600 dark:text-blue-400" />

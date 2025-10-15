@@ -3984,7 +3984,7 @@ export default function HTMLCanvas({
                       }}
                       title="Break down event"
                     >
-                      <span className="text-2xl font-bold" style={{ color: getIconColor('event', getNodeColor('event', node.color, node.id)) }}>→</span>
+                      <span className="text-2xl font-normal" style={{ color: getIconColor('event', getNodeColor('event', node.color, node.id)) }}>→</span>
                     </div>
                   </div>
 
@@ -4694,7 +4694,7 @@ export default function HTMLCanvas({
                       }}
                       title="Open character development"
                     >
-                      <span className="text-2xl font-bold" style={{ color: getIconColor('character', getNodeColor('character', node.color, node.id)) }}>→</span>
+                      <span className="text-2xl font-normal" style={{ color: getIconColor('character', getNodeColor('character', node.color, node.id)) }}>→</span>
                     </div>
                   </div>
 
@@ -5218,7 +5218,7 @@ export default function HTMLCanvas({
                                       }}
                                       title="Open character development"
                                     >
-                                      <span className="text-2xl font-bold" style={{ color: getIconColor('character', getNodeColor('character', childNode.color, childNode.id), true) }}>→</span>
+                                      <span className="text-2xl font-normal" style={{ color: getIconColor('character', getNodeColor('character', childNode.color, childNode.id), true) }}>→</span>
                                     </div>
                                   </div>
                                 </>
@@ -5338,7 +5338,7 @@ export default function HTMLCanvas({
                                       }}
                                       title="Open location details"
                                     >
-                                      <span className="text-lg font-bold" style={{ color: getIconColor('location', getNodeColor('location', childNode.color, childNode.id), true) }}>→</span>
+                                      <span className="text-lg font-normal" style={{ color: getIconColor('location', getNodeColor('location', childNode.color, childNode.id), true) }}>→</span>
                                     </div>
                                   </div>
 </>
@@ -5626,7 +5626,7 @@ export default function HTMLCanvas({
                                   }}
                                   title="Open folder"
                                 >
-                                  <span className="text-2xl font-bold" style={{ color: getIconColor('folder', getNodeColor('folder', childNode.color, childNode.id), true) }}>→</span>
+                                  <span className="text-2xl font-normal" style={{ color: getIconColor('folder', getNodeColor('folder', childNode.color, childNode.id), true) }}>→</span>
                                 </div>
                               </div>
                                 </>
@@ -5758,7 +5758,7 @@ export default function HTMLCanvas({
                     }}
                     title="Open folder"
                   >
-                    <span className="text-2xl font-bold" style={{ color: getIconColor('folder', getNodeColor('folder', node.color, node.id)) }}>→</span>
+                    <span className="text-2xl font-normal" style={{ color: getIconColor('folder', getNodeColor('folder', node.color, node.id)) }}>→</span>
                   </div>
                 </div>
               )}
