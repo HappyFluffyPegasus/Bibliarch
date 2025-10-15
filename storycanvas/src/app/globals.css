@@ -284,13 +284,6 @@
   box-shadow: none !important;
 }
 
-/* Body content should use normal font weight, not inherit bold from parent */
-[contenteditable="true"][data-content-type="content"],
-[contenteditable="true"][data-content-type="summary"],
-[contenteditable="true"][data-content-type="caption"] {
-  font-weight: 400 !important;
-}
-
 [contenteditable="true"]:focus {
   outline: none !important;
   border: none !important;
@@ -429,6 +422,11 @@
 .node-background {
   border-radius: var(--node-border-radius) !important;
   padding: var(--node-padding) !important;
-  font-weight: var(--node-font-weight) !important;
   text-align: var(--node-text-align) !important;
+}
+
+/* Apply font-weight only to title elements, not all content */
+.node-background [data-content-type="title"],
+.node-background [data-content-type="header"] {
+  font-weight: var(--node-font-weight) !important;
 }
