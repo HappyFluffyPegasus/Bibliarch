@@ -195,19 +195,6 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
         </>
       )}
 
-      {node.type === 'list' && (
-        <>
-          <SubMenuItem
-            label="Auto Sort"
-            options={[
-              { label: 'Manual', value: 'manual', current: (node.settings?.auto_sort ?? 'manual') === 'manual' },
-              { label: 'Alphabetical', value: 'alphabetical', current: (node.settings?.auto_sort ?? 'manual') === 'alphabetical' },
-              { label: 'By Type', value: 'by-type', current: (node.settings?.auto_sort ?? 'manual') === 'by-type' }
-            ]}
-          />
-          <Divider />
-        </>
-      )}
 
       {node.type === 'table' && (
         <>
@@ -226,11 +213,6 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
       )}
 
       {/* Global settings for all nodes */}
-      <ToggleMenuItem
-        label="Lock Position"
-        settingKey="locked"
-        currentValue={node.settings?.locked ?? false}
-      />
       <MenuItem label="Duplicate" onClick={() => onDuplicate(node.id)} />
       <MenuItem label="Bring to Front" onClick={() => onBringToFront(node.id)} />
       <MenuItem label="Send to Back" onClick={() => onSendToBack(node.id)} />
