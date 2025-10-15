@@ -25,7 +25,7 @@ export const storyTemplates: StoryTemplate[] = [
     id: 'basic',
     name: 'Story Planner Template',
     category: 'intermediate',
-    features: ['Complete story development workflow', 'Visual organization', 'Character & plot frameworks', 'Theme & conflict mapping'],
+    features: ['Complete story development workflow', 'Character & plot frameworks', 'Theme & conflict mapping'],
     estimatedTime: '3-6 hours to complete',
     nodes: [
       // Story Development list container
