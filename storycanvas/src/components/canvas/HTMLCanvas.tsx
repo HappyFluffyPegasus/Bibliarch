@@ -109,6 +109,8 @@ interface HTMLCanvasProps {
   canvasWidth?: number
   canvasHeight?: number
   showHelp?: boolean
+  zoom?: number
+  onZoomChange?: (zoom: number) => void
 }
 
 // Updated with smaller sidebar and trackpad support
@@ -120,7 +122,9 @@ export default function HTMLCanvas({
   onNavigateToCanvas,
   canvasWidth = 3000,
   canvasHeight = 2000,
-  showHelp = false
+  showHelp = false,
+  zoom: controlledZoom,
+  onZoomChange
 }: HTMLCanvasProps) {
   const colorContext = useColorContext()
   const [nodes, setNodes] = useState<Node[]>(initialNodes)
@@ -162,13 +166,21 @@ export default function HTMLCanvas({
   const [resizingNode, setResizingNode] = useState<string | null>(null)
   const [resizeStartSize, setResizeStartSize] = useState({ width: 0, height: 0 })
   const [resizeStartPos, setResizeStartPos] = useState({ x: 0, y: 0 })
-  const [zoom, setZoom] = useState(1)
+
+  // Use controlled zoom if provided, otherwise use internal state
+  const [internalZoom, setInternalZoom] = useState(1)
+  const zoom = controlledZoom !== undefined ? controlledZoom : internalZoom
+  const setZoom = useCallback((newZoom: number | ((prev: number) => number)) => {
+    const nextZoom = typeof newZoom === 'function' ? newZoom(zoom) : newZoom
+    if (onZoomChange) {
+      onZoomChange(nextZoom)
+    } else {
+      setInternalZoom(nextZoom)
+    }
+  }, [zoom, onZoomChange])
+
   const [zoomCenter, setZoomCenter] = useState({ x: 0, y: 0 })
   const canvasRef = useRef<HTMLDivElement>(null)
-
-  // Touch zoom state
-  const [touchStartDistance, setTouchStartDistance] = useState<number | null>(null)
-  const [touchStartZoom, setTouchStartZoom] = useState(1)
 
   // Multi-select state
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -2592,39 +2604,6 @@ export default function HTMLCanvas({
     }
   }
 
-  // Touch event handlers for pinch-to-zoom on mobile
-  const getTouchDistance = (touch1: React.Touch, touch2: React.Touch) => {
-    const dx = touch1.clientX - touch2.clientX
-    const dy = touch1.clientY - touch2.clientY
-    return Math.sqrt(dx * dx + dy * dy)
-  }
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      // Start pinch zoom
-      const distance = getTouchDistance(e.touches[0], e.touches[1])
-      setTouchStartDistance(distance)
-      setTouchStartZoom(zoom)
-      e.preventDefault()
-    }
-  }, [zoom])
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 2 && touchStartDistance !== null) {
-      // Handle pinch zoom
-      const distance = getTouchDistance(e.touches[0], e.touches[1])
-      const scale = distance / touchStartDistance
-      const newZoom = Math.max(0.1, Math.min(3, touchStartZoom * scale))
-      setZoom(newZoom)
-      e.preventDefault()
-    }
-  }, [touchStartDistance, touchStartZoom])
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length < 2) {
-      setTouchStartDistance(null)
-    }
-  }, [])
 
   return (
     <div className="w-full h-full overflow-hidden flex flex-col md:flex-row bg-background">
@@ -2994,9 +2973,6 @@ export default function HTMLCanvas({
           onMouseLeave={() => handleCanvasMouseUp()}
           onContextMenu={(e) => e.preventDefault()}
           onWheel={handleWheel}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
           style={{
             width: `${canvasWidth}px`,
             height: `${canvasHeight}px`,

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Sparkles, ChevronRight, Settings, LogOut, HelpCircle, Home as HomeIcon, ChevronLeft } from 'lucide-react'
+import { Sparkles, ChevronRight, Settings, LogOut, HelpCircle, Home as HomeIcon, ChevronLeft, Plus, Minus, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
@@ -49,6 +49,7 @@ export default function StoryPage({ params }: PageProps) {
   const [editedTitle, setEditedTitle] = useState('')
   const [editedBio, setEditedBio] = useState('')
   const [showHelp, setShowHelp] = useState(false)
+  const [zoom, setZoom] = useState(1)
   const router = useRouter()
   const supabase = createClient()
   
@@ -774,6 +775,37 @@ export default function StoryPage({ params }: PageProps) {
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
               )}
+
+              {/* Zoom controls - Mobile only */}
+              <div className="flex items-center gap-0.5 ml-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}
+                  title="Zoom out"
+                >
+                  <Minus className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setZoom(1)}
+                  title="Reset zoom"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setZoom(Math.min(3, zoom + 0.1))}
+                  title="Zoom in"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Desktop Breadcrumb navigation */}
@@ -887,6 +919,8 @@ export default function StoryPage({ params }: PageProps) {
           canvasWidth={3000}
           canvasHeight={2000}
           showHelp={showHelp}
+          zoom={zoom}
+          onZoomChange={setZoom}
         />
       </div>
 

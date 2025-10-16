@@ -339,27 +339,27 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-white dark:bg-gradient-to-br dark:from-gray-950 dark:to-gray-900">
       {/* Header */}
       <header className="border-b bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-2 md:px-4 py-3 md:py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-6 h-6 text-sky-600 dark:text-blue-400" />
-            <h1 className="text-xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">
+            <h1 className="hidden md:block text-xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent">
               Bibliarch
             </h1>
           </div>
-          
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
+
+          <div className="flex items-center gap-1 md:gap-4">
+            <span className="hidden md:block text-sm text-muted-foreground">
               Welcome back, <span className="font-medium">{username}</span>
             </span>
-            <ThemeToggle />
-            <FeedbackButton />
+            <div className="md:block"><ThemeToggle /></div>
+            <div className="md:block"><FeedbackButton /></div>
             <Link href="/settings">
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="h-8 w-8 md:h-9 md:w-9 p-0">
                 <Settings className="w-4 h-4" />
               </Button>
             </Link>
             <form action={signOut}>
-              <Button variant="ghost" size="sm" type="submit">
+              <Button variant="ghost" size="sm" type="submit" className="h-8 w-8 md:h-9 md:w-9 p-0">
                 <LogOut className="w-4 h-4" />
               </Button>
             </form>
