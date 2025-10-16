@@ -2596,11 +2596,24 @@ export default function HTMLCanvas({
   }
 
   return (
-    <div className="w-full h-full overflow-hidden flex bg-background">
-      {/* Left Sidebar */}
-      <div className="w-20 bg-card border-r border-gray-600 dark:border-gray-600 flex flex-col items-center py-4 gap-3 z-20 max-h-screen hover-scrollable">
+    <div className="w-full h-full overflow-hidden flex flex-col md:flex-row bg-background">
+      {/* Sidebar - Bottom on mobile, Left on desktop */}
+      <div className="
+        w-full h-16 md:w-20 md:h-full
+        bg-card
+        border-t md:border-t-0 md:border-r
+        border-gray-600 dark:border-gray-600
+        flex flex-row md:flex-col
+        items-center
+        px-4 md:px-0 py-2 md:py-4
+        gap-3
+        z-20
+        order-last md:order-first
+        overflow-x-auto md:overflow-x-visible md:max-h-screen
+        hover-scrollable
+      ">
         {/* Navigation Tools */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-row md:flex-col gap-1">
           <Button
             size="sm"
             variant={tool === 'select' ? 'default' : 'outline'}
@@ -2613,10 +2626,10 @@ export default function HTMLCanvas({
         </div>
 
         {/* Divider */}
-        <div className="w-8 h-px bg-border my-2" />
+        <div className="w-px h-8 md:w-8 md:h-px bg-border mx-2 md:mx-0 md:my-2" />
 
         {/* Creation Tools */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-row md:flex-col gap-1">
           <Button
             size="sm"
             variant={tool === 'text' ? 'default' : 'outline'}
@@ -2701,10 +2714,10 @@ export default function HTMLCanvas({
         </div>
 
         {/* Divider */}
-        <div className="w-8 h-px bg-border my-2" />
+        <div className="w-px h-8 md:w-8 md:h-px bg-border mx-2 md:mx-0 md:my-2" />
 
         {/* Undo/Redo Controls */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-row md:flex-col gap-1">
           <Button 
             size="sm" 
             variant="outline" 
@@ -2728,10 +2741,10 @@ export default function HTMLCanvas({
         </div>
 
         {/* Divider */}
-        <div className="w-8 h-px bg-border my-2" />
+        <div className="w-px h-8 md:w-8 md:h-px bg-border mx-2 md:mx-0 md:my-2" />
 
         {/* Zoom Controls */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-row md:flex-col gap-1">
           <Button
             size="sm"
             variant="outline"
@@ -2768,7 +2781,7 @@ export default function HTMLCanvas({
         </div>
 
         {/* Divider */}
-        <div className="w-8 h-px bg-border my-2" />
+        <div className="w-px h-8 md:w-8 md:h-px bg-border mx-2 md:mx-0 md:my-2" />
 
         {/* Canvas Controls */}
       </div>
