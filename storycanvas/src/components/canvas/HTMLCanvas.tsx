@@ -1299,13 +1299,16 @@ export default function HTMLCanvas({
           deltaY = Math.max(minDeltaY, deltaY)
         }
 
+        const finalX = (draggedNodeObj?.x || 0) + deltaX
+        const finalY = (draggedNodeObj?.y || 0) + deltaY
+
         const updatedNodes = nodes.map(node => {
           // Move the dragged node using the constrained delta
           if (node.id === draggingNode) {
             return {
               ...node,
-              x: (draggedNodeObj?.x || 0) + deltaX,
-              y: (draggedNodeObj?.y || 0) + deltaY
+              x: finalX,
+              y: finalY
             }
           }
           // Move all other selected nodes by the same constrained delta
@@ -1318,17 +1321,18 @@ export default function HTMLCanvas({
           }
           return node
         })
+
         setNodes(updatedNodes)
         saveToHistory(updatedNodes, connections)
       }
 
-      // Clear drag states after a brief delay to prevent jitter
-      // This ensures the nodes array updates before getNodeDragPosition switches back to node.x/y
-      setTimeout(() => {
+      // Clear drag states after the browser has painted to prevent jitter
+      // This ensures the updated node positions are visible before switching from dragPosition to node.x/y
+      requestAnimationFrame(() => {
         setDraggingNode(null)
         setDragOffset({ x: 0, y: 0 })
         setDragPosition({ x: 0, y: 0 })
-      }, 0)
+      })
     }
     
     if (resizingNode) {
