@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { flushSync } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette, ArrowRight } from 'lucide-react'
@@ -1257,16 +1258,16 @@ export default function HTMLCanvas({
               return node
             })
 
-            // Update nodes first, clear drag states after paint
-            setNodes(updatedNodes)
-            saveToHistory(updatedNodes, connections)
-
-            // Clear drag states after browser paints
-            requestAnimationFrame(() => {
-              setDraggingNode(null)
-              setDragOffset({ x: 0, y: 0 })
-              setDragPosition({ x: 0, y: 0 })
+            // FLUSHSYNC FIX: Force nodes to update synchronously FIRST
+            flushSync(() => {
+              setNodes(updatedNodes)
             })
+
+            // Now clear drag states - nodes array is already updated
+            setDraggingNode(null)
+            setDragOffset({ x: 0, y: 0 })
+            setDragPosition({ x: 0, y: 0 })
+            saveToHistory(updatedNodes, connections)
 
             droppedIntoList = true
             break
@@ -1330,20 +1331,19 @@ export default function HTMLCanvas({
           return node
         })
 
-        // CRITICAL FIX: Set dragPosition to final position FIRST
-        // Keep draggingNode active so getNodeDragPosition uses dragPosition (which now equals final position)
-        // Update nodes array
-        // Then clear drag states AFTER browser paints (when nodes array has updated)
-        setDragPosition({ x: finalX, y: finalY })
-        setNodes(updatedNodes)
-        saveToHistory(updatedNodes, connections)
-
-        // Clear drag states after paint - by then nodes array has updated
-        requestAnimationFrame(() => {
-          setDraggingNode(null)
-          setDragOffset({ x: 0, y: 0 })
-          setDragPosition({ x: 0, y: 0 })
+        // FLUSHSYNC FIX: Force nodes to update synchronously FIRST
+        // This renders immediately with new positions
+        // Then clear drag states in next batch
+        // Guarantees nodes array is updated before getNodeDragPosition switches to using node.x/y
+        flushSync(() => {
+          setNodes(updatedNodes)
         })
+
+        // Now clear drag states - nodes array is already updated
+        setDraggingNode(null)
+        setDragOffset({ x: 0, y: 0 })
+        setDragPosition({ x: 0, y: 0 })
+        saveToHistory(updatedNodes, connections)
       }
     }
     
