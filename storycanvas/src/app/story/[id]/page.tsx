@@ -883,12 +883,12 @@ export default function StoryPage({ params }: PageProps) {
               size="sm"
               onClick={() => setShowHelp(!showHelp)}
               title="Toggle Help"
-              className="hidden md:inline-flex"
+              className="hidden md:inline-flex h-8 md:h-9"
             >
               <HelpCircle className="w-4 h-4" />
             </Button>
-            <div className="md:block"><ThemeToggle /></div>
-            <div className="md:block"><FeedbackButton /></div>
+            <ThemeToggle />
+            <FeedbackButton />
             <Button
               variant="ghost"
               size="sm"
