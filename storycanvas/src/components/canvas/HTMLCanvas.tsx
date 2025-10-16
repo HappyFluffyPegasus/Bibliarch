@@ -4734,7 +4734,7 @@ export default function HTMLCanvas({
             <div
               key={node.id}
               data-node-id={node.id}
-              draggable={node.type !== 'list'}
+              draggable={false}
               className={`absolute border-2 rounded-lg p-3 cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
                 connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
               } ${
@@ -4760,10 +4760,6 @@ export default function HTMLCanvas({
                 e.stopPropagation()
                 // Explicitly prevent any double-click navigation for folder nodes
               }}
-              onDragStart={(e) => handleDragStart(e, node.id)}
-              onDragOver={(e) => handleDragOver(e, node.id)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, node.id)}
               onMouseDown={(e) => {
                 // Right click on selected node opens context menu
                 if (e.button === 2 && (selectedId === node.id || selectedIds.includes(node.id))) {
