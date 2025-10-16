@@ -2990,7 +2990,9 @@ export default function HTMLCanvas({
                     margin: '0',
                     userSelect: 'none',
                     outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'image')}` : 'none',
-                    outlineOffset: '-1px'
+                    outlineOffset: '-1px',
+                    opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
+                    transition: draggingNode ? 'none' : 'opacity 0.1s ease'
                   }}
                   onMouseDown={(e) => {
                     // Right click on selected node opens context menu
@@ -3355,7 +3357,9 @@ export default function HTMLCanvas({
                     overflow: 'visible',
                     userSelect: 'none',
                     outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
-                    outlineOffset: '-1px'
+                    outlineOffset: '-1px',
+                    opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
+                    transition: draggingNode ? 'none' : 'opacity 0.1s ease'
                   }}
                   onMouseDown={(e) => {
                     // Right click on selected node opens context menu
@@ -3542,7 +3546,9 @@ export default function HTMLCanvas({
                     borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
                     userSelect: tool === 'textedit' ? 'auto' : 'none',
                     outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
-                    outlineOffset: '-3px'
+                    outlineOffset: '-3px',
+                    opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
+                    transition: draggingNode ? 'none' : 'opacity 0.1s ease'
                   }}
                   onDoubleClick={(e) => {
                     e.preventDefault()
@@ -3707,7 +3713,9 @@ export default function HTMLCanvas({
                     borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
                     userSelect: tool === 'textedit' ? 'auto' : 'none',
                     outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
-                    outlineOffset: '-3px'
+                    outlineOffset: '-3px',
+                    opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
+                    transition: draggingNode ? 'none' : 'opacity 0.1s ease'
                   }}
                   onDoubleClick={(e) => {
                     e.preventDefault()
@@ -4028,7 +4036,9 @@ export default function HTMLCanvas({
                     padding: '12px',
                     overflow: 'hidden',
                     outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
-                    outlineOffset: '-3px'
+                    outlineOffset: '-3px',
+                    opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
+                    transition: draggingNode ? 'none' : 'opacity 0.1s ease'
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onMouseDown={(e) => {
@@ -4487,7 +4497,9 @@ export default function HTMLCanvas({
                     borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
                     userSelect: tool === 'textedit' ? 'auto' : 'none',
                     outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
-                    outlineOffset: '-3px'
+                    outlineOffset: '-3px',
+                    opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
+                    transition: draggingNode ? 'none' : 'opacity 0.1s ease'
                   }}
                   onDoubleClick={(e) => {
                     e.preventDefault()
@@ -4739,7 +4751,9 @@ export default function HTMLCanvas({
                 borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor(node.type || 'text') : getNodeBorderColor(node.type || 'text'),
                 userSelect: tool === 'textedit' ? 'auto' : 'none',
                 outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
-                outlineOffset: '-3px'
+                outlineOffset: '-3px',
+                opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
+                transition: draggingNode ? 'none' : 'opacity 0.1s ease'
               }}
               onDoubleClick={(e) => {
                 e.preventDefault()
