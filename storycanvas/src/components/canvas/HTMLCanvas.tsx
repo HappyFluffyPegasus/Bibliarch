@@ -377,36 +377,8 @@ export default function HTMLCanvas({
     }, delay)
   }, [autoResizeNode])
 
-  // Auto-resize only newly created nodes (not existing ones)
-  const [hasInitialized, setHasInitialized] = useState(false)
-
-  useEffect(() => {
-    if (!hasInitialized && nodes.length > 0) {
-      // Initial load - auto-size all nodes once
-      const timer = setTimeout(() => {
-        nodes.forEach(node => {
-          // Skip auto-resize for image, character, and location nodes - they maintain their fixed sizes
-          if (node.type === 'image' || node.type === 'character' || node.type === 'location') {
-            return
-          }
-
-          // Find the content elements for each node
-          const titleElement = document.querySelector(`[data-node-id="${node.id}"] [contenteditable]`)
-          const contentElement = document.querySelector(`[data-node-id="${node.id}"] [contenteditable]:not(:first-of-type)`)
-
-          if (titleElement && node.text && node.type !== 'list') {
-            autoResizeNode(node.id, titleElement as HTMLElement, true)
-          }
-          if (contentElement && node.content && (node.type === 'text' || !node.type)) {
-            autoResizeNode(node.id, contentElement as HTMLElement, false)
-          }
-        })
-        setHasInitialized(true)
-      }, 100)
-
-      return () => clearTimeout(timer)
-    }
-  }, [nodes.length, autoResizeNode, hasInitialized]) // Only on initial load
+  // Auto-resize only when users actively edit content - do NOT auto-resize on initial load
+  // This preserves preset heights from templates
 
   // Set canvas dot color using same transformation as child node borders
   useEffect(() => {
