@@ -157,7 +157,7 @@ export default function AdminFeedbackPage() {
       in_progress: 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200',
       resolved: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
       wont_fix: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200',
-      duplicate: 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200',
+      duplicate: 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200',
     }
 
     return (

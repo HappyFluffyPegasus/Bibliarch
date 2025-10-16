@@ -872,6 +872,25 @@ export default function HTMLCanvas({
   }, [tool, isDraggingCharacter, zoom, zoomCenter])
 
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
+    // CRITICAL: If no mouse buttons are pressed, clear all drag/resize states
+    // This fixes Mac trackpad issue where drag becomes "sticky" (click-to-grab instead of click-and-hold)
+    if (e.buttons === 0) {
+      if (isDragReady) setIsDragReady(null)
+      if (draggingNode) {
+        setDraggingNode(null)
+        setDragOffset({ x: 0, y: 0 })
+        setDragPosition({ x: 0, y: 0 })
+      }
+      if (isResizeReady) setIsResizeReady(null)
+      if (resizingNode) {
+        setResizingNode(null)
+        document.body.style.userSelect = ''
+      }
+      if (isPanning) setIsPanning(false)
+      if (isSelecting) setIsSelecting(false)
+      return
+    }
+
     // Update selection box if selecting
     if (isSelecting && tool === 'select') {
       const rect = canvasRef.current?.getBoundingClientRect()
@@ -2729,7 +2748,7 @@ export default function HTMLCanvas({
       </div>
 
       {/* Canvas Area */}
-      <div className="flex-1 relative overflow-auto" style={{ backgroundColor: 'var(--color-canvas-bg, hsl(var(--background)))' }}>
+      <div className="flex-1 relative overflow-auto mac-style-scrollbar" style={{ backgroundColor: 'var(--color-canvas-bg, hsl(var(--background)))' }}>
         {/* Top-right buttons when help is shown */}
         {showHelp && (
           <div className="fixed top-[72px] right-4 z-50 flex gap-2 items-start">

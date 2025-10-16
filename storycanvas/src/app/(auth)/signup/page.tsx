@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2, Sparkles } from 'lucide-react'
+import FeedbackButton from '@/components/feedback/FeedbackButton'
 
 export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -43,6 +44,11 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-100 to-blue-100 dark:from-gray-900 dark:to-gray-800">
+      {/* Feedback Button - Fixed to bottom right */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <FeedbackButton />
+      </div>
+
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-20 right-20 w-72 h-72 bg-sky-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>

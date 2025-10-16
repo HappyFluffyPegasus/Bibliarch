@@ -15,7 +15,7 @@ const steps: OnboardingStep[] = [
   {
     title: 'Welcome to Bibliarch!',
     description: 'Create immersive, interactive stories with our visual development tool. Let\'s get you started on your storytelling journey.',
-    icon: <Sparkles className="w-12 h-12 text-purple-600" />
+    icon: <Sparkles className="w-12 h-12 text-sky-500" />
   },
   {
     title: 'Creating Story Nodes',
@@ -35,7 +35,7 @@ const steps: OnboardingStep[] = [
   {
     title: 'Save Your Work',
     description: 'Your story auto-saves, but you can also manually save with the Save button. Your stories are stored securely in the cloud.',
-    icon: <Save className="w-12 h-12 text-purple-600" />
+    icon: <Save className="w-12 h-12 text-sky-500" />
   }
 ]
 
@@ -101,10 +101,10 @@ export function OnboardingModal() {
             <div
               key={index}
               className={`h-2 w-2 rounded-full transition-colors ${
-                index === currentStep 
-                  ? 'bg-purple-600' 
-                  : index < currentStep 
-                    ? 'bg-purple-300'
+                index === currentStep
+                  ? 'bg-sky-500'
+                  : index < currentStep
+                    ? 'bg-sky-300'
                     : 'bg-gray-300'
               }`}
             />
@@ -132,7 +132,7 @@ export function OnboardingModal() {
             )}
             <Button
               onClick={handleNext}
-              className="flex-1 sm:flex-initial bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              className="flex-1 sm:flex-initial bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700"
             >
               {currentStep === steps.length - 1 ? 'Get Started' : 'Next'}
             </Button>

@@ -1135,7 +1135,7 @@ export default function Bibliarch({ initialNodes = [], initialConnections = [], 
               setSelectedId(null)
             }}
             title="Connect nodes"
-            className={`w-10 h-10 ${connectingFrom ? 'bg-purple-600 text-white' : ''}`}
+            className={`w-10 h-10 ${connectingFrom ? 'bg-sky-500 text-white' : ''}`}
           >
             <GitBranch className="w-5 h-5" />
           </Button>
@@ -1187,10 +1187,10 @@ export default function Bibliarch({ initialNodes = [], initialConnections = [], 
               setConnectingFrom(null)
             }}
             title="Add mentor character"
-            className="w-12 h-12 relative group bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 dark:hover:from-purple-800/40 dark:hover:to-purple-700/40 border-purple-200 dark:border-purple-700"
+            className="w-12 h-12 relative group bg-gradient-to-br from-indigo-50 to-indigo-100 hover:from-indigo-100 hover:to-indigo-200 dark:from-indigo-900/30 dark:to-indigo-800/30 dark:hover:from-indigo-800/40 dark:hover:to-indigo-700/40 border-indigo-200 dark:border-indigo-700"
           >
-            <User className="w-4 h-4 text-purple-700 dark:text-purple-300" />
-            <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-purple-600 rounded-full flex items-center justify-center">
+            <User className="w-4 h-4 text-indigo-700 dark:text-indigo-300" />
+            <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-indigo-600 rounded-full flex items-center justify-center">
               <span className="text-white text-xs font-bold">✦</span>
             </span>
           </Button>
@@ -2911,7 +2911,7 @@ export default function Bibliarch({ initialNodes = [], initialConnections = [], 
             </Button>
             <Button
               onClick={handleSaveEdit}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700"
             >
               Save Changes
             </Button>
