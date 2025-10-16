@@ -2027,7 +2027,6 @@ export default function HTMLCanvas({
       const lineHeight = 21
       const headerHeight = 36 // Space for icon and title
       const padding = 12 // Internal padding
-      const minTextHeight = 139 // Minimum height for text nodes (3/4 of original 185px)
 
       // Calculate required lines based on content and current width
       const effectiveWidth = (node.width || baseWidth) - padding * 2
@@ -2036,7 +2035,7 @@ export default function HTMLCanvas({
       const requiredLines = Math.max(minLines, Math.ceil(contentLength / avgCharsPerLine))
 
       const calculatedHeight = headerHeight + padding + (requiredLines * lineHeight)
-      const newHeight = Math.max(minTextHeight, Math.min(maxHeight, calculatedHeight))
+      const newHeight = Math.max(minHeight, Math.min(maxHeight, calculatedHeight))
 
       return {
         width: node.width || baseWidth, // Keep current width - user can resize manually
