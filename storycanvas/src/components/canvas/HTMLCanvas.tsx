@@ -1257,12 +1257,16 @@ export default function HTMLCanvas({
               return node
             })
 
-            // Clear drag states FIRST so React batches with setNodes
-            setDraggingNode(null)
-            setDragOffset({ x: 0, y: 0 })
-            setDragPosition({ x: 0, y: 0 })
+            // Update nodes first, clear drag states after paint
             setNodes(updatedNodes)
             saveToHistory(updatedNodes, connections)
+
+            // Clear drag states after browser paints
+            requestAnimationFrame(() => {
+              setDraggingNode(null)
+              setDragOffset({ x: 0, y: 0 })
+              setDragPosition({ x: 0, y: 0 })
+            })
 
             droppedIntoList = true
             break
@@ -1326,14 +1330,20 @@ export default function HTMLCanvas({
           return node
         })
 
-        // Clear draggingNode FIRST in the same batch as setNodes
-        // React will batch these together - when it renders, draggingNode is null
-        // so getNodeDragPosition returns node.x/y directly (which will be the NEW values)
-        setDraggingNode(null)
-        setDragOffset({ x: 0, y: 0 })
-        setDragPosition({ x: 0, y: 0 })
+        // CRITICAL FIX: Set dragPosition to final position FIRST
+        // Keep draggingNode active so getNodeDragPosition uses dragPosition (which now equals final position)
+        // Update nodes array
+        // Then clear drag states AFTER browser paints (when nodes array has updated)
+        setDragPosition({ x: finalX, y: finalY })
         setNodes(updatedNodes)
         saveToHistory(updatedNodes, connections)
+
+        // Clear drag states after paint - by then nodes array has updated
+        requestAnimationFrame(() => {
+          setDraggingNode(null)
+          setDragOffset({ x: 0, y: 0 })
+          setDragPosition({ x: 0, y: 0 })
+        })
       }
     }
     
