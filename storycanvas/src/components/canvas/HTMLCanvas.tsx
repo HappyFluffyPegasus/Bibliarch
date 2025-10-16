@@ -842,8 +842,8 @@ export default function HTMLCanvas({
       y: Math.max(0, y - 60),
       text: getDefaultText(tool),
       content: getDefaultContent(tool),
-      width: tool === 'list' ? 320 : tool === 'image' ? 300 : tool === 'character' ? 320 : tool === 'location' ? 320 : tool === 'event' ? 220 : tool === 'table' ? 280 : tool === 'relationship-canvas' ? 600 : 200,  // Event nodes portrait: 220px wide
-      height: tool === 'list' ? 240 : tool === 'image' ? 200 : tool === 'character' ? 72 : tool === 'location' ? 72 : tool === 'event' ? 280 : tool === 'table' ? 200 : tool === 'relationship-canvas' ? 400 : 120, // Event nodes portrait: 280px tall
+      width: tool === 'list' ? 320 : tool === 'image' ? 300 : tool === 'character' ? 320 : tool === 'location' ? 320 : tool === 'event' ? 220 : tool === 'table' ? 280 : tool === 'relationship-canvas' ? 600 : 300,  // Event nodes portrait: 220px wide, text/folder: 300px
+      height: tool === 'list' ? 240 : tool === 'image' ? 200 : tool === 'character' ? 72 : tool === 'location' ? 72 : tool === 'event' ? 280 : tool === 'table' ? 200 : tool === 'relationship-canvas' ? 400 : 139, // Event nodes portrait: 280px tall, text/folder: 139px (3/4 of Story Overview's 185px)
       type: tool,
       // Don't set color - let it use dynamic theme colors
       ...(tool === 'list' ? { childIds: [], layoutMode: 'single-column' as const } : {}),
@@ -2014,19 +2014,19 @@ export default function HTMLCanvas({
 
   const calculateAutoSize = (node: Node, content: string) => {
     // Auto-sizing logic based on node type and content
-    const baseWidth = 240
-    const baseHeight = 120
+    const baseWidth = 300
+    const baseHeight = 139
     const minWidth = 180
-    const minHeight = 100
+    const minHeight = 80
     const maxWidth = 800
     const maxHeight = 1200
 
     if (node.type === 'text' || !node.type) {
       // Text nodes: start with few lines worth of space, auto-grow downward based on content
-      const minLines = 3
-      const lineHeight = 22 // Increased for better readability
-      const headerHeight = 40 // Space for icon and title
-      const padding = 16 // Internal padding
+      const minLines = 4
+      const lineHeight = 21
+      const headerHeight = 36 // Space for icon and title
+      const padding = 12 // Internal padding
 
       // Calculate required lines based on content and current width
       const effectiveWidth = (node.width || baseWidth) - padding * 2
@@ -3023,11 +3023,12 @@ export default function HTMLCanvas({
 
                     // Only enable dragging in select mode with left click
                     if (tool === 'select' && e.button === 0) {
-                      // Check if clicking on contentEditable text - if so, don't start dragging
+                      // Check if clicking on contentEditable text that is ACTIVELY being edited
                       const target = e.target as HTMLElement
                       const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
 
-                      if (isContentEditable) {
+                      // Only prevent dragging if the user is actively editing this field
+                      if (isContentEditable && editingField?.nodeId === node.id) {
                         return // Don't start dragging, allow text selection
                       }
 
@@ -3387,11 +3388,12 @@ export default function HTMLCanvas({
 
                     // Only enable dragging in select mode with left click
                     if (tool === 'select' && e.button === 0) {
-                      // Check if clicking on contentEditable text - if so, don't start dragging
+                      // Check if clicking on contentEditable text that is ACTIVELY being edited
                       const target = e.target as HTMLElement
                       const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
 
-                      if (isContentEditable) {
+                      // Only prevent dragging if the user is actively editing this field
+                      if (isContentEditable && editingField?.nodeId === node.id) {
                         return // Don't start dragging, allow text selection
                       }
 
@@ -3581,11 +3583,12 @@ export default function HTMLCanvas({
 
                     // Only enable dragging in select mode with left click
                     if (tool === 'select' && e.button === 0) {
-                      // Check if clicking on contentEditable text - if so, don't start dragging
+                      // Check if clicking on contentEditable text that is ACTIVELY being edited
                       const target = e.target as HTMLElement
                       const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
 
-                      if (isContentEditable) {
+                      // Only prevent dragging if the user is actively editing this field
+                      if (isContentEditable && editingField?.nodeId === node.id) {
                         return // Don't start dragging, allow text selection
                       }
 
@@ -3742,11 +3745,12 @@ export default function HTMLCanvas({
 
                     // Only enable dragging in select mode with left click
                     if (tool === 'select' && e.button === 0) {
-                      // Check if clicking on contentEditable text - if so, don't start dragging
+                      // Check if clicking on contentEditable text that is ACTIVELY being edited
                       const target = e.target as HTMLElement
                       const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
 
-                      if (isContentEditable) {
+                      // Only prevent dragging if the user is actively editing this field
+                      if (isContentEditable && editingField?.nodeId === node.id) {
                         return // Don't start dragging, allow text selection
                       }
 
@@ -4058,11 +4062,12 @@ export default function HTMLCanvas({
 
                     // Only enable dragging in select mode with left click
                     if (tool === 'select' && e.button === 0) {
-                      // Check if clicking on contentEditable text - if so, don't start dragging
+                      // Check if clicking on contentEditable text that is ACTIVELY being edited
                       const target = e.target as HTMLElement
                       const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
 
-                      if (isContentEditable) {
+                      // Only prevent dragging if the user is actively editing this field
+                      if (isContentEditable && editingField?.nodeId === node.id) {
                         return // Don't start dragging, allow text selection
                       }
 
@@ -4520,11 +4525,12 @@ export default function HTMLCanvas({
 
                     // Only enable dragging in select mode with left click
                     if (tool === 'select' && e.button === 0) {
-                      // Check if clicking on contentEditable text - if so, don't start dragging
+                      // Check if clicking on contentEditable text that is ACTIVELY being edited
                       const target = e.target as HTMLElement
                       const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
 
-                      if (isContentEditable) {
+                      // Only prevent dragging if the user is actively editing this field
+                      if (isContentEditable && editingField?.nodeId === node.id) {
                         return // Don't start dragging, allow text selection
                       }
 
@@ -4785,11 +4791,12 @@ export default function HTMLCanvas({
 
                 // Only enable dragging in select mode with left click
                 if (tool === 'select' && e.button === 0) {
-                  // Check if clicking on contentEditable text - if so, don't start dragging
+                  // Check if clicking on contentEditable text that is ACTIVELY being edited
                   const target = e.target as HTMLElement
                   const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
 
-                  if (isContentEditable) {
+                  // Only prevent dragging if the user is actively editing this field
+                  if (isContentEditable && editingField?.nodeId === node.id) {
                     return // Don't start dragging, allow text selection
                   }
 
@@ -5008,11 +5015,12 @@ export default function HTMLCanvas({
 
                                 // Only enable dragging in select mode with left click
                                 if (tool === 'select' && e.button === 0) {
-                                  // Check if clicking on contentEditable text - if so, don't start dragging
+                                  // Check if clicking on contentEditable text that is ACTIVELY being edited
                                   const target = e.target as HTMLElement
                                   const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
 
-                                  if (isContentEditable) {
+                                  // Only prevent dragging if the user is actively editing this field
+                                  if (isContentEditable && editingField?.nodeId === node.id) {
                                     return // Don't start dragging, allow text selection
                                   }
 
