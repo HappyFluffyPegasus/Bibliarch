@@ -1322,9 +1322,13 @@ export default function HTMLCanvas({
         saveToHistory(updatedNodes, connections)
       }
 
-      setDraggingNode(null)
-      setDragOffset({ x: 0, y: 0 })
-      setDragPosition({ x: 0, y: 0 })
+      // Clear drag states after a brief delay to prevent jitter
+      // This ensures the nodes array updates before getNodeDragPosition switches back to node.x/y
+      setTimeout(() => {
+        setDraggingNode(null)
+        setDragOffset({ x: 0, y: 0 })
+        setDragPosition({ x: 0, y: 0 })
+      }, 0)
     }
     
     if (resizingNode) {
