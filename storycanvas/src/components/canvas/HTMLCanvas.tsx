@@ -872,23 +872,24 @@ export default function HTMLCanvas({
   }, [tool, isDraggingCharacter, zoom, zoomCenter])
 
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
-    // CRITICAL: If no mouse buttons are pressed, clear all drag/resize states
-    // This fixes Mac trackpad issue where drag becomes "sticky" (click-to-grab instead of click-and-hold)
+    // CRITICAL: If no mouse buttons are pressed while in "ready" state, cancel it
+    // This fixes Mac trackpad sticky behavior where you can click to grab without holding
+    // BUT: Don't interrupt active drags (draggingNode/resizingNode) as Mac trackpads may report buttons=0 momentarily
     if (e.buttons === 0) {
-      if (isDragReady) setIsDragReady(null)
-      if (draggingNode) {
-        setDraggingNode(null)
-        setDragOffset({ x: 0, y: 0 })
-        setDragPosition({ x: 0, y: 0 })
+      // Only cancel "ready" states, not active drags/resizes
+      if (isDragReady) {
+        setIsDragReady(null)
+        return
       }
-      if (isResizeReady) setIsResizeReady(null)
-      if (resizingNode) {
-        setResizingNode(null)
-        document.body.style.userSelect = ''
+      if (isResizeReady) {
+        setIsResizeReady(null)
+        return
       }
-      if (isPanning) setIsPanning(false)
-      if (isSelecting) setIsSelecting(false)
-      return
+      if (isPanning && !draggingNode && !resizingNode) {
+        setIsPanning(false)
+        return
+      }
+      // Let active drags continue even if buttons momentarily reads as 0
     }
 
     // Update selection box if selecting
