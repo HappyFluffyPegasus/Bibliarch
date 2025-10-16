@@ -108,7 +108,6 @@ interface HTMLCanvasProps {
   onNavigateToCanvas?: (canvasId: string, nodeTitle: string) => void
   canvasWidth?: number
   canvasHeight?: number
-  onToggleMobileHeader?: () => void
   showHelp?: boolean
 }
 
@@ -121,7 +120,6 @@ export default function HTMLCanvas({
   onNavigateToCanvas,
   canvasWidth = 3000,
   canvasHeight = 2000,
-  onToggleMobileHeader,
   showHelp = false
 }: HTMLCanvasProps) {
   const colorContext = useColorContext()
@@ -2592,23 +2590,23 @@ export default function HTMLCanvas({
 
   return (
     <div className="w-full h-full overflow-hidden flex flex-col md:flex-row bg-background">
-      {/* Sidebar - Top on mobile, Left on desktop */}
+      {/* Sidebar - Hidden on mobile (view-only), Left on desktop */}
       <div className="
-        w-full h-16 md:w-20 md:h-full
+        hidden md:flex
+        md:w-20 md:h-full
         bg-card
-        border-b md:border-b-0 md:border-r
+        md:border-r
         border-gray-600 dark:border-gray-600
-        flex flex-row md:flex-col
+        md:flex-col
         items-center
-        px-4 md:px-0 py-2 md:py-4
+        md:py-4
         gap-3
         z-20
-        order-first md:order-first
-        overflow-x-auto md:overflow-x-visible md:max-h-screen
+        md:max-h-screen
         hover-scrollable
       ">
         {/* Navigation Tools */}
-        <div className="flex flex-row md:flex-col gap-1">
+        <div className="flex flex-col gap-1">
           <Button
             size="sm"
             variant={tool === 'select' ? 'default' : 'outline'}
@@ -2618,23 +2616,13 @@ export default function HTMLCanvas({
           >
             <MousePointer className="w-7 h-7" />
           </Button>
-          {/* Mobile Menu Button - Only visible on mobile */}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onToggleMobileHeader?.()}
-            className="h-12 w-14 p-0 md:hidden"
-            title="Toggle Navigation Menu"
-          >
-            <Menu className="w-7 h-7" />
-          </Button>
         </div>
 
         {/* Divider */}
-        <div className="w-px h-8 md:w-8 md:h-px bg-border mx-2 md:mx-0 md:my-2" />
+        <div className="w-8 h-px bg-border my-2" />
 
         {/* Creation Tools */}
-        <div className="flex flex-row md:flex-col gap-1">
+        <div className="flex flex-col gap-1">
           <Button
             size="sm"
             variant={tool === 'text' ? 'default' : 'outline'}
@@ -2719,10 +2707,10 @@ export default function HTMLCanvas({
         </div>
 
         {/* Divider */}
-        <div className="w-px h-8 md:w-8 md:h-px bg-border mx-2 md:mx-0 md:my-2" />
+        <div className="w-8 h-px bg-border my-2" />
 
         {/* Undo/Redo Controls */}
-        <div className="flex flex-row md:flex-col gap-1">
+        <div className="flex flex-col gap-1">
           <Button 
             size="sm" 
             variant="outline" 
@@ -2746,10 +2734,10 @@ export default function HTMLCanvas({
         </div>
 
         {/* Divider */}
-        <div className="w-px h-8 md:w-8 md:h-px bg-border mx-2 md:mx-0 md:my-2" />
+        <div className="w-8 h-px bg-border my-2" />
 
         {/* Zoom Controls */}
-        <div className="flex flex-row md:flex-col gap-1">
+        <div className="flex flex-col gap-1">
           <Button
             size="sm"
             variant="outline"
@@ -2786,16 +2774,16 @@ export default function HTMLCanvas({
         </div>
 
         {/* Divider */}
-        <div className="w-px h-8 md:w-8 md:h-px bg-border mx-2 md:mx-0 md:my-2" />
+        <div className="w-8 h-px bg-border my-2" />
 
         {/* Canvas Controls */}
       </div>
 
       {/* Canvas Area */}
       <div className="flex-1 relative overflow-auto mac-style-scrollbar" style={{ backgroundColor: 'var(--color-canvas-bg, hsl(var(--background)))' }}>
-        {/* Top-right buttons when help is shown */}
+        {/* Top-right buttons when help is shown - Hidden on mobile */}
         {showHelp && (
-          <div className="fixed top-[72px] right-4 z-50 flex gap-2 items-start">
+          <div className="hidden md:flex fixed top-[72px] right-4 z-50 gap-2 items-start">
             <PaletteSelector
               mode="advanced"
               scope="project"
@@ -2870,11 +2858,11 @@ export default function HTMLCanvas({
           </div>
         )}
         
-        {/* Top-right buttons when help is hidden */}
+        {/* Top-right buttons when help is hidden - Hidden on mobile */}
         {!showHelp && (
           <>
             {/* Color Palette - moves when style panel opens */}
-            <div className={`fixed top-[72px] z-50 transition-all ${showStylePanel ? 'right-[309px]' : 'right-24'}`}>
+            <div className={`hidden md:block fixed top-[72px] z-50 transition-all ${showStylePanel ? 'right-[309px]' : 'right-24'}`}>
               <PaletteSelector
                 mode="advanced"
                 scope="project"
@@ -2914,8 +2902,8 @@ export default function HTMLCanvas({
               />
             </div>
 
-            {/* Node Settings and Help - stay fixed */}
-            <div className="fixed top-[72px] right-4 z-50 flex gap-2">
+            {/* Node Settings and Help - stay fixed - Hidden on mobile */}
+            <div className="hidden md:flex fixed top-[72px] right-4 z-50 gap-2">
               <Button
                 size="sm"
                 variant="outline"
@@ -2929,9 +2917,9 @@ export default function HTMLCanvas({
           </>
         )}
 
-        {/* Style Panel Popup */}
+        {/* Style Panel Popup - Hidden on mobile */}
         {showStylePanel && (
-          <div className={`fixed top-[72px] z-50 w-64 ${showHelp ? 'right-80 sm:right-96' : 'right-[calc(3rem+2px)]'}`}>
+          <div className={`hidden md:block fixed top-[72px] z-50 w-64 ${showHelp ? 'right-80 sm:right-96' : 'right-[calc(3rem+2px)]'}`}>
             <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg">
               <div className="flex items-center justify-between mb-3">
                 <span className="font-medium text-foreground flex items-center gap-2">
