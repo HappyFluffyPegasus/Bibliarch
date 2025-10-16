@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Sparkles, ChevronRight, Settings, LogOut } from 'lucide-react'
+import { Sparkles, ChevronRight, Settings, LogOut, HelpCircle } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
@@ -48,6 +48,8 @@ export default function StoryPage({ params }: PageProps) {
   const [showCanvasSettings, setShowCanvasSettings] = useState(false)
   const [editedTitle, setEditedTitle] = useState('')
   const [editedBio, setEditedBio] = useState('')
+  const [showMobileHeader, setShowMobileHeader] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const router = useRouter()
   const supabase = createClient()
   
@@ -731,8 +733,8 @@ export default function StoryPage({ params }: PageProps) {
 
   return (
     <div className="h-screen max-h-screen overflow-hidden flex flex-col bg-gray-50 dark:bg-gray-950">
-      {/* Header */}
-      <header className="border-b border-gray-600 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-4">
+      {/* Header - Always visible on desktop, toggleable on mobile */}
+      <header className={`${showMobileHeader ? 'flex' : 'hidden'} md:flex border-b border-gray-600 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-4`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             {/* Logo Icon */}
@@ -807,6 +809,14 @@ export default function StoryPage({ params }: PageProps) {
           </div>
 
           <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowHelp(!showHelp)}
+              title="Toggle Help"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </Button>
             <ThemeToggle />
             <FeedbackButton />
             <Button
@@ -837,6 +847,8 @@ export default function StoryPage({ params }: PageProps) {
           onNavigateToCanvas={handleNavigateToCanvas}
           canvasWidth={3000}
           canvasHeight={2000}
+          onToggleMobileHeader={() => setShowMobileHeader(!showMobileHeader)}
+          showHelp={showHelp}
         />
       </div>
 

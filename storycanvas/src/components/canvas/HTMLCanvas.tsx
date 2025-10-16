@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { flushSync } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette, ArrowRight } from 'lucide-react'
+import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette, ArrowRight, Menu } from 'lucide-react'
 import { PaletteSelector } from '@/components/ui/palette-selector'
 import { NodeStylePanel } from '@/components/ui/node-style-panel'
 import { PerformanceOptimizer } from '@/lib/performance-utils'
@@ -108,6 +108,8 @@ interface HTMLCanvasProps {
   onNavigateToCanvas?: (canvasId: string, nodeTitle: string) => void
   canvasWidth?: number
   canvasHeight?: number
+  onToggleMobileHeader?: () => void
+  showHelp?: boolean
 }
 
 // Updated with smaller sidebar and trackpad support
@@ -118,7 +120,9 @@ export default function HTMLCanvas({
   onSave,
   onNavigateToCanvas,
   canvasWidth = 3000,
-  canvasHeight = 2000
+  canvasHeight = 2000,
+  onToggleMobileHeader,
+  showHelp = false
 }: HTMLCanvasProps) {
   const colorContext = useColorContext()
   const [nodes, setNodes] = useState<Node[]>(initialNodes)
@@ -128,15 +132,6 @@ export default function HTMLCanvas({
   const [editingField, setEditingField] = useState<{nodeId: string, field: string} | null>(null)
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
-  const [showHelp, setShowHelp] = useState(() => {
-    // Only show help automatically on first visit
-    const hasVisitedBefore = localStorage.getItem('bibliarch-help-seen')
-    if (!hasVisitedBefore) {
-      localStorage.setItem('bibliarch-help-seen', 'true')
-      return true
-    }
-    return false
-  })
   const [showStylePanel, setShowStylePanel] = useState(false)
   const [visibleNodeIds, setVisibleNodeIds] = useState<string[]>([])
   const [viewportNodes, setViewportNodes] = useState<Node[]>([])
@@ -2595,50 +2590,23 @@ export default function HTMLCanvas({
     }
   }
 
-  const [mobileTab, setMobileTab] = useState<'tools' | 'nav'>('tools')
-
   return (
     <div className="w-full h-full overflow-hidden flex flex-col md:flex-row bg-background">
-      {/* Mobile Tab Switcher - Only visible on mobile */}
-      <div className="md:hidden w-full h-12 bg-card border-b border-gray-600 dark:border-gray-600 flex items-center z-30">
-        <button
-          onClick={() => setMobileTab('tools')}
-          className={`flex-1 h-full font-medium transition-colors ${
-            mobileTab === 'tools'
-              ? 'bg-sky-600 text-white'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Tools
-        </button>
-        <button
-          onClick={() => setMobileTab('nav')}
-          className={`flex-1 h-full font-medium transition-colors ${
-            mobileTab === 'nav'
-              ? 'bg-sky-600 text-white'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Navigation
-        </button>
-      </div>
-
-      {/* Sidebar - Top on mobile (when tools tab active), Left on desktop */}
-      <div className={`
-        ${mobileTab === 'tools' ? 'flex' : 'hidden'} md:flex
+      {/* Sidebar - Top on mobile, Left on desktop */}
+      <div className="
         w-full h-16 md:w-20 md:h-full
         bg-card
         border-b md:border-b-0 md:border-r
         border-gray-600 dark:border-gray-600
-        flex-row md:flex-col
+        flex flex-row md:flex-col
         items-center
         px-4 md:px-0 py-2 md:py-4
         gap-3
         z-20
-        order-first
+        order-first md:order-first
         overflow-x-auto md:overflow-x-visible md:max-h-screen
         hover-scrollable
-      `}>
+      ">
         {/* Navigation Tools */}
         <div className="flex flex-row md:flex-col gap-1">
           <Button
@@ -2649,6 +2617,16 @@ export default function HTMLCanvas({
             title="Select Tool - Move nodes, multi-select with drag or shift-click"
           >
             <MousePointer className="w-7 h-7" />
+          </Button>
+          {/* Mobile Menu Button - Only visible on mobile */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onToggleMobileHeader?.()}
+            className="h-12 w-14 p-0 md:hidden"
+            title="Toggle Navigation Menu"
+          >
+            <Menu className="w-7 h-7" />
           </Button>
         </div>
 
@@ -2813,36 +2791,6 @@ export default function HTMLCanvas({
         {/* Canvas Controls */}
       </div>
 
-      {/* Mobile Navigation Panel - Only visible on mobile when nav tab active */}
-      <div className={`
-        ${mobileTab === 'nav' ? 'flex' : 'hidden'} md:hidden
-        w-full h-auto
-        bg-card
-        border-b
-        border-gray-600 dark:border-gray-600
-        flex-col
-        p-4
-        gap-3
-        z-20
-        order-first
-      `}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Canvas Navigation</h3>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowHelp(!showHelp)}
-            className="h-8 w-8 p-0"
-            title="Toggle Help"
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Use your browser's back button to return to the previous page. Switch to the Tools tab to access canvas tools.
-        </p>
-      </div>
-
       {/* Canvas Area */}
       <div className="flex-1 relative overflow-auto mac-style-scrollbar" style={{ backgroundColor: 'var(--color-canvas-bg, hsl(var(--background)))' }}>
         {/* Top-right buttons when help is shown */}
@@ -2897,14 +2845,6 @@ export default function HTMLCanvas({
             <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs sm:text-sm shadow-lg max-w-xs sm:max-w-sm">
               <div className="flex items-center justify-between mb-1">
                 <h4 className="font-medium text-xs sm:text-sm text-card-foreground">How to use:</h4>
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  onClick={() => setShowHelp(false)}
-                  className="h-6 w-6 p-0"
-                >
-                  <X className="w-5 h-5" />
-                </Button>
               </div>
               <div className="text-xs text-muted-foreground space-y-1">
                 <div><strong>Pan:</strong> Click & drag, or use trackpad/scroll</div>
@@ -2984,15 +2924,6 @@ export default function HTMLCanvas({
                 title="Node Style Settings"
               >
                 <SlidersHorizontal className="w-4 h-4" />
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowHelp(true)}
-                className="h-8 w-8 p-0 text-xs shadow-lg"
-                title="Show help"
-              >
-                ?
               </Button>
             </div>
           </>
