@@ -968,6 +968,11 @@ export default function HTMLCanvas({
 
       if (distance > dragThreshold) {
         // Start dragging the node
+        const draggedNode = nodes.find(n => n.id === isDragReady)
+        if (draggedNode) {
+          // Set initial drag position to node's current position to prevent jump
+          setDragPosition({ x: draggedNode.x, y: draggedNode.y })
+        }
         setDraggingNode(isDragReady)
         setIsDragReady(null)
         setIsMoving(true)
