@@ -91,7 +91,7 @@ export const storyTemplates: StoryTemplate[] = [
         text: 'Story Title',
         content: 'Write a story overview here',
         width: 300,
-        height: 185,
+        height: 139,
         type: 'text'
       }
     ],
