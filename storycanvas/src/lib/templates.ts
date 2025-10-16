@@ -35,7 +35,7 @@ export const storyTemplates: StoryTemplate[] = [
         y: 50,
         text: 'Story Development',
         width: 350,
-        height: 497,
+        height: 505,
         type: 'list',
         childIds: ['characters-folder', 'plot-folder', 'world-folder']
       },
@@ -46,29 +46,29 @@ export const storyTemplates: StoryTemplate[] = [
         text: 'Characters & Relationships',
         content: 'Write your content here...',
         width: 310,
-        height: 139,
+        height: 90,
         type: 'folder',
         parentId: 'story-development'
       },
       {
         id: 'plot-folder',
         x: 120,
-        y: 239,
+        y: 200,
         text: 'Plot Structure & Events',
         content: 'Write your content here...',
         width: 310,
-        height: 139,
+        height: 90,
         type: 'folder',
         parentId: 'story-development'
       },
       {
         id: 'world-folder',
         x: 120,
-        y: 388,
+        y: 310,
         text: 'World & Settings',
         content: 'Write your content here...',
         width: 310,
-        height: 139,
+        height: 90,
         type: 'folder',
         parentId: 'story-development'
       },
@@ -91,7 +91,7 @@ export const storyTemplates: StoryTemplate[] = [
         text: 'Story Title',
         content: 'Write a story overview here',
         width: 300,
-        height: 139,
+        height: 185,
         type: 'text'
       }
     ],
@@ -415,7 +415,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         y: 340,
         text: 'Timeline',
         width: 300,
-        height: 139,
+        height: 90,
         type: 'folder',
         linkedCanvasId: 'folder-canvas-timeline-folder'
       },
@@ -754,7 +754,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         y: 120,
         text: 'Country 1',
         width: 340,
-        height: 139,
+        height: 90,
         type: 'location',
         parentId: 'countries-list'
       },
@@ -764,7 +764,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         y: 230,
         text: 'Country 2',
         width: 340,
-        height: 139,
+        height: 90,
         type: 'location',
         parentId: 'countries-list'
       },
@@ -774,7 +774,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         y: 340,
         text: 'Country 3',
         width: 340,
-        height: 139,
+        height: 90,
         type: 'location',
         parentId: 'countries-list'
       },
@@ -784,7 +784,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         y: 450,
         text: 'Country 4',
         width: 340,
-        height: 139,
+        height: 90,
         type: 'location',
         parentId: 'countries-list'
       }
