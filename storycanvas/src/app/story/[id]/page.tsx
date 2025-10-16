@@ -62,6 +62,12 @@ export default function StoryPage({ params }: PageProps) {
   // Track current canvas ID to prevent stale closures
   const currentCanvasIdRef = useRef(currentCanvasId)
 
+  // Update document title with story name
+  useEffect(() => {
+    if (story?.title) {
+      document.title = `${story.title} - Bibliarch`
+    }
+  }, [story?.title])
 
   // Apply canvas-page class to body to prevent scrolling
   useEffect(() => {
