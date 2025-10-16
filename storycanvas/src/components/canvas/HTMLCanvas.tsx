@@ -2595,23 +2595,50 @@ export default function HTMLCanvas({
     }
   }
 
+  const [mobileTab, setMobileTab] = useState<'tools' | 'nav'>('tools')
+
   return (
     <div className="w-full h-full overflow-hidden flex flex-col md:flex-row bg-background">
-      {/* Sidebar - Bottom on mobile, Left on desktop */}
-      <div className="
+      {/* Mobile Tab Switcher - Only visible on mobile */}
+      <div className="md:hidden w-full h-12 bg-card border-b border-gray-600 dark:border-gray-600 flex items-center z-30">
+        <button
+          onClick={() => setMobileTab('tools')}
+          className={`flex-1 h-full font-medium transition-colors ${
+            mobileTab === 'tools'
+              ? 'bg-sky-600 text-white'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Tools
+        </button>
+        <button
+          onClick={() => setMobileTab('nav')}
+          className={`flex-1 h-full font-medium transition-colors ${
+            mobileTab === 'nav'
+              ? 'bg-sky-600 text-white'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Navigation
+        </button>
+      </div>
+
+      {/* Sidebar - Top on mobile (when tools tab active), Left on desktop */}
+      <div className={`
+        ${mobileTab === 'tools' ? 'flex' : 'hidden'} md:flex
         w-full h-16 md:w-20 md:h-full
         bg-card
-        border-t md:border-t-0 md:border-r
+        border-b md:border-b-0 md:border-r
         border-gray-600 dark:border-gray-600
-        flex flex-row md:flex-col
+        flex-row md:flex-col
         items-center
         px-4 md:px-0 py-2 md:py-4
         gap-3
         z-20
-        order-last md:order-first
+        order-first
         overflow-x-auto md:overflow-x-visible md:max-h-screen
         hover-scrollable
-      ">
+      `}>
         {/* Navigation Tools */}
         <div className="flex flex-row md:flex-col gap-1">
           <Button
@@ -2784,6 +2811,36 @@ export default function HTMLCanvas({
         <div className="w-px h-8 md:w-8 md:h-px bg-border mx-2 md:mx-0 md:my-2" />
 
         {/* Canvas Controls */}
+      </div>
+
+      {/* Mobile Navigation Panel - Only visible on mobile when nav tab active */}
+      <div className={`
+        ${mobileTab === 'nav' ? 'flex' : 'hidden'} md:hidden
+        w-full h-auto
+        bg-card
+        border-b
+        border-gray-600 dark:border-gray-600
+        flex-col
+        p-4
+        gap-3
+        z-20
+        order-first
+      `}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium">Canvas Navigation</h3>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowHelp(!showHelp)}
+            className="h-8 w-8 p-0"
+            title="Toggle Help"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Use your browser's back button to return to the previous page. Switch to the Tools tab to access canvas tools.
+        </p>
       </div>
 
       {/* Canvas Area */}
