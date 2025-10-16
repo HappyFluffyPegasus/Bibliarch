@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Sparkles, ChevronRight, Settings, LogOut, HelpCircle } from 'lucide-react'
+import { Sparkles, ChevronRight, Settings, LogOut, HelpCircle, Home as HomeIcon, ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
@@ -733,14 +733,51 @@ export default function StoryPage({ params }: PageProps) {
   return (
     <div className="h-screen max-h-screen overflow-hidden flex flex-col bg-gray-50 dark:bg-gray-950">
       {/* Header - Always visible */}
-      <header className="border-b border-gray-600 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-4">
+      <header className="border-b border-gray-600 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 md:px-4 py-3 md:py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {/* Logo Icon */}
-            <Sparkles className="w-6 h-6 text-sky-600 dark:text-blue-400" />
+          <div className="flex items-center gap-2 md:gap-4">
+            {/* Logo Icon - Desktop only */}
+            <Sparkles className="hidden md:block w-6 h-6 text-sky-600 dark:text-blue-400" />
 
-            {/* Breadcrumb navigation */}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {/* Mobile Navigation - Icon only */}
+            <div className="flex md:hidden items-center gap-1">
+              {/* Home button */}
+              <Link href="/dashboard">
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <HomeIcon className="w-4 h-4" />
+                </Button>
+              </Link>
+
+              {/* Back button - only show if in a folder */}
+              {canvasPath.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={async () => {
+                    // Save current canvas
+                    if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+                      await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+                    }
+
+                    const newPath = [...canvasPath]
+                    newPath.pop()
+                    setCanvasPath(newPath)
+
+                    const previousLocation = newPath.length > 0 ? newPath[newPath.length - 1] : null
+                    if (!previousLocation) {
+                      colorContext.setCurrentFolderId(null)
+                    }
+                    setCurrentCanvasId(previousLocation?.id || 'main')
+                  }}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+
+            {/* Desktop Breadcrumb navigation */}
+            <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
               {/* Dashboard link */}
               <Link href="/dashboard" className="hover:text-foreground transition-colors cursor-pointer">
                 Home
@@ -807,7 +844,7 @@ export default function StoryPage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 md:gap-4">
             {/* Help button - Desktop only */}
             <Button
               variant="ghost"
@@ -818,18 +855,19 @@ export default function StoryPage({ params }: PageProps) {
             >
               <HelpCircle className="w-4 h-4" />
             </Button>
-            <ThemeToggle />
-            <FeedbackButton />
+            <div className="md:block"><ThemeToggle /></div>
+            <div className="md:block"><FeedbackButton /></div>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowCanvasSettings(true)}
               title="Canvas Settings"
+              className="h-8 w-8 md:h-9 md:w-9 p-0"
             >
               <Settings className="w-4 h-4" />
             </Button>
             <form action={signOut}>
-              <Button variant="ghost" size="sm" type="submit">
+              <Button variant="ghost" size="sm" type="submit" className="h-8 w-8 md:h-9 md:w-9 p-0">
                 <LogOut className="w-4 h-4" />
               </Button>
             </form>
