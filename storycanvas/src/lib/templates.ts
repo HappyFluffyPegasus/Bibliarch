@@ -35,7 +35,7 @@ export const storyTemplates: StoryTemplate[] = [
         y: 50,
         text: 'Story Development',
         width: 350,
-        height: 652,
+        height: 497,
         type: 'list',
         childIds: ['characters-folder', 'plot-folder', 'world-folder']
       },
@@ -53,7 +53,7 @@ export const storyTemplates: StoryTemplate[] = [
       {
         id: 'plot-folder',
         x: 120,
-        y: 200,
+        y: 239,
         text: 'Plot Structure & Events',
         content: 'Write your content here...',
         width: 310,
@@ -64,7 +64,7 @@ export const storyTemplates: StoryTemplate[] = [
       {
         id: 'world-folder',
         x: 120,
-        y: 310,
+        y: 388,
         text: 'World & Settings',
         content: 'Write your content here...',
         width: 310,
