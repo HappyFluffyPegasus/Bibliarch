@@ -744,7 +744,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         y: 80,
         text: 'Countries',
         width: 380,
-        height: 650,
+        height: 480,
         type: 'list',
         childIds: ['country-1', 'country-2', 'country-3', 'country-4']
       },
