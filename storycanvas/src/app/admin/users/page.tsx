@@ -48,7 +48,10 @@ export default function AdminUsersPage() {
 
       if (profileError) {
         console.error('Error checking admin status:', profileError)
-        setError('Failed to verify admin status')
+        console.error('Error code:', profileError.code)
+        console.error('Error message:', profileError.message)
+        console.error('Error details:', profileError.details)
+        setError(`Failed to verify admin status: ${profileError.message || JSON.stringify(profileError)}`)
         setLoading(false)
         return
       }
