@@ -2850,6 +2850,14 @@ export default function HTMLCanvas({
             <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs sm:text-sm shadow-lg max-w-xs sm:max-w-sm">
               <div className="flex items-center justify-between mb-1">
                 <h4 className="font-medium text-xs sm:text-sm text-card-foreground">How to use:</h4>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowHelp(false)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
               </div>
               <div className="text-xs text-muted-foreground space-y-1">
                 <div><strong>Pan:</strong> Click & drag, or use trackpad/scroll</div>
@@ -2929,6 +2937,15 @@ export default function HTMLCanvas({
                 title="Node Style Settings"
               >
                 <SlidersHorizontal className="w-4 h-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowHelp(true)}
+                className="h-8 w-8 p-0 text-xs shadow-lg"
+                title="Show help"
+              >
+                ?
               </Button>
             </div>
           </>
