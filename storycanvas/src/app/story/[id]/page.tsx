@@ -79,9 +79,8 @@ export default function StoryPage({ params }: PageProps) {
   }, [])
   
   useEffect(() => {
-    // CRITICAL: Clear canvas data when changing canvases to prevent data mixing
-    setCanvasData({ nodes: [], connections: [] })
-    latestCanvasData.current = { nodes: [], connections: [] }
+    // CRITICAL: Set loading state when changing canvases to prevent data mixing flash
+    setIsLoading(true)
     currentCanvasIdRef.current = currentCanvasId
 
     loadStory()
@@ -92,6 +91,9 @@ export default function StoryPage({ params }: PageProps) {
       storyId: resolvedParams.id,
       currentCanvasId
     })
+
+    // Clear old canvas data to prevent mixing
+    latestCanvasData.current = { nodes: [], connections: [] }
 
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
