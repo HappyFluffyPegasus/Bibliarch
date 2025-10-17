@@ -42,6 +42,7 @@ export default function StoryPage({ params }: PageProps) {
   const [story, setStory] = useState<any>(null)
   const [canvasData, setCanvasData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingCanvas, setIsLoadingCanvas] = useState(false)
   const [currentCanvasId, setCurrentCanvasId] = useState('main')
   const [canvasPath, setCanvasPath] = useState<{id: string, title: string}[]>([])
   const [username, setUsername] = useState<string>('')
@@ -79,8 +80,11 @@ export default function StoryPage({ params }: PageProps) {
   }, [])
   
   useEffect(() => {
-    // CRITICAL: Set loading state when changing canvases to prevent data mixing flash
-    setIsLoading(true)
+    // Show loading overlay when switching canvases (but not on initial load)
+    if (!isLoading) {
+      setIsLoadingCanvas(true)
+    }
+
     currentCanvasIdRef.current = currentCanvasId
 
     loadStory()
@@ -534,9 +538,11 @@ export default function StoryPage({ params }: PageProps) {
     }
 
     setIsLoading(false)
+    setIsLoadingCanvas(false)
     } catch (error) {
       console.error('Unexpected error in loadStory:', error)
       setIsLoading(false)
+      setIsLoadingCanvas(false)
     }
   }
 
@@ -911,6 +917,16 @@ export default function StoryPage({ params }: PageProps) {
           zoom={zoom}
           onZoomChange={setZoom}
         />
+
+        {/* Loading overlay when switching canvases */}
+        {isLoadingCanvas && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="text-center">
+              <Sparkles className="w-8 h-8 text-sky-600 dark:text-blue-400 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Loading canvas...</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Canvas Settings Dialog */}

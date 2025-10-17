@@ -744,14 +744,14 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         y: 80,
         text: 'Countries',
         width: 380,
-        height: 480,
+        height: 385,
         type: 'list',
         childIds: ['country-1', 'country-2', 'country-3', 'country-4']
       },
       {
         id: 'country-1',
         x: 1500,
-        y: 120,
+        y: 105,
         text: 'Country 1',
         width: 340,
         height: 90,
@@ -761,7 +761,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
       {
         id: 'country-2',
         x: 1500,
-        y: 230,
+        y: 200,
         text: 'Country 2',
         width: 340,
         height: 90,
@@ -771,7 +771,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
       {
         id: 'country-3',
         x: 1500,
-        y: 340,
+        y: 295,
         text: 'Country 3',
         width: 340,
         height: 90,
@@ -781,7 +781,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
       {
         id: 'country-4',
         x: 1500,
-        y: 450,
+        y: 390,
         text: 'Country 4',
         width: 340,
         height: 90,
