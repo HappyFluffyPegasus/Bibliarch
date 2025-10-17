@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Sparkles, ChevronRight, Settings, LogOut, HelpCircle, Home as HomeIcon, ChevronLeft, Plus, Minus, RotateCcw } from 'lucide-react'
+import { Sparkles, ChevronRight, Settings, LogOut, Home as HomeIcon, ChevronLeft, Plus, Minus, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
@@ -48,7 +48,6 @@ export default function StoryPage({ params }: PageProps) {
   const [showCanvasSettings, setShowCanvasSettings] = useState(false)
   const [editedTitle, setEditedTitle] = useState('')
   const [editedBio, setEditedBio] = useState('')
-  const [showHelp, setShowHelp] = useState(false)
   const [zoom, setZoom] = useState(1)
   const router = useRouter()
   const supabase = createClient()
@@ -876,17 +875,7 @@ export default function StoryPage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-1 md:gap-4">
-            {/* Help button - Desktop only */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowHelp(!showHelp)}
-              title="Toggle Help"
-              className="hidden md:inline-flex h-8 md:h-9"
-            >
-              <HelpCircle className="w-4 h-4" />
-            </Button>
+          <div className="flex items-center gap-4">
             <ThemeToggle />
             <FeedbackButton />
             <Button
@@ -894,12 +883,11 @@ export default function StoryPage({ params }: PageProps) {
               size="sm"
               onClick={() => setShowCanvasSettings(true)}
               title="Canvas Settings"
-              className="h-8 w-8 md:h-9 md:w-9 p-0"
             >
               <Settings className="w-4 h-4" />
             </Button>
             <form action={signOut}>
-              <Button variant="ghost" size="sm" type="submit" className="h-8 w-8 md:h-9 md:w-9 p-0">
+              <Button variant="ghost" size="sm" type="submit">
                 <LogOut className="w-4 h-4" />
               </Button>
             </form>
@@ -918,7 +906,6 @@ export default function StoryPage({ params }: PageProps) {
           onNavigateToCanvas={handleNavigateToCanvas}
           canvasWidth={3000}
           canvasHeight={2000}
-          showHelp={showHelp}
           zoom={zoom}
           onZoomChange={setZoom}
         />
