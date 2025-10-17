@@ -14,6 +14,7 @@ interface UserStats {
     username: string | null
     email: string | null
     created_at: string
+    classification: string | null
   }>
 }
 
@@ -89,7 +90,7 @@ export default function AdminUsersPage() {
       // Get recent users
       const { data: recentUsers, error: recentError } = await supabase
         .from('profiles')
-        .select('id, username, email, created_at')
+        .select('id, username, email, created_at, classification')
         .order('created_at', { ascending: false })
         .limit(10)
 
@@ -177,12 +178,19 @@ export default function AdminUsersPage() {
                 key={user.id}
                 className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-1">
                   <div className="p-2 rounded-full bg-gray-200 dark:bg-gray-700">
                     <Users className="w-4 h-4" />
                   </div>
-                  <div>
-                    <p className="font-medium">{user.username || 'No username'}</p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{user.username || 'No username'}</p>
+                      {user.classification && (
+                        <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+                          {user.classification}
+                        </span>
+                      )}
+                    </div>
                     {user.email && (
                       <p className="text-sm text-muted-foreground flex items-center gap-1">
                         <Mail className="w-3 h-3" />
