@@ -1,9 +1,11 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Users, MessageSquare, Settings, BarChart3 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 interface AdminSection {
   title: string
@@ -31,6 +33,75 @@ const adminSections: AdminSection[] = [
 ]
 
 export default function AdminPage() {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    checkAdminAccess()
+  }, [])
+
+  async function checkAdminAccess() {
+    try {
+      const supabase = createClient()
+
+      // Check if current user is admin
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        setError('Not authenticated')
+        setLoading(false)
+        return
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single()
+
+      if (profileError) {
+        console.error('Error checking admin status:', profileError)
+        setError('Failed to verify admin status')
+        setLoading(false)
+        return
+      }
+
+      if (!profile?.is_admin) {
+        setError('Access denied: Admin privileges required')
+        setLoading(false)
+        return
+      }
+
+      setIsAdmin(true)
+      setLoading(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to verify admin access')
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Verifying admin access...</p>
+      </div>
+    )
+  }
+
+  if (error || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="p-6 max-w-md">
+          <p className="text-red-500 mb-4">{error || 'Access denied'}</p>
+          <Link href="/dashboard">
+            <Button>Return to Dashboard</Button>
+          </Link>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">

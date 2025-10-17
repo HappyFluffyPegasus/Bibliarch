@@ -21,10 +21,51 @@ export default function AdminUsersPage() {
   const [stats, setStats] = useState<UserStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
-    loadUserStats()
+    checkAdminAndLoadStats()
   }, [])
+
+  async function checkAdminAndLoadStats() {
+    try {
+      const supabase = createClient()
+
+      // Check if current user is admin
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        setError('Not authenticated')
+        setLoading(false)
+        return
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single()
+
+      if (profileError) {
+        console.error('Error checking admin status:', profileError)
+        setError('Failed to verify admin status')
+        setLoading(false)
+        return
+      }
+
+      if (!profile?.is_admin) {
+        setError('Access denied: Admin privileges required')
+        setLoading(false)
+        return
+      }
+
+      setIsAdmin(true)
+      await loadUserStats()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to verify admin access')
+      setLoading(false)
+    }
+  }
 
   async function loadUserStats() {
     try {
@@ -35,7 +76,12 @@ export default function AdminUsersPage() {
         .from('profiles')
         .select('*', { count: 'exact', head: true })
 
-      if (countError) throw countError
+      console.log('Count query result:', { count, error: countError })
+
+      if (countError) {
+        console.error('Count error details:', countError)
+        throw countError
+      }
 
       // Get recent users
       const { data: recentUsers, error: recentError } = await supabase
@@ -44,7 +90,16 @@ export default function AdminUsersPage() {
         .order('created_at', { ascending: false })
         .limit(10)
 
-      if (recentError) throw recentError
+      console.log('Recent users query result:', {
+        data: recentUsers,
+        error: recentError,
+        count: recentUsers?.length
+      })
+
+      if (recentError) {
+        console.error('Recent users error details:', recentError)
+        throw recentError
+      }
 
       setStats({
         totalUsers: count || 0,
@@ -70,8 +125,13 @@ export default function AdminUsersPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="p-6 max-w-md">
-          <p className="text-red-500 mb-4">Error: {error}</p>
-          <Button onClick={loadUserStats}>Retry</Button>
+          <p className="text-red-500 mb-4 font-bold">Error</p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mb-4 whitespace-pre-wrap">{error}</p>
+          <Button onClick={() => {
+            setError(null)
+            setLoading(true)
+            checkAdminAndLoadStats()
+          }}>Retry</Button>
         </Card>
       </div>
     )

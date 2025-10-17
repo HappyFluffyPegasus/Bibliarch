@@ -7,9 +7,6 @@ import { ArrowLeft, Search, Filter, X, Eye } from 'lucide-react'
 import Link from 'next/link'
 import type { Feedback, FeedbackType, FeedbackStatus, FeedbackPriority } from '@/lib/feedback/types'
 
-// Configure your admin email here
-const ADMIN_EMAIL = 'stellanovacole@gmail.com'
-
 export default function AdminFeedbackPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -41,8 +38,20 @@ export default function AdminFeedbackPage() {
       return
     }
 
-    // Check if user is admin (by email)
-    if (user.email === ADMIN_EMAIL) {
+    // Check if user has admin flag in profiles table
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError) {
+      console.error('Error checking admin status:', profileError)
+      router.push('/dashboard')
+      return
+    }
+
+    if (profile?.is_admin) {
       setIsAdmin(true)
       loadFeedback()
     } else {
