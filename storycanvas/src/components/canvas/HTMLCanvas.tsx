@@ -5760,7 +5760,10 @@ export default function HTMLCanvas({
                       MozUserSelect: (editingField?.nodeId === node.id && editingField?.field === 'content') ? 'text' : 'none',
                       msUserSelect: (editingField?.nodeId === node.id && editingField?.field === 'content') ? 'text' : 'none',
                       // Lock height during manual resize to prevent flash
-                      height: resizingNode === node.id ? `${node.height - 60}px` : 'auto'
+                      height: resizingNode === node.id ? `${node.height - 60}px` : 'auto',
+                      wordWrap: 'break-word',
+                      overflowWrap: 'break-word',
+                      whiteSpace: 'pre-wrap'
                     } as React.CSSProperties}
                     onInput={(e) => {
                       // Skip input handling if this node is being manually resized
