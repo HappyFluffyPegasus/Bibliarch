@@ -1465,6 +1465,8 @@ export default function HTMLCanvas({
           allCanvases.forEach((canvas, index) => {
             const canvasType = (canvas as any).canvas_type
             const canvasNodes = (canvas as any).nodes || []
+            console.log(`[Character Fetch] Canvas ${index} (${canvasType}): Total nodes: ${canvasNodes.length}`)
+            console.log(`[Character Fetch] Node types in canvas ${index}:`, canvasNodes.map((n: Node) => n.type))
             const characterNodes = canvasNodes.filter((node: Node) => node.type === 'character')
             console.log(`[Character Fetch] Canvas ${index} (${canvasType}): ${characterNodes.length} character nodes`)
 
@@ -1527,9 +1529,12 @@ export default function HTMLCanvas({
         const allCharacters: Array<{ id: string, name: string, profileImageUrl?: string }> = []
 
         allCanvases.forEach((canvas, index) => {
+          const canvasType = (canvas as any).canvas_type
           const canvasNodes = (canvas as any).nodes || []
+          console.log(`[Refresh Characters] Canvas ${index} (${canvasType}): Total nodes: ${canvasNodes.length}`)
+          console.log(`[Refresh Characters] Node types in canvas ${index}:`, canvasNodes.map((n: Node) => n.type))
           const characterNodes = canvasNodes.filter((node: Node) => node.type === 'character')
-          console.log(`[Refresh Characters] Canvas ${index}: ${characterNodes.length} character nodes`)
+          console.log(`[Refresh Characters] Canvas ${index} (${canvasType}): ${characterNodes.length} character nodes`)
 
           characterNodes.forEach((charNode: Node) => {
             // Skip template characters
