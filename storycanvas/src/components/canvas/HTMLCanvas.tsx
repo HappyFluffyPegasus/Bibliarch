@@ -6313,13 +6313,26 @@ export default function HTMLCanvas({
                 )}
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Add Characters to Map:</label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium">Add Characters to Map:</label>
+                      <button
+                        onClick={() => {
+                          console.log('[Refresh] Manually refreshing character list...')
+                          refreshAllCharacters()
+                          console.log('[Refresh] Current characters:', allProjectCharacters)
+                        }}
+                        className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      >
+                        Refresh List
+                      </button>
+                    </div>
                     <select
                       className="w-full p-2 border rounded-md"
                       onChange={(e) => {
                         if (e.target.value) {
                           const characterId = e.target.value
                           const availableCharacters = getAllCharacters()
+                          console.log('[Character Select] Available characters:', availableCharacters)
                           const character = availableCharacters.find(c => c.id === characterId)
                           const currentNode = relationshipCanvasModal.node
                           const selectedCharacters = currentNode.relationshipData?.selectedCharacters || []
@@ -6362,11 +6375,15 @@ export default function HTMLCanvas({
                       }}
                     >
                       <option value="">Select a character to add...</option>
-                      {getAllCharacters()
-                        .filter(char => !(relationshipCanvasModal.node.relationshipData?.selectedCharacters || []).find(sc => sc.id === char.id))
-                        .map(char => (
+                      {(() => {
+                        const allChars = getAllCharacters()
+                        const selectedIds = (relationshipCanvasModal.node.relationshipData?.selectedCharacters || []).map(sc => sc.id)
+                        const availableChars = allChars.filter(char => !selectedIds.includes(char.id))
+                        console.log('[Dropdown Render] Total characters:', allChars.length, 'Available:', availableChars.length)
+                        return availableChars.map(char => (
                           <option key={char.id} value={char.id}>{char.name}</option>
-                        ))}
+                        ))
+                      })()}
                     </select>
                   </div>
 
