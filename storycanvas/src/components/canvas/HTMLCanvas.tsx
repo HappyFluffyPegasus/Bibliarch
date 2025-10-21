@@ -3719,6 +3719,47 @@ export default function HTMLCanvas({
                     </div>
                   </div>
 
+                  {/* Navigation arrow for location nodes */}
+                  <div className="absolute bottom-1 right-1 flex items-center gap-1">
+                    <div
+                      className="p-1 cursor-pointer ${!isPanning ? 'hover:bg-black/10' : ''} rounded"
+                      onClick={async (e) => {
+                        e.stopPropagation()
+
+                        if (!onNavigateToCanvas) return
+
+                        const nodeTitle = node.text || 'Location'
+
+                        if (node.linkedCanvasId) {
+                          colorContext.setCurrentFolderId(node.id)
+                          onNavigateToCanvas(node.linkedCanvasId, nodeTitle)
+                        } else {
+                          // Create new linkedCanvasId
+                          const linkedCanvasId = `location-canvas-${node.id}`
+
+                          const updatedNodes = nodes.map(n =>
+                            n.id === node.id ? { ...n, linkedCanvasId } : n
+                          )
+
+                          setNodes(updatedNodes)
+                          saveToHistory(updatedNodes, connections)
+
+                          // Save in background without blocking navigation
+                          if (onSave) {
+                            onSave(updatedNodes, connections)
+                          }
+
+                          colorContext.setCurrentFolderId(node.id)
+
+                          onNavigateToCanvas(linkedCanvasId, nodeTitle)
+                        }
+                      }}
+                      title="Open location details"
+                    >
+                      <ArrowRight className="w-5 h-5" style={{ color: getIconColor('location', getNodeColor('location', node.color, node.id)), strokeWidth: 1.5 }} />
+                    </div>
+                  </div>
+
                   {/* Resize handles for location nodes */}
                   {selectedId === node.id && (
                     <>
@@ -3729,7 +3770,7 @@ export default function HTMLCanvas({
                         onMouseDown={(e) => {
                           e.stopPropagation()
                           setResizingNode(node.id)
-                          setResizeStartSize({ width: node.width || 240, height: node.height })
+                          setResizeStartSize({ width: node.width || 240, height: node.height }}
                           setResizeStartPos({ x: e.clientX, y: e.clientY })
                         }}
                       />
@@ -5708,7 +5749,7 @@ export default function HTMLCanvas({
                     contentEditable={editingField?.nodeId === node.id && editingField?.field === 'content'}
                     suppressContentEditableWarning={true}
                     data-content-type="content"
-                    className={`w-full bg-transparent border-none outline-none text-sm min-h-[4rem] max-h-full overflow-hidden leading-relaxed rounded px-1 ${(editingField?.nodeId === node.id && editingField?.field === 'content') ? 'cursor-text' : 'cursor-move'}`}
+                    className={`w-full bg-transparent border-none outline-none text-sm min-h-[4rem] max-h-full overflow-auto leading-relaxed rounded px-1 break-words ${(editingField?.nodeId === node.id && editingField?.field === 'content') ? 'cursor-text' : 'cursor-move'}`}
                     draggable={false}
                     style={{
                       color: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
