@@ -1605,7 +1605,7 @@ export default function HTMLCanvas({
     prevNodesRef.current = nodes
   }, [nodes, syncRelationshipCanvases])
 
-  // Auto-populate relationship canvas from character list on template load
+  // Auto-populate relationship canvas from ALL characters in project
   useEffect(() => {
     let hasUpdates = false
     const updatedNodes = [...nodes]
@@ -1614,40 +1614,35 @@ export default function HTMLCanvas({
       if (
         node.type === 'relationship-canvas' &&
         node.relationshipData?.autoPopulateFromList &&
-        node.relationshipData.selectedCharacters.length === 0
+        node.relationshipData.selectedCharacters.length === 0 &&
+        allProjectCharacters.length > 0 // Only populate when we have fetched all characters
       ) {
-        // Find all character nodes that have parentId matching characters-list
-        const characterListNodes = nodes.filter(n =>
-          n.type === 'character' && n.parentId === 'characters-list'
-        )
+        const defaultPositions = node.relationshipData.defaultPositions || []
 
-        if (characterListNodes.length > 0) {
-          const defaultPositions = node.relationshipData.defaultPositions || []
+        // Use ALL characters from the entire project, not just current canvas
+        const selectedCharacters = allProjectCharacters.map((character, index) => ({
+          id: character.id,
+          name: character.name,
+          profileImageUrl: character.profileImageUrl,
+          position: defaultPositions[index] || { x: 100 + (index * 80), y: 100 + (index * 60) }
+        }))
 
-          const selectedCharacters = characterListNodes.map((charNode, index) => ({
-            id: charNode.id,
-            name: charNode.text,
-            profileImageUrl: charNode.profileImageUrl,
-            position: defaultPositions[index] || { x: 100 + (index * 80), y: 100 + (index * 60) }
-          }))
-
-          updatedNodes[nodeIndex] = {
-            ...node,
-            relationshipData: {
-              ...node.relationshipData,
-              selectedCharacters,
-              autoPopulateFromList: false // Disable after first population
-            }
+        updatedNodes[nodeIndex] = {
+          ...node,
+          relationshipData: {
+            ...node.relationshipData,
+            selectedCharacters,
+            autoPopulateFromList: false // Disable after first population
           }
-          hasUpdates = true
         }
+        hasUpdates = true
       }
     })
 
     if (hasUpdates) {
       setNodes(updatedNodes)
     }
-  }, [nodes])
+  }, [nodes, allProjectCharacters])
 
   const getDefaultTableData = () => {
     return [
