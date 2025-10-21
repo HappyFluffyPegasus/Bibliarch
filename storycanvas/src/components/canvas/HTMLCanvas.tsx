@@ -503,13 +503,14 @@ export default function HTMLCanvas({
           console.log('[Auto-save] Character nodes detected, refreshing character list after save')
           // Wait a bit for database to update, then refresh
           setTimeout(() => {
-            refreshAllCharacters()
+            // Call refreshAllCharacters directly - it's stable from useCallback
+            refreshAllCharacters().catch(err => console.error('[Auto-save] Error refreshing characters:', err))
           }, 500)
         }
       }
     }, 2000) // Give users more time between saves
     return () => clearTimeout(timeoutId)
-  }, [nodes, connections, onSave, refreshAllCharacters])
+  }, [nodes, connections, onSave])
 
   // Listen for palette changes and force re-render
   useEffect(() => {
