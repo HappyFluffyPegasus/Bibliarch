@@ -493,13 +493,23 @@ export default function HTMLCanvas({
 
   // Auto-save when nodes change
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(async () => {
       if (onSave && (nodes.length > 0 || connections.length > 0)) {
-        onSave(nodes, connections)
+        await onSave(nodes, connections)
+
+        // Check if any character nodes exist in current canvas
+        const hasCharacters = nodes.some(node => node.type === 'character')
+        if (hasCharacters) {
+          console.log('[Auto-save] Character nodes detected, refreshing character list after save')
+          // Wait a bit for database to update, then refresh
+          setTimeout(() => {
+            refreshAllCharacters()
+          }, 500)
+        }
       }
     }, 2000) // Give users more time between saves
     return () => clearTimeout(timeoutId)
-  }, [nodes, connections, onSave])
+  }, [nodes, connections, onSave, refreshAllCharacters])
 
   // Listen for palette changes and force re-render
   useEffect(() => {
@@ -1430,26 +1440,32 @@ export default function HTMLCanvas({
   useEffect(() => {
     const fetchAllProjectCharacters = async () => {
       try {
+        console.log('[Character Fetch] Starting fetch for story:', storyId)
         const supabase = createClient()
 
         // Fetch ALL canvas data for this story
         const { data: allCanvases, error } = await supabase
           .from('canvas_data')
-          .select('nodes')
+          .select('canvas_type, nodes')
           .eq('story_id', storyId)
 
         if (error) {
-          console.error('Error fetching all canvases:', error)
+          console.error('[Character Fetch] Error fetching all canvases:', error)
           return
         }
 
         if (allCanvases) {
+          console.log('[Character Fetch] Found', allCanvases.length, 'canvases in project')
+          console.log('[Character Fetch] Canvas types:', allCanvases.map((c: any) => c.canvas_type))
+
           // Extract all character nodes from all canvases
           const allCharacters: Array<{ id: string, name: string, profileImageUrl?: string }> = []
 
-          allCanvases.forEach(canvas => {
+          allCanvases.forEach((canvas, index) => {
+            const canvasType = (canvas as any).canvas_type
             const canvasNodes = (canvas as any).nodes || []
             const characterNodes = canvasNodes.filter((node: Node) => node.type === 'character')
+            console.log(`[Character Fetch] Canvas ${index} (${canvasType}): ${characterNodes.length} character nodes`)
 
             characterNodes.forEach((charNode: Node) => {
               // Skip template characters
@@ -1465,19 +1481,21 @@ export default function HTMLCanvas({
                   name: charNode.text,
                   profileImageUrl: charNode.profileImageUrl
                 })
+                console.log('[Character Fetch] Added character:', charNode.text, 'from canvas:', canvasType)
               }
             })
           })
 
+          console.log('[Character Fetch] Total unique characters found:', allCharacters.length)
           setAllProjectCharacters(allCharacters)
         }
       } catch (error) {
-        console.error('Error in fetchAllProjectCharacters:', error)
+        console.error('[Character Fetch] Error in fetchAllProjectCharacters:', error)
       }
     }
 
     fetchAllProjectCharacters()
-  }, [storyId, nodes]) // Re-fetch when nodes change (in case new characters are added)
+  }, [storyId]) // Only re-fetch when storyId changes
 
   // Character detection system - returns ALL character nodes from entire project
   const getAllCharacters = useCallback(() => {
@@ -1487,6 +1505,7 @@ export default function HTMLCanvas({
   // Manual refresh function to force refetch of all characters
   const refreshAllCharacters = useCallback(async () => {
     try {
+      console.log('[Refresh Characters] Manually refreshing character list...')
       const supabase = createClient()
 
       // Fetch ALL canvas data for this story
@@ -1496,17 +1515,20 @@ export default function HTMLCanvas({
         .eq('story_id', storyId)
 
       if (error) {
-        console.error('Error fetching all canvases:', error)
+        console.error('[Refresh Characters] Error fetching all canvases:', error)
         return
       }
 
       if (allCanvases) {
+        console.log('[Refresh Characters] Found', allCanvases.length, 'canvases in project')
+
         // Extract all character nodes from all canvases
         const allCharacters: Array<{ id: string, name: string, profileImageUrl?: string }> = []
 
-        allCanvases.forEach(canvas => {
+        allCanvases.forEach((canvas, index) => {
           const canvasNodes = (canvas as any).nodes || []
           const characterNodes = canvasNodes.filter((node: Node) => node.type === 'character')
+          console.log(`[Refresh Characters] Canvas ${index}: ${characterNodes.length} character nodes`)
 
           characterNodes.forEach((charNode: Node) => {
             // Skip template characters
@@ -1522,15 +1544,16 @@ export default function HTMLCanvas({
                 name: charNode.text,
                 profileImageUrl: charNode.profileImageUrl
               })
+              console.log('[Refresh Characters] Added character:', charNode.text)
             }
           })
         })
 
         setAllProjectCharacters(allCharacters)
-        console.log('Refreshed character list:', allCharacters.length, 'characters found')
+        console.log('[Refresh Characters] Total unique characters found:', allCharacters.length)
       }
     } catch (error) {
-      console.error('Error in refreshAllCharacters:', error)
+      console.error('[Refresh Characters] Error in refreshAllCharacters:', error)
     }
   }, [storyId])
 
@@ -1614,32 +1637,42 @@ export default function HTMLCanvas({
       if (
         node.type === 'relationship-canvas' &&
         node.relationshipData?.autoPopulateFromList &&
-        node.relationshipData.selectedCharacters.length === 0 &&
-        allProjectCharacters.length > 0 // Only populate when we have fetched all characters
+        node.relationshipData.selectedCharacters.length === 0
       ) {
-        const defaultPositions = node.relationshipData.defaultPositions || []
+        console.log('[Auto-populate] Found relationship canvas needing population:', node.id)
+        console.log('[Auto-populate] Available characters:', allProjectCharacters.length)
 
-        // Use ALL characters from the entire project, not just current canvas
-        const selectedCharacters = allProjectCharacters.map((character, index) => ({
-          id: character.id,
-          name: character.name,
-          profileImageUrl: character.profileImageUrl,
-          position: defaultPositions[index] || { x: 100 + (index * 80), y: 100 + (index * 60) }
-        }))
+        // Only populate when we have fetched all characters
+        if (allProjectCharacters.length > 0) {
+          const defaultPositions = node.relationshipData.defaultPositions || []
 
-        updatedNodes[nodeIndex] = {
-          ...node,
-          relationshipData: {
-            ...node.relationshipData,
-            selectedCharacters,
-            autoPopulateFromList: false // Disable after first population
+          // Use ALL characters from the entire project, not just current canvas
+          const selectedCharacters = allProjectCharacters.map((character, index) => ({
+            id: character.id,
+            name: character.name,
+            profileImageUrl: character.profileImageUrl,
+            position: defaultPositions[index] || { x: 100 + (index * 80), y: 100 + (index * 60) }
+          }))
+
+          console.log('[Auto-populate] Populating with', selectedCharacters.length, 'characters')
+
+          updatedNodes[nodeIndex] = {
+            ...node,
+            relationshipData: {
+              ...node.relationshipData,
+              selectedCharacters,
+              autoPopulateFromList: false // Disable after first population
+            }
           }
+          hasUpdates = true
+        } else {
+          console.log('[Auto-populate] Waiting for characters to load...')
         }
-        hasUpdates = true
       }
     })
 
     if (hasUpdates) {
+      console.log('[Auto-populate] Updating nodes with populated characters')
       setNodes(updatedNodes)
     }
   }, [nodes, allProjectCharacters])
