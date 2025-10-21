@@ -3770,7 +3770,7 @@ export default function HTMLCanvas({
                         onMouseDown={(e) => {
                           e.stopPropagation()
                           setResizingNode(node.id)
-                          setResizeStartSize({ width: node.width || 240, height: node.height }}
+                          setResizeStartSize({ width: node.width || 240, height: node.height || 72 })
                           setResizeStartPos({ x: e.clientX, y: e.clientY })
                         }}
                       />
