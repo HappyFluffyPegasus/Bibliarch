@@ -1438,6 +1438,7 @@ export default function HTMLCanvas({
   const [allProjectCharacters, setAllProjectCharacters] = useState<Array<{ id: string, name: string, profileImageUrl?: string }>>([])
 
   // Fetch all character nodes from ALL canvases in the project
+  // This runs on EVERY canvas mount to ensure we always have the latest characters
   useEffect(() => {
     const fetchAllProjectCharacters = async () => {
       try {
@@ -1497,8 +1498,17 @@ export default function HTMLCanvas({
       }
     }
 
+    // Fetch immediately on mount
     fetchAllProjectCharacters()
-  }, [storyId]) // Only re-fetch when storyId changes
+
+    // Also fetch after a short delay to catch any saves that just completed
+    const delayedFetch = setTimeout(() => {
+      console.log('[Character Fetch] Running delayed fetch to catch recent saves...')
+      fetchAllProjectCharacters()
+    }, 1000)
+
+    return () => clearTimeout(delayedFetch)
+  }, [storyId]) // Runs every time component mounts (key={currentCanvasId} causes remount)
 
   // Character detection system - returns ALL character nodes from entire project
   const getAllCharacters = useCallback(() => {
