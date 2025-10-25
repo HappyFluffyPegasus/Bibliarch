@@ -87,6 +87,9 @@ export default function StoryPage({ params }: PageProps) {
 
     currentCanvasIdRef.current = currentCanvasId
 
+    // Clear canvas data immediately to prevent showing old data
+    setCanvasData(null)
+
     loadStory()
   }, [resolvedParams.id, currentCanvasId])
 
@@ -234,9 +237,8 @@ export default function StoryPage({ params }: PageProps) {
           setCanvasData(templateData)
           latestCanvasData.current = templateData
 
-          setTimeout(() => {
-            handleSaveCanvas(templateData.nodes, templateData.connections)
-          }, 1000)
+          // Save template immediately to prevent data loss
+          handleSaveCanvas(templateData.nodes, templateData.connections)
         }
         // Check for character node template
         else if (currentCanvasId.includes('character-') && subCanvasTemplates.character) {
@@ -266,9 +268,8 @@ export default function StoryPage({ params }: PageProps) {
           setCanvasData(templateData)
           latestCanvasData.current = templateData
 
-          setTimeout(() => {
-            handleSaveCanvas(templateData.nodes, templateData.connections)
-          }, 1000)
+          // Save template immediately to prevent data loss
+          handleSaveCanvas(templateData.nodes, templateData.connections)
         } else {
           setCanvasData(loadedData)
           latestCanvasData.current = loadedData
@@ -696,14 +697,20 @@ export default function StoryPage({ params }: PageProps) {
       return
     }
 
+    // Check if already at this canvas (prevent duplicates)
+    if (currentCanvasId === canvasId) {
+      return
+    }
+
     // SAVE CURRENT CANVAS FIRST! Use the latest data from the ref
     if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
       await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
       console.log('Saved canvas before navigation:', currentCanvasId, latestCanvasData.current)
     }
 
-    // Add to path for breadcrumbs
-    const newPath = [...canvasPath, { id: canvasId, title: nodeTitle }]
+    // Add to path for breadcrumbs (only if not already in path)
+    const alreadyInPath = canvasPath.some(item => item.id === canvasId)
+    const newPath = alreadyInPath ? canvasPath : [...canvasPath, { id: canvasId, title: nodeTitle }]
     setCanvasPath(newPath)
 
     // Update canvas ID IMMEDIATELY (no clearing, no delays)
@@ -852,7 +859,7 @@ export default function StoryPage({ params }: PageProps) {
 
               {/* Folder path */}
               {canvasPath.map((pathItem, index) => (
-                <React.Fragment key={pathItem.id}>
+                <React.Fragment key={`breadcrumb-${index}-${pathItem.id}`}>
                   <ChevronRight className="w-4 h-4" />
                   <button
                     onClick={async () => {
