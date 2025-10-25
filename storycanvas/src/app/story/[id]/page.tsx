@@ -560,6 +560,9 @@ export default function StoryPage({ params }: PageProps) {
     // Update the ref with latest data
     latestCanvasData.current = { nodes, connections }
 
+    // CRITICAL: Update the canvasData state immediately so child component sees the changes
+    setCanvasData({ nodes, connections })
+
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
