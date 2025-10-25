@@ -2283,8 +2283,14 @@ export default function HTMLCanvas({
 
     const newNodes = [...nodes, newNode]
     setNodes(newNodes)
+    setVisibleNodeIds([...visibleNodeIds, newNode.id])  // CRITICAL: Add to visible nodes so it renders!
     saveToHistory(newNodes, connections)
     setSelectedId(newNode.id)
+
+    // Save immediately to database
+    if (onSave) {
+      onSave(newNodes, connections)
+    }
 
   }
 

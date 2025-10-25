@@ -91,31 +91,30 @@ export default function AdminUsersPage() {
         throw countError
       }
 
-      // Get recent users
-      const { data: recentUsers, error: recentError } = await supabase
+      // Get all users
+      const { data: allUsers, error: usersError } = await supabase
         .from('profiles')
         .select('id, username, email, created_at, classification')
         .order('created_at', { ascending: false })
-        .limit(10)
 
-      console.log('Recent users query result:', {
-        data: recentUsers,
-        error: recentError,
-        count: recentUsers?.length
+      console.log('All users query result:', {
+        data: allUsers,
+        error: usersError,
+        count: allUsers?.length
       })
 
-      if (recentError) {
-        console.error('Recent users error details:', recentError)
-        throw recentError
+      if (usersError) {
+        console.error('Users error details:', usersError)
+        throw usersError
       }
 
       // Separate users into classified and real users
-      const classifiedUsers = recentUsers?.filter(u => u.classification) || []
-      const realUsers = recentUsers?.filter(u => !u.classification) || []
+      const classifiedUsers = allUsers?.filter(u => u.classification) || []
+      const realUsers = allUsers?.filter(u => !u.classification) || []
 
       setStats({
         totalUsers: count || 0,
-        recentUsers: recentUsers || [],
+        recentUsers: allUsers || [],
         classifiedUsers,
         realUsers
       })
@@ -153,7 +152,7 @@ export default function AdminUsersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <Link href="/dashboard">
@@ -189,96 +188,99 @@ export default function AdminUsersPage() {
           </div>
         </Card>
 
-        {/* Real Users Section */}
-        <Card className="p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Real Users</h2>
-            <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm font-medium">
-              {stats?.realUsers.length || 0} users
-            </span>
-          </div>
-          <div className="space-y-3">
-            {stats?.realUsers && stats.realUsers.length > 0 ? (
-              stats.realUsers.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800"
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="p-2 rounded-full bg-gray-200 dark:bg-gray-700">
-                      <Users className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{user.username || 'No username'}</p>
-                      {user.email && (
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Mail className="w-3 h-3" />
-                          {user.email}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(user.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-center text-muted-foreground py-4">No real users yet</p>
-            )}
-          </div>
-        </Card>
-
-        {/* Friends, Tests & Family Section */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Friends, Tests & Family</h2>
-            <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium">
-              {stats?.classifiedUsers.length || 0} users
-            </span>
-          </div>
-          <div className="space-y-3">
-            {stats?.classifiedUsers && stats.classifiedUsers.length > 0 ? (
-              stats.classifiedUsers.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800"
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="p-2 rounded-full bg-gray-200 dark:bg-gray-700">
-                      <Users className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{user.username || 'No username'}</p>
-                        <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
-                          {user.classification}
-                        </span>
+        {/* Two Column Layout for User Lists */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Real Users Section */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Real Users</h2>
+              <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm font-medium">
+                {stats?.realUsers.length || 0} users
+              </span>
+            </div>
+            <div className="space-y-3 max-h-[600px] overflow-y-auto">
+              {stats?.realUsers && stats.realUsers.length > 0 ? (
+                stats.realUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800"
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="p-2 rounded-full bg-gray-200 dark:bg-gray-700">
+                        <Users className="w-4 h-4" />
                       </div>
-                      {user.email && (
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Mail className="w-3 h-3" />
-                          {user.email}
-                        </p>
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{user.username || 'No username'}</p>
+                        {user.email && (
+                          <p className="text-sm text-muted-foreground flex items-center gap-1 truncate">
+                            <Mail className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{user.email}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-2">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(user.created_at).toLocaleDateString()}
+                      </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(user.created_at).toLocaleDateString()}
-                    </p>
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground py-4">No real users yet</p>
+              )}
+            </div>
+          </Card>
+
+          {/* People I Know IRL Section */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">People I Know IRL</h2>
+              <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium">
+                {stats?.classifiedUsers.length || 0} users
+              </span>
+            </div>
+            <div className="space-y-3 max-h-[600px] overflow-y-auto">
+              {stats?.classifiedUsers && stats.classifiedUsers.length > 0 ? (
+                stats.classifiedUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800"
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="p-2 rounded-full bg-gray-200 dark:bg-gray-700">
+                        <Users className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium truncate">{user.username || 'No username'}</p>
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex-shrink-0">
+                            {user.classification}
+                          </span>
+                        </div>
+                        {user.email && (
+                          <p className="text-sm text-muted-foreground flex items-center gap-1 truncate">
+                            <Mail className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{user.email}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-2">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(user.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-center text-muted-foreground py-4">No classified users</p>
-            )}
-          </div>
-        </Card>
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground py-4">No classified users</p>
+              )}
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   )
