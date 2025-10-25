@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { flushSync } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette, ArrowRight, Menu } from 'lucide-react'
+import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette, ArrowRight, Menu, Grid3x3 } from 'lucide-react'
 import { PaletteSelector } from '@/components/ui/palette-selector'
 import { NodeStylePanel } from '@/components/ui/node-style-panel'
 import { PerformanceOptimizer } from '@/lib/performance-utils'
@@ -108,7 +108,7 @@ interface HTMLCanvasProps {
   onNavigateToCanvas?: (canvasId: string, nodeTitle: string) => void
   canvasWidth?: number
   canvasHeight?: number
-  showHelp?: boolean
+  initialShowHelp?: boolean
   zoom?: number
   onZoomChange?: (zoom: number) => void
 }
@@ -122,7 +122,7 @@ export default function HTMLCanvas({
   onNavigateToCanvas,
   canvasWidth = 3000,
   canvasHeight = 2000,
-  showHelp = false,
+  initialShowHelp = false,
   zoom: controlledZoom,
   onZoomChange
 }: HTMLCanvasProps) {
@@ -134,7 +134,9 @@ export default function HTMLCanvas({
   const [editingField, setEditingField] = useState<{nodeId: string, field: string} | null>(null)
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
+  const [showHelp, setShowHelp] = useState(initialShowHelp)
   const [showStylePanel, setShowStylePanel] = useState(false)
+  const [showGridPanel, setShowGridPanel] = useState(false)
   const [visibleNodeIds, setVisibleNodeIds] = useState<string[]>([])
   const [viewportNodes, setViewportNodes] = useState<Node[]>([])
   const [isMoving, setIsMoving] = useState(false)
@@ -243,6 +245,17 @@ export default function HTMLCanvas({
   const [resizeDirection, setResizeDirection] = useState<'se' | 'sw' | 'ne' | 'nw' | null>(null)
   const [dragStartCrop, setDragStartCrop] = useState({ x: 0, y: 0 })
   const cropImageRef = useRef<HTMLImageElement>(null)
+
+  // Snapping system
+  const [snapToGrid, setSnapToGrid] = useState(false)
+  const [gridSize, setGridSize] = useState(20) // Default 20px grid
+  const [showGrid, setShowGrid] = useState(false)
+
+  // Snap to grid function
+  const snapToGridFn = useCallback((value: number) => {
+    if (!snapToGrid) return value
+    return Math.round(value / gridSize) * gridSize
+  }, [snapToGrid, gridSize])
 
   // Undo/Redo system
   const [history, setHistory] = useState<{ nodes: Node[], connections: Connection[] }[]>([])
@@ -522,14 +535,20 @@ export default function HTMLCanvas({
     return () => window.removeEventListener('paletteChanged', handlePaletteChange)
   }, [])
 
-  // Initialize nodes from props
+  // Initialize nodes from props when they change (canvas navigation)
   useEffect(() => {
+    console.log('Initializing canvas with:', { nodeCount: initialNodes.length, connectionCount: initialConnections.length })
     setNodes(initialNodes)
     setConnections(initialConnections)
     setVisibleNodeIds(initialNodes.map(node => node.id))
-    // Initialize history with the first state
+
+    // Initialize history with the first state using deep clone
     if (initialNodes.length > 0 || initialConnections.length > 0) {
-      setHistory([{ nodes: initialNodes, connections: initialConnections }])
+      const initialState = {
+        nodes: JSON.parse(JSON.stringify(initialNodes)),
+        connections: JSON.parse(JSON.stringify(initialConnections))
+      }
+      setHistory([initialState])
       setHistoryIndex(0)
     }
   }, [initialNodes, initialConnections])
@@ -617,47 +636,65 @@ export default function HTMLCanvas({
 
   // Save state to history
   const saveToHistory = useCallback((newNodes: Node[], newConnections: Connection[]) => {
-    setHistory(prev => {
-      const newHistory = prev.slice(0, historyIndex + 1)
-      newHistory.push({ nodes: [...newNodes], connections: [...newConnections] })
-      
-      // Limit history size
-      if (newHistory.length > maxHistorySize) {
-        newHistory.shift()
-        setHistoryIndex(prev => prev - 1)
-      }
-      
-      return newHistory
+    setHistoryIndex(currentIndex => {
+      setHistory(prev => {
+        // Clear any future history if we're not at the end
+        const newHistory = prev.slice(0, currentIndex + 1)
+        newHistory.push({ nodes: JSON.parse(JSON.stringify(newNodes)), connections: JSON.parse(JSON.stringify(newConnections)) })
+
+        // Limit history size
+        if (newHistory.length > maxHistorySize) {
+          newHistory.shift()
+          return newHistory
+        }
+
+        return newHistory
+      })
+
+      // Return the new index
+      return Math.min(currentIndex + 1, maxHistorySize - 1)
     })
-    setHistoryIndex(prev => {
-      const newIndex = Math.min(prev + 1, maxHistorySize - 1)
-      return newIndex
-    })
-  }, [historyIndex, maxHistorySize])
+  }, [maxHistorySize])
 
   // Undo function
   const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1
-      const prevState = history[newIndex]
-      setNodes(prevState.nodes)
-      setConnections(prevState.connections)
-      setHistoryIndex(newIndex)
-
-    }
-  }, [history, historyIndex])
+    setHistoryIndex(currentIndex => {
+      if (currentIndex > 0) {
+        setHistory(currentHistory => {
+          const newIndex = currentIndex - 1
+          const prevState = currentHistory[newIndex]
+          if (prevState) {
+            // Deep clone to avoid reference issues
+            setNodes(JSON.parse(JSON.stringify(prevState.nodes)))
+            setConnections(JSON.parse(JSON.stringify(prevState.connections)))
+          }
+          return currentHistory
+        })
+        return currentIndex - 1
+      }
+      return currentIndex
+    })
+  }, [])
 
   // Redo function
   const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1
-      const nextState = history[newIndex]
-      setNodes(nextState.nodes)
-      setConnections(nextState.connections)
-      setHistoryIndex(newIndex)
-
-    }
-  }, [history, historyIndex])
+    setHistoryIndex(currentIndex => {
+      setHistory(currentHistory => {
+        if (currentIndex < currentHistory.length - 1) {
+          const newIndex = currentIndex + 1
+          const nextState = currentHistory[newIndex]
+          if (nextState) {
+            // Deep clone to avoid reference issues
+            setNodes(JSON.parse(JSON.stringify(nextState.nodes)))
+            setConnections(JSON.parse(JSON.stringify(nextState.connections)))
+          }
+          return currentHistory
+        }
+        return currentHistory
+      })
+      return currentIndex < history.length - 1 ? currentIndex + 1 : currentIndex
+    })
+  }, [history.length])
 
   // Node style preferences update function
   const updateNodeStylePreference = useCallback((key: keyof NodeStylePreferences, value: string) => {
@@ -1022,8 +1059,14 @@ export default function HTMLCanvas({
       // Handle node dragging - just update position state, don't re-render nodes
       const rect = canvasRef.current?.getBoundingClientRect()
       if (rect) {
-        const x = e.clientX - rect.left - dragOffset.x
-        const y = e.clientY - rect.top - dragOffset.y
+        let x = e.clientX - rect.left - dragOffset.x
+        let y = e.clientY - rect.top - dragOffset.y
+
+        // Apply snapping if enabled
+        if (snapToGrid) {
+          x = snapToGridFn(x)
+          y = snapToGridFn(y)
+        }
 
         setDragPosition({ x: Math.max(0, x), y: Math.max(0, y) })
         setIsMoving(true)
@@ -2241,6 +2284,10 @@ export default function HTMLCanvas({
     setNodes(newNodes)
     saveToHistory(newNodes, connections)
 
+    // Save color change to database
+    if (onSave) {
+      onSave(newNodes, connections)
+    }
   }
 
   // Context menu handlers
@@ -2265,6 +2312,10 @@ export default function HTMLCanvas({
     setNodes(newNodes)
     saveToHistory(newNodes, connections)
 
+    // Save setting change to database
+    if (onSave) {
+      onSave(newNodes, connections)
+    }
   }
 
   const handleDuplicateNode = (nodeId: string) => {
@@ -2851,51 +2902,74 @@ export default function HTMLCanvas({
         {/* Top-right buttons when help is shown - Hidden on mobile */}
         {showHelp && (
           <div className="hidden md:flex fixed top-[72px] right-4 z-50 gap-2 items-start">
-            <PaletteSelector
-              mode="advanced"
-              scope="project"
-              contextId={storyId}
-              onColorSelect={(color) => {
-                if (selectedId) {
-                  handleColorChange(selectedId, color)
-                } else {
+            <div
+              style={{
+                transform: `translateX(-${
+                  (showStylePanel ? 220 : 0) + (showGridPanel ? 220 : 0)
+                }px)`
+              }}
+            >
+              <PaletteSelector
+                mode="advanced"
+                scope="project"
+                contextId={storyId}
+                onColorSelect={(color) => {
+                  if (selectedId) {
+                    handleColorChange(selectedId, color)
+                  } else {
 
+                  }
+                }}
+                onPaletteChange={(palette) => {
+                  // Apply palette globally to entire project (all sections)
+                  colorContext.setProjectPalette(storyId, palette)
+
+                  // Apply the palette immediately to all sections
+                  colorContext.applyPalette(palette)
+
+                  // Reset all nodes to use the new theme colors
+                  resetAllNodesToThemeColors()
+
+                  // Force re-render to update node colors
+                  setPaletteRefresh(prev => prev + 1)
+
+
+                }}
+                trigger={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
+                    title="Color Palette"
+                  >
+                    <Palette className="w-4 h-4" />
+                  </Button>
                 }
+              />
+            </div>
+            <div
+              style={{
+                transform: `translateX(-${showGridPanel ? 220 : 0}px)`
               }}
-              onPaletteChange={(palette) => {
-                // Apply palette globally to entire project (all sections)
-                colorContext.setProjectPalette(storyId, palette)
-
-                // Apply the palette immediately to all sections
-                colorContext.applyPalette(palette)
-
-                // Reset all nodes to use the new theme colors
-                resetAllNodesToThemeColors()
-
-                // Force re-render to update node colors
-                setPaletteRefresh(prev => prev + 1)
-
-
-              }}
-              trigger={
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
-                  title="Color Palette"
-                >
-                  <Palette className="w-4 h-4" />
-                </Button>
-              }
-            />
+            >
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowStylePanel(!showStylePanel)}
+                className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
+                title="Node Style Settings"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+              </Button>
+            </div>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setShowStylePanel(!showStylePanel)}
+              onClick={() => setShowGridPanel(!showGridPanel)}
               className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
-              title="Node Style Settings"
+              title="Grid Controls"
             >
-              <SlidersHorizontal className="w-4 h-4" />
+              <Grid3x3 className="w-4 h-4" />
             </Button>
             <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs sm:text-sm shadow-lg max-w-xs sm:max-w-sm">
               <div className="flex items-center justify-between mb-1">
@@ -2935,9 +3009,14 @@ export default function HTMLCanvas({
         
         {/* Top-right buttons when help is hidden - Hidden on mobile */}
         {!showHelp && (
-          <>
-            {/* Color Palette - moves when style panel opens */}
-            <div className={`hidden md:block fixed top-[72px] z-50 transition-all ${showStylePanel ? 'right-[309px]' : 'right-24'}`}>
+          <div className="hidden md:flex fixed top-[72px] right-4 z-50 gap-2">
+            <div
+              style={{
+                transform: `translateX(-${
+                  (showStylePanel ? 220 : 0) + (showGridPanel ? 220 : 0)
+                }px)`
+              }}
+            >
               <PaletteSelector
                 mode="advanced"
                 scope="project"
@@ -2976,9 +3055,11 @@ export default function HTMLCanvas({
                 }
               />
             </div>
-
-            {/* Node Settings and Help - stay fixed - Hidden on mobile */}
-            <div className="hidden md:flex fixed top-[72px] right-4 z-50 gap-2">
+            <div
+              style={{
+                transform: `translateX(-${showGridPanel ? 220 : 0}px)`
+              }}
+            >
               <Button
                 size="sm"
                 variant="outline"
@@ -2988,22 +3069,39 @@ export default function HTMLCanvas({
               >
                 <SlidersHorizontal className="w-4 h-4" />
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowHelp(true)}
-                className="h-8 w-8 p-0 text-xs shadow-lg"
-                title="Show help"
-              >
-                ?
-              </Button>
             </div>
-          </>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowGridPanel(!showGridPanel)}
+              className="h-8 w-8 p-0 text-xs shadow-lg"
+              title="Grid Controls"
+            >
+              <Grid3x3 className="w-4 h-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowHelp(true)}
+              className="h-8 w-8 p-0 text-xs shadow-lg"
+              title="Show help"
+            >
+              ?
+            </Button>
+          </div>
         )}
 
         {/* Style Panel Popup - Hidden on mobile */}
         {showStylePanel && (
-          <div className={`hidden md:block fixed top-[72px] z-50 w-64 ${showHelp ? 'right-80 sm:right-96' : 'right-[calc(3rem+2px)]'}`}>
+          <div
+            className="hidden md:block fixed top-[72px] z-50 w-64"
+            style={{
+              right: `${
+                96 + // aligned with Style button itself: 16px + 32px + 8px + 32px + 8px
+                (showGridPanel ? 220 : 0) // if grid panel is open, shift left
+              }px`
+            }}
+          >
             <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg">
               <div className="flex items-center justify-between mb-3">
                 <span className="font-medium text-foreground flex items-center gap-2">
@@ -3022,6 +3120,79 @@ export default function HTMLCanvas({
                 preferences={nodeStylePreferences}
                 onUpdate={updateNodeStylePreference}
               />
+            </Card>
+          </div>
+        )}
+
+        {/* Grid Controls Panel - Hidden on mobile */}
+        {showGridPanel && (
+          <div
+            className="hidden md:block fixed top-[72px] z-50 w-64"
+            style={{
+              right: '56px' // aligned with Grid button itself: 16px + 32px + 8px
+            }}
+          >
+            <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-medium text-foreground flex items-center gap-2">
+                  <Grid3x3 className="w-4 h-4" />
+                  Grid Controls
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowGridPanel(false)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                {/* Grid Size Selector */}
+                <div className="flex items-center justify-between py-2">
+                  <label htmlFor="grid-size" className="text-xs font-medium text-muted-foreground">
+                    Size
+                  </label>
+                  <select
+                    id="grid-size"
+                    value={gridSize}
+                    onChange={(e) => setGridSize(Number(e.target.value))}
+                    className="text-xs rounded px-2 py-1 bg-background border border-border focus:outline-none focus:ring-2 focus:ring-sky-500 w-20"
+                  >
+                    <option value={10}>10px</option>
+                    <option value={20}>20px</option>
+                    <option value={40}>40px</option>
+                  </select>
+                </div>
+
+                {/* Toggle Buttons */}
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-xs font-medium text-muted-foreground">Show Grid</span>
+                  <Button
+                    size="sm"
+                    variant={showGrid ? "default" : "outline"}
+                    onClick={() => setShowGrid(!showGrid)}
+                    className="h-6 w-6 p-0"
+                    title="Toggle grid visibility"
+                  >
+                    {showGrid ? '✓' : ''}
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-xs font-medium text-muted-foreground">Snap to Grid</span>
+                  <Button
+                    size="sm"
+                    variant={snapToGrid ? "default" : "outline"}
+                    onClick={() => setSnapToGrid(!snapToGrid)}
+                    className="h-6 w-6 p-0"
+                    title="Toggle snap to grid"
+                  >
+                    {snapToGrid ? '✓' : ''}
+                  </Button>
+                </div>
+              </div>
             </Card>
           </div>
         )}
@@ -3050,6 +3221,21 @@ export default function HTMLCanvas({
             transition: 'transform 0.1s ease-out'
           }}
         >
+          {/* Grid overlay */}
+          {showGrid && (
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage: `
+                  linear-gradient(to right, rgba(156, 163, 175, 0.2) 1px, transparent 1px),
+                  linear-gradient(to bottom, rgba(156, 163, 175, 0.2) 1px, transparent 1px)
+                `,
+                backgroundSize: `${gridSize}px ${gridSize}px`,
+                zIndex: 0
+              }}
+            />
+          )}
+
           {/* Render nodes - list nodes first (bottom layer), then others */}
           {viewportNodes
             .filter(node => !node.parentId)
@@ -4820,7 +5006,11 @@ export default function HTMLCanvas({
 
                     {/* Navigation arrow - clickable */}
                     <div
-                      className="absolute bottom-1 right-1 p-1 cursor-pointer ${!isPanning ? 'hover:bg-black/10' : ''} rounded"
+                      className="absolute bottom-0 right-0 p-2 cursor-pointer hover:bg-black/20 active:bg-black/30 rounded-tl-lg transition-colors"
+                      style={{
+                        backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                        borderTopLeftRadius: '8px'
+                      }}
                       onClick={async (e) => {
                         e.stopPropagation()
                         // Single click navigation for character nodes
@@ -4842,9 +5032,9 @@ export default function HTMLCanvas({
                           onNavigateToCanvas(linkedCanvasId, node.text)
                         }
                       }}
-                      title="Open character development"
+                      title="Open character details"
                     >
-                      <ArrowRight className="w-5 h-5" style={{ color: getIconColor('character', getNodeColor('character', node.color, node.id)), strokeWidth: 1.5 }} />
+                      <ArrowRight className="w-6 h-6" style={{ color: getIconColor('character', getNodeColor('character', node.color, node.id)), strokeWidth: 2 }} />
                     </div>
                   </div>
 
