@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 
 // Query keys for cache management
@@ -6,6 +6,7 @@ export const queryKeys = {
   user: ['user'] as const,
   profile: (userId: string) => ['profile', userId] as const,
   stories: (userId: string) => ['stories', userId] as const,
+  storiesPaginated: (userId: string) => ['stories', 'paginated', userId] as const,
   story: (storyId: string) => ['story', storyId] as const,
   canvas: (storyId: string, canvasType: string) => ['canvas', storyId, canvasType] as const,
 }
@@ -52,7 +53,7 @@ export function useProfile(userId: string | null | undefined) {
   })
 }
 
-// Get all stories for a user
+// Get all stories for a user (legacy - use useStoriesPaginated for large datasets)
 export function useStories(userId: string | null | undefined) {
   const supabase = createClient()
 
@@ -72,6 +73,48 @@ export function useStories(userId: string | null | undefined) {
     },
     enabled: !!userId,
     staleTime: 2 * 60 * 1000, // Stories change more often, cache for 2 min
+  })
+}
+
+// Get stories with pagination (20 per page)
+const STORIES_PER_PAGE = 20
+
+export function useStoriesPaginated(userId: string | null | undefined) {
+  const supabase = createClient()
+
+  return useInfiniteQuery({
+    queryKey: userId ? queryKeys.storiesPaginated(userId) : ['stories', 'paginated', 'null'],
+    queryFn: async ({ pageParam = 0 }) => {
+      if (!userId) return { stories: [], nextCursor: null, hasMore: false }
+
+      const from = pageParam * STORIES_PER_PAGE
+      const to = from + STORIES_PER_PAGE - 1
+
+      const { data, error, count } = await supabase
+        .from('stories')
+        .select('*', { count: 'exact' })
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .range(from, to)
+
+      if (error) throw error
+
+      const stories = data || []
+      const totalStories = count || 0
+      const hasMore = (from + stories.length) < totalStories
+      const nextCursor = hasMore ? pageParam + 1 : null
+
+      return {
+        stories,
+        nextCursor,
+        hasMore,
+        totalCount: totalStories
+      }
+    },
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: !!userId,
+    staleTime: 2 * 60 * 1000,
+    initialPageParam: 0,
   })
 }
 
@@ -150,8 +193,9 @@ export function useCreateStory() {
       return data
     },
     onSuccess: (_, variables) => {
-      // Invalidate stories list to refetch
+      // Invalidate both regular and paginated stories list to refetch
       queryClient.invalidateQueries({ queryKey: queryKeys.stories(variables.userId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storiesPaginated(variables.userId) })
     },
   })
 }
@@ -181,6 +225,7 @@ export function useDeleteStory() {
     onSuccess: (_, variables) => {
       // Invalidate stories list and the specific story
       queryClient.invalidateQueries({ queryKey: queryKeys.stories(variables.userId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storiesPaginated(variables.userId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.story(variables.storyId) })
     },
   })

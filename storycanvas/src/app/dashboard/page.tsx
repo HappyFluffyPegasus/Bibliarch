@@ -15,7 +15,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { storyTemplates } from '@/lib/templates'
 import { ensureDatabaseSetup } from '@/lib/database-init'
 import FeedbackButton from '@/components/feedback/FeedbackButton'
-import { useUser, useProfile, useStories, useCreateStory, useDeleteStory } from '@/lib/hooks/useSupabaseQuery'
+import { useUser, useProfile, useStoriesPaginated, useCreateStory, useDeleteStory } from '@/lib/hooks/useSupabaseQuery'
 
 type Story = {
   id: string
@@ -33,12 +33,22 @@ export default function DashboardPage() {
   // Use cached queries
   const { data: user, isLoading: isUserLoading } = useUser()
   const { data: profile } = useProfile(user?.id)
-  const { data: stories = [], isLoading: isStoriesLoading } = useStories(user?.id)
+  const {
+    data: storiesData,
+    isLoading: isStoriesLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useStoriesPaginated(user?.id)
   const createStoryMutation = useCreateStory()
   const deleteStoryMutation = useDeleteStory()
 
   const username = profile?.username || 'Storyteller'
   const isLoading = isUserLoading || isStoriesLoading
+
+  // Flatten all pages of stories into a single array
+  const stories = storiesData?.pages.flatMap(page => page.stories) ?? []
+  const totalCount = storiesData?.pages[0]?.totalCount ?? 0
 
   const [showTemplateDialog, setShowTemplateDialog] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<string>('blank')
@@ -371,6 +381,33 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
+
+          {/* Load More Button */}
+          {hasNextPage && (
+            <div className="flex justify-center mt-8">
+              <Button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                variant="outline"
+                size="lg"
+                className="min-w-[200px]"
+              >
+                {isFetchingNextPage ? (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2 animate-pulse" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    Load More Stories
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      ({stories.length} of {totalCount})
+                    </span>
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         )}
 
       </main>
