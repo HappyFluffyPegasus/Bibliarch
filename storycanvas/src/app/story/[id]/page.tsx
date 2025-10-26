@@ -52,7 +52,10 @@ export default function StoryPage({ params }: PageProps) {
   const [zoom, setZoom] = useState(1)
   const router = useRouter()
   const supabase = createClient()
-  
+
+  // Cache user to avoid auth check on every auto-save
+  const userRef = useRef<any>(null)
+
   // Store the latest canvas state from Bibliarch component
   const latestCanvasData = useRef<{ nodes: any[], connections: any[] }>({ nodes: [], connections: [] })
 
@@ -118,6 +121,9 @@ export default function StoryPage({ params }: PageProps) {
       }
 
       console.log('User authenticated:', user.id)
+
+      // Cache user to avoid repeated auth checks on auto-save
+      userRef.current = user
 
       // Get user profile for username
       const { data: profile, error: profileError } = await supabase
@@ -565,9 +571,12 @@ export default function StoryPage({ params }: PageProps) {
     // The child component (HTMLCanvas) maintains its own state
     // Only update canvasData when loading from database
 
-    const { data: { user } } = await supabase.auth.getUser()
+    // OPTIMIZATION: Use cached user instead of auth check on every save
+    // Calling auth.getUser() every 2 seconds on auto-save adds unnecessary database load
+    const user = userRef.current
 
     if (!user) {
+      console.warn('No cached user found, skipping save')
       return
     }
 
