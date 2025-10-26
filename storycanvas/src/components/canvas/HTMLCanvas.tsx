@@ -2707,20 +2707,20 @@ export default function HTMLCanvas({
 
 
   return (
-    <div className="w-full h-full overflow-hidden flex flex-col md:flex-row bg-background">
-      {/* Sidebar - Hidden on mobile (view-only), Left on desktop */}
+    <div className="w-full h-full overflow-hidden flex flex-row bg-background">
+      {/* Sidebar */}
       <div className="
-        hidden md:flex
-        md:w-20 md:h-full
+        flex
+        w-20 h-full
         bg-card
-        md:border-r
+        border-r
         border-gray-600 dark:border-gray-600
-        md:flex-col
+        flex-col
         items-center
-        md:py-4
+        py-4
         gap-3
         z-20
-        md:max-h-screen
+        max-h-screen
         hover-scrollable
       ">
         {/* Navigation Tools */}
@@ -2899,9 +2899,9 @@ export default function HTMLCanvas({
 
       {/* Canvas Area */}
       <div className="flex-1 relative overflow-auto mac-style-scrollbar" style={{ backgroundColor: 'var(--color-canvas-bg, hsl(var(--background)))' }}>
-        {/* Top-right buttons when help is shown - Hidden on mobile */}
+        {/* Top-right buttons when help is shown */}
         {showHelp && (
-          <div className="hidden md:flex fixed top-[72px] right-4 z-50 gap-2 items-start">
+          <div className="flex fixed top-[72px] right-4 z-50 gap-2 items-start">
             <div
               style={{
                 transform: `translateX(-${
@@ -3007,9 +3007,9 @@ export default function HTMLCanvas({
           </div>
         )}
         
-        {/* Top-right buttons when help is hidden - Hidden on mobile */}
+        {/* Top-right buttons when help is hidden */}
         {!showHelp && (
-          <div className="hidden md:flex fixed top-[72px] right-4 z-50 gap-2">
+          <div className="flex fixed top-[72px] right-4 z-50 gap-2">
             <div
               style={{
                 transform: `translateX(-${
@@ -3091,10 +3091,10 @@ export default function HTMLCanvas({
           </div>
         )}
 
-        {/* Style Panel Popup - Hidden on mobile */}
+        {/* Style Panel Popup */}
         {showStylePanel && (
           <div
-            className="hidden md:block fixed top-[72px] z-50 w-64"
+            className="block fixed top-[72px] z-50 w-64"
             style={{
               right: `${
                 96 + // aligned with Style button itself: 16px + 32px + 8px + 32px + 8px
@@ -3124,10 +3124,10 @@ export default function HTMLCanvas({
           </div>
         )}
 
-        {/* Grid Controls Panel - Hidden on mobile */}
+        {/* Grid Controls Panel */}
         {showGridPanel && (
           <div
-            className="hidden md:block fixed top-[72px] z-50 w-64"
+            className="block fixed top-[72px] z-50 w-64"
             style={{
               right: '56px' // aligned with Grid button itself: 16px + 32px + 8px
             }}
