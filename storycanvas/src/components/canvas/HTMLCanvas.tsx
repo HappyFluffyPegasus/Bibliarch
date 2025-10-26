@@ -621,18 +621,11 @@ export default function HTMLCanvas({
   }, [nodes.length]) // Only run when nodes are added/removed
 
   // Performance-optimized viewport calculation
-  const updateViewportNodes = useCallback(
-    PerformanceOptimizer.throttle(() => {
-      // With fixed canvas size, show all visible nodes without viewport optimization
-      setViewportNodes(nodes.filter(node => visibleNodeIds.includes(node.id)))
-    }, 16), // Limit to 60fps
-    [nodes, visibleNodeIds, paletteRefresh]
-  )
-
-  // Update viewport nodes when pan, scale, or visible nodes change
+  // Update viewport nodes when visible nodes change
   useEffect(() => {
-    updateViewportNodes()
-  }, [updateViewportNodes])
+    // With fixed canvas size, show all visible nodes without viewport optimization
+    setViewportNodes(nodes.filter(node => visibleNodeIds.includes(node.id)))
+  }, [nodes, visibleNodeIds])
 
   // Save state to history
   const saveToHistory = useCallback((newNodes: Node[], newConnections: Connection[]) => {
@@ -1559,62 +1552,41 @@ export default function HTMLCanvas({
   }, [allProjectCharacters])
 
   // Manual refresh function to force refetch of all characters
+  // OPTIMIZED: Use current canvas nodes instead of fetching ALL canvases from database
+  // Previous version was fetching huge JSONB columns causing 99% database CPU
   const refreshAllCharacters = useCallback(async () => {
     try {
-      console.log('[Refresh Characters] Manually refreshing character list...')
-      const supabase = createClient()
+      // OPTIMIZATION: Instead of querying database for ALL canvas_data (expensive!),
+      // just use the character nodes from the current canvas
+      // This reduces database load from fetching potentially huge JSONB columns
 
-      // Fetch ALL canvas data for this story
-      const { data: allCanvases, error } = await supabase
-        .from('canvas_data')
-        .select('nodes')
-        .eq('story_id', storyId)
+      const allCharacters: Array<{ id: string, name: string, profileImageUrl?: string }> = []
 
-      if (error) {
-        console.error('[Refresh Characters] Error fetching all canvases:', error)
-        return
-      }
+      // Get characters from current canvas nodes
+      nodes.forEach((node: Node) => {
+        if (node.type === 'character') {
+          // Skip template characters
+          const isTemplateChar =
+            node.id === 'antagonist' ||
+            node.id === 'main-character' ||
+            (node.text === 'Protagonist' || node.text === 'Antagonist')
 
-      if (allCanvases) {
-        console.log('[Refresh Characters] Found', allCanvases.length, 'canvases in project')
+          // Avoid duplicates and template characters
+          if (!isTemplateChar && !allCharacters.find(c => c.id === node.id)) {
+            allCharacters.push({
+              id: node.id,
+              name: node.text,
+              profileImageUrl: node.profileImageUrl
+            })
+          }
+        }
+      })
 
-        // Extract all character nodes from all canvases
-        const allCharacters: Array<{ id: string, name: string, profileImageUrl?: string }> = []
-
-        allCanvases.forEach((canvas, index) => {
-          const canvasType = (canvas as any).canvas_type
-          const canvasNodes = (canvas as any).nodes || []
-          console.log(`[Refresh Characters] Canvas ${index} (${canvasType}): Total nodes: ${canvasNodes.length}`)
-          console.log(`[Refresh Characters] Node types in canvas ${index}:`, canvasNodes.map((n: Node) => n.type))
-          const characterNodes = canvasNodes.filter((node: Node) => node.type === 'character')
-          console.log(`[Refresh Characters] Canvas ${index} (${canvasType}): ${characterNodes.length} character nodes`)
-
-          characterNodes.forEach((charNode: Node) => {
-            // Skip template characters
-            const isTemplateChar =
-              charNode.id === 'antagonist' ||
-              charNode.id === 'main-character' ||
-              (charNode.text === 'Protagonist' || charNode.text === 'Antagonist')
-
-            // Avoid duplicates and template characters
-            if (!isTemplateChar && !allCharacters.find(c => c.id === charNode.id)) {
-              allCharacters.push({
-                id: charNode.id,
-                name: charNode.text,
-                profileImageUrl: charNode.profileImageUrl
-              })
-              console.log('[Refresh Characters] Added character:', charNode.text)
-            }
-          })
-        })
-
-        setAllProjectCharacters(allCharacters)
-        console.log('[Refresh Characters] Total unique characters found:', allCharacters.length)
-      }
+      setAllProjectCharacters(allCharacters)
     } catch (error) {
-      console.error('[Refresh Characters] Error in refreshAllCharacters:', error)
+      console.error('[Refresh Characters] Error:', error)
     }
-  }, [storyId])
+  }, [nodes])
 
   // Real-time sync: Function to update relationship canvas when character profile pictures change
   const syncRelationshipCanvases = useCallback((updatedNodes: Node[]) => {

@@ -561,85 +561,33 @@ export default function StoryPage({ params }: PageProps) {
     // Update the ref with latest data
     latestCanvasData.current = { nodes, connections }
 
-    // CRITICAL: Update the canvasData state immediately so child component sees the changes
-    setCanvasData({ nodes, connections })
+    // Don't update canvasData state here - it causes infinite re-renders
+    // The child component (HTMLCanvas) maintains its own state
+    // Only update canvasData when loading from database
 
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      console.error('No user, cannot save')
       return
     }
 
-    const canvasPayload = {
-      story_id: resolvedParams.id,
-      nodes: nodes,
-      connections: connections,
-      canvas_type: saveToCanvasId // Use the ref value to prevent stale closures
-    }
-
-    // Check if canvas data exists
-    const { data: existing, error: checkError } = await supabase
+    // OPTIMIZED: Use single UPSERT query instead of 3 separate queries (check + update/insert + story update)
+    // This reduces database load from 3 queries to 1 query per save
+    const { error } = await supabase
       .from('canvas_data')
-      .select('id')
-      .eq('story_id', resolvedParams.id)
-      .eq('canvas_type', saveToCanvasId)
-      .single()
-
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('Error checking existing canvas:', checkError)
-    }
-
-    if (existing) {
-      // Update existing
-      console.log('Updating existing canvas:', (existing as any)?.id)
-
-      // Test JSON serialization before saving
-      try {
-        JSON.stringify({ nodes, connections })
-      } catch (jsonError) {
-        console.error('JSON serialization error:', jsonError)
-        console.error('Problematic nodes:', nodes)
-        return
-      }
-
-      const updateData = {
+      .upsert({
+        story_id: resolvedParams.id,
+        canvas_type: saveToCanvasId,
         nodes: nodes,
         connections: connections,
         updated_at: new Date().toISOString()
-      }
+      }, {
+        onConflict: 'story_id,canvas_type' // Unique constraint on these columns
+      })
 
-      const { error: updateError } = await supabase
-        .from('canvas_data')
-        .update(updateData)
-        .eq('id', (existing as any)?.id)
-
-      if (updateError) {
-        console.error('Error updating canvas:', updateError)
-        console.error('Update error message:', updateError.message)
-        console.error('Update error code:', updateError.code)
-      } else {
-        console.log(`✅ Canvas ${saveToCanvasId} updated successfully`)
-      }
-    } else {
-      // Create new - this happens when first entering a folder
-      console.log('Creating new canvas record')
-      const { error: insertError } = await supabase
-        .from('canvas_data')
-        .insert(canvasPayload)
-
-      if (insertError) {
-        console.error('Error inserting canvas:', insertError)
-      } else {
-        console.log(`✅ Canvas ${saveToCanvasId} created successfully`)
-      }
+    if (error) {
+      console.error('Error saving canvas:', error)
     }
-
-    // Update story's updated_at
-    await supabase
-      .from('stories')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', resolvedParams.id)
 
     // No toast for auto-save - too spammy
   }, [resolvedParams.id])
