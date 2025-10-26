@@ -15,6 +15,7 @@ import { useColorContext } from '@/components/providers/color-provider'
 import { subCanvasTemplates } from '@/lib/templates'
 import FeedbackButton from '@/components/feedback/FeedbackButton'
 import { signOut } from '@/lib/auth/actions'
+import { useUser, useProfile, useStory, useCanvas, useUpdateStory, useSaveCanvas } from '@/lib/hooks/useSupabaseQuery'
 
 // Use the HTML canvas instead to avoid Jest worker issues completely
 const Bibliarch = dynamic(
@@ -39,22 +40,29 @@ interface PageProps {
 export default function StoryPage({ params }: PageProps) {
   const resolvedParams = use(params)
   const colorContext = useColorContext()
-  const [story, setStory] = useState<any>(null)
-  const [canvasData, setCanvasData] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isLoadingCanvas, setIsLoadingCanvas] = useState(false)
+  const router = useRouter()
+  const supabase = createClient()
+
+  // State must come before conditional hooks
   const [currentCanvasId, setCurrentCanvasId] = useState('main')
+  const [canvasData, setCanvasData] = useState<any>(null)
+  const [isLoadingCanvas, setIsLoadingCanvas] = useState(false)
   const [canvasPath, setCanvasPath] = useState<{id: string, title: string}[]>([])
-  const [username, setUsername] = useState<string>('')
   const [showCanvasSettings, setShowCanvasSettings] = useState(false)
   const [editedTitle, setEditedTitle] = useState('')
   const [editedBio, setEditedBio] = useState('')
   const [zoom, setZoom] = useState(1)
-  const router = useRouter()
-  const supabase = createClient()
 
-  // Cache user to avoid auth check on every auto-save
-  const userRef = useRef<any>(null)
+  // Use cached queries - all called unconditionally
+  const { data: user, isLoading: isUserLoading } = useUser()
+  const { data: profile } = useProfile(user?.id)
+  const { data: story, isLoading: isStoryLoading } = useStory(resolvedParams.id, user?.id)
+  const { data: canvasDataFromQuery, isLoading: isCanvasLoading } = useCanvas(resolvedParams.id, currentCanvasId)
+  const updateStoryMutation = useUpdateStory()
+  const saveCanvasMutation = useSaveCanvas()
+
+  const username = profile?.username || 'Storyteller'
+  const isLoading = isUserLoading || isStoryLoading
 
   // Store the latest canvas state from Bibliarch component
   const latestCanvasData = useRef<{ nodes: any[], connections: any[] }>({ nodes: [], connections: [] })
@@ -66,13 +74,25 @@ export default function StoryPage({ params }: PageProps) {
 
   // Track current canvas ID to prevent stale closures
   const currentCanvasIdRef = useRef(currentCanvasId)
+  useEffect(() => {
+    currentCanvasIdRef.current = currentCanvasId
+  }, [currentCanvasId])
 
-  // Update document title with story name
+  // Handle authentication redirects
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, isUserLoading, router])
+
+  // Update document title and form fields when story loads
   useEffect(() => {
     if (story?.title) {
       document.title = `${story.title} - Bibliarch`
+      setEditedTitle(story.title)
+      setEditedBio(story.bio || '')
     }
-  }, [story?.title])
+  }, [story?.title, story?.bio])
 
   // Apply canvas-page class to body to prevent scrolling
   useEffect(() => {
@@ -81,137 +101,24 @@ export default function StoryPage({ params }: PageProps) {
       document.body.classList.remove('canvas-page')
     }
   }, [])
-  
+
+  // Handle canvas data loading from cache
   useEffect(() => {
-    // Show loading overlay when switching canvases (but not on initial load)
-    if (!isLoading) {
+    if (isCanvasLoading) {
       setIsLoadingCanvas(true)
+      return
     }
 
-    currentCanvasIdRef.current = currentCanvasId
-
-    // Clear canvas data immediately to prevent showing old data
-    setCanvasData(null)
-
-    loadStory()
-  }, [resolvedParams.id, currentCanvasId])
-
-  async function loadStory() {
-    console.log('loadStory called:', {
-      storyId: resolvedParams.id,
-      currentCanvasId
-    })
-
-    // Clear old canvas data to prevent mixing
+    // Clear old data
     latestCanvasData.current = { nodes: [], connections: [] }
 
-    try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      
-      if (authError) {
-        console.error('Auth error:', authError)
-        router.push('/login')
-        return
-      }
-      
-      if (!user) {
-        console.log('No user found, redirecting to login')
-        router.push('/login')
-        return
-      }
-
-      console.log('User authenticated:', user.id)
-
-      // Cache user to avoid repeated auth checks on auto-save
-      userRef.current = user
-
-      // Get user profile for username
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', user.id)
-        .single()
-
-      if (profileError) {
-        console.error('Error getting profile:', profileError)
-        setUsername('Storyteller') // Default if profile doesn't exist yet
-      } else if (profile && 'username' in profile) {
-        setUsername((profile as any).username || 'Storyteller')
-      }
-
-      // Load story details
-      console.log('Loading story from database...', {
-        storyId: resolvedParams.id,
-        userId: user.id
-      })
-      
-      const { data: storyData, error: storyError } = await supabase
-        .from('stories')
-        .select('*')
-        .eq('id', resolvedParams.id)
-        .eq('user_id', user.id)
-        .single()
-
-      console.log('Story query result:', {
-        data: storyData,
-        error: storyError,
-        errorCode: storyError?.code,
-        errorMessage: storyError?.message
-      })
-
-      if (storyError) {
-        console.error('Story loading error:', storyError)
-
-        router.push('/dashboard')
-        return
-      }
-
-      if (!storyData) {
-        console.error('No story data returned')
-        router.push('/dashboard')
-        return
-      }
-
-      console.log('Story loaded successfully:', storyData)
-
-      setStory(storyData)
-      setEditedTitle((storyData as any)?.title || '')
-      setEditedBio((storyData as any)?.bio || '')
-
-    // Load canvas data for current canvas
-    // Use canvas_type for navigation (main canvas or folder-specific canvases)
-    console.log('Loading canvas from database:', {
-      story_id: resolvedParams.id,
-      canvas_type: currentCanvasId
-    })
-    
-    const { data: canvas, error: canvasError } = await supabase
-      .from('canvas_data')
-      .select('*')
-      .eq('story_id', resolvedParams.id)
-      .eq('canvas_type', currentCanvasId)
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .single()
-    
-    // PGRST116 means no rows found, which is normal for new canvases
-    if (canvasError && canvasError.code !== 'PGRST116') {
-      console.error('Error loading canvas:', canvasError.message || canvasError)
-      console.error('Full error:', JSON.stringify(canvasError))
-    }
+    const canvas = canvasDataFromQuery
 
     if (canvas) {
-      console.log('Canvas loaded:', {
-        id: (canvas as any)?.id,
-        canvas_type: (canvas as any)?.canvas_type,
-        nodeCount: (canvas as any)?.nodes?.length,
-        nodes: (canvas as any)?.nodes
-      })
       const loadedData = {
-        nodes: (canvas as any)?.nodes || [],
-        connections: (canvas as any)?.connections || []
+        nodes: canvas.nodes || [],
+        connections: canvas.connections || []
       }
-
 
       // CRITICAL: Only apply template if canvas exists but is EMPTY
       if (loadedData.nodes.length === 0) {
@@ -544,63 +451,28 @@ export default function StoryPage({ params }: PageProps) {
       }
     }
 
-    setIsLoading(false)
     setIsLoadingCanvas(false)
-    } catch (error) {
-      console.error('Unexpected error in loadStory:', error)
-      setIsLoading(false)
-      setIsLoadingCanvas(false)
-    }
-  }
+  }, [canvasDataFromQuery, isCanvasLoading, currentCanvasId])
 
   const handleSaveCanvas = useCallback(async (nodes: any[], connections: any[] = []) => {
     const saveToCanvasId = currentCanvasIdRef.current
 
-    // PERFORMANCE: Removed console.log that was serializing huge node arrays 150x/second with 300 users
-    // console.log('💾 handleSaveCanvas called:', {
-    //   storyId: resolvedParams.id,
-    //   canvasId: saveToCanvasId,
-    //   nodeCount: nodes.length,
-    //   connectionCount: connections.length,
-    //   nodes
-    // })
-
     // Update the ref with latest data
     latestCanvasData.current = { nodes, connections }
 
-    // Don't update canvasData state here - it causes infinite re-renders
-    // The child component (HTMLCanvas) maintains its own state
-    // Only update canvasData when loading from database
-
-    // OPTIMIZATION: Use cached user instead of auth check on every save
-    // Calling auth.getUser() every 2 seconds on auto-save adds unnecessary database load
-    const user = userRef.current
-
-    if (!user) {
-      console.warn('No cached user found, skipping save')
+    if (!user?.id) {
+      console.warn('No user found, skipping save')
       return
     }
 
-    // OPTIMIZED: Use single UPSERT query instead of 3 separate queries (check + update/insert + story update)
-    // This reduces database load from 3 queries to 1 query per save
-    const { error } = await supabase
-      .from('canvas_data')
-      .upsert({
-        story_id: resolvedParams.id,
-        canvas_type: saveToCanvasId,
-        nodes: nodes,
-        connections: connections,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'story_id,canvas_type' // Unique constraint on these columns
-      })
-
-    if (error) {
-      console.error('Error saving canvas:', error)
-    }
-
-    // No toast for auto-save - too spammy
-  }, [resolvedParams.id])
+    // Use React Query mutation for optimistic updates and caching
+    saveCanvasMutation.mutate({
+      storyId: resolvedParams.id,
+      canvasType: saveToCanvasId,
+      nodes,
+      connections
+    })
+  }, [resolvedParams.id, user?.id, saveCanvasMutation])
 
   async function handleSaveCanvasSettings() {
     if (!editedTitle.trim()) {
@@ -608,44 +480,26 @@ export default function StoryPage({ params }: PageProps) {
       return
     }
 
-    console.log('Saving canvas settings:', {
-      title: editedTitle.trim(),
-      bio: editedBio.trim()
-    })
-
-    const { data, error } = await supabase
-      .from('stories')
-      .update({
+    updateStoryMutation.mutate(
+      {
+        storyId: resolvedParams.id,
         title: editedTitle.trim(),
-        bio: editedBio.trim(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', resolvedParams.id)
-      .select()
-
-    console.log('Update result:', { data, error })
-
-    if (error) {
-      console.error('Error saving canvas settings:', error)
-      console.error('Error details:', JSON.stringify(error, null, 2))
-
-      // Check if it's a column doesn't exist error
-      if (error.message?.includes('column') && error.message?.includes('bio')) {
-        alert('The bio field needs to be added to your database. Please add a "bio" column (type: text) to the "stories" table in Supabase.')
-      } else {
-        alert(`Failed to save settings: ${error.message || 'Unknown error'}`)
+        bio: editedBio.trim()
+      },
+      {
+        onSuccess: () => {
+          setShowCanvasSettings(false)
+        },
+        onError: (error: any) => {
+          console.error('Error saving canvas settings:', error)
+          if (error.message?.includes('column') && error.message?.includes('bio')) {
+            alert('The bio field needs to be added to your database. Please add a "bio" column (type: text) to the "stories" table in Supabase.')
+          } else {
+            alert(`Failed to save settings: ${error.message || 'Unknown error'}`)
+          }
+        }
       }
-      return
-    }
-
-    // Update local state with new values
-    setStory((prevStory: any) => ({
-      ...prevStory,
-      title: editedTitle.trim(),
-      bio: editedBio.trim()
-    }))
-
-    setShowCanvasSettings(false)
+    )
   }
 
 

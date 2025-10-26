@@ -15,6 +15,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { storyTemplates } from '@/lib/templates'
 import { ensureDatabaseSetup } from '@/lib/database-init'
 import FeedbackButton from '@/components/feedback/FeedbackButton'
+import { useUser, useProfile, useStories, useCreateStory, useDeleteStory } from '@/lib/hooks/useSupabaseQuery'
 
 type Story = {
   id: string
@@ -26,9 +27,19 @@ type Story = {
 }
 
 export default function DashboardPage() {
-  const [stories, setStories] = useState<Story[]>([])
-  const [username, setUsername] = useState<string>('')
-  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
+  const supabase = createClient()
+
+  // Use cached queries
+  const { data: user, isLoading: isUserLoading } = useUser()
+  const { data: profile } = useProfile(user?.id)
+  const { data: stories = [], isLoading: isStoriesLoading } = useStories(user?.id)
+  const createStoryMutation = useCreateStory()
+  const deleteStoryMutation = useDeleteStory()
+
+  const username = profile?.username || 'Storyteller'
+  const isLoading = isUserLoading || isStoriesLoading
+
   const [showTemplateDialog, setShowTemplateDialog] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<string>('blank')
   const [showProjectSettings, setShowProjectSettings] = useState(false)
@@ -36,83 +47,30 @@ export default function DashboardPage() {
   const [newProjectBio, setNewProjectBio] = useState('')
   const [deleteDialog, setDeleteDialog] = useState<{ show: boolean; story: Story | null }>({ show: false, story: null })
   const [isDeleting, setIsDeleting] = useState(false)
-  const router = useRouter()
-  const supabase = createClient()
 
+  // Handle authentication
   useEffect(() => {
-    loadUserAndStories()
-  }, [])
-
-  async function loadUserAndStories() {
-    setIsLoading(true)
-    
-    try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser()
-      
-      if (userError) {
-        console.error('Error getting user:', userError)
-        alert(`Authentication error: ${userError.message}`)
-        router.push('/login')
-        return
-      }
-      
-      if (!user) {
-        console.log('No user found, redirecting to login')
-        router.push('/login')
-        return
-      }
-
-      console.log('User found:', user.id)
-
-      // Check database setup automatically
-      const dbSetup = await ensureDatabaseSetup()
-      if (!dbSetup.success) {
-        if (dbSetup.needsSetup) {
-          alert(`Database Setup Required!\n\nThe database tables haven't been created yet. To fix this:\n\n1. Go to your Supabase project dashboard\n2. Open the SQL Editor\n3. Copy the entire contents of database-setup.sql\n4. Run it in the SQL Editor\n5. Refresh this page\n\nThis is a one-time setup step.`)
-        } else {
-          alert(`Database Connection Error: ${dbSetup.error}\n\nPlease check:\n• Your .env.local file has correct Supabase credentials\n• Your Supabase project is active\n• Your internet connection is working`)
-        }
-        return
-      }
-
-      // Get user profile
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', user.id)
-        .single()
-
-      if (profileError) {
-        console.error('Error getting profile:', profileError)
-        setUsername('Storyteller') // Default if profile doesn't exist yet
-      } else if (profile && 'username' in profile) {
-        setUsername((profile as any).username || 'Storyteller')
-      }
-
-      // Get user's stories
-      const { data: userStories, error: storiesError } = await supabase
-        .from('stories')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false })
-
-      if (storiesError) {
-        console.error('Error getting stories:', storiesError)
-        setStories([]) // Set empty array on error
-      } else if (userStories) {
-        console.log('Stories loaded:', userStories.length)
-        setStories(userStories)
-      } else {
-        console.log('No stories found')
-        setStories([])
-      }
-    } catch (error) {
-      console.error('Unexpected error in loadUserAndStories:', error)
-      setStories([])
+    if (!isUserLoading && !user) {
+      router.push('/login')
     }
-    
-    setIsLoading(false)
+  }, [user, isUserLoading, router])
+
+  // Check database setup
+  useEffect(() => {
+    if (user?.id) {
+      checkDatabaseSetup()
+    }
+  }, [user?.id])
+
+  async function checkDatabaseSetup() {
+    const dbSetup = await ensureDatabaseSetup()
+    if (!dbSetup.success) {
+      if (dbSetup.needsSetup) {
+        alert(`Database Setup Required!\n\nThe database tables haven't been created yet. To fix this:\n\n1. Go to your Supabase project dashboard\n2. Open the SQL Editor\n3. Copy the entire contents of database-setup.sql\n4. Run it in the SQL Editor\n5. Refresh this page\n\nThis is a one-time setup step.`)
+      } else {
+        alert(`Database Connection Error: ${dbSetup.error}\n\nPlease check:\n• Your .env.local file has correct Supabase credentials\n• Your Supabase project is active\n• Your internet connection is working`)
+      }
+    }
   }
 
   function createNewStory() {
@@ -133,85 +91,66 @@ export default function DashboardPage() {
       return
     }
 
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.id) {
+      alert('Please log in to create a story.')
+      return
+    }
 
-      if (!user) {
-        alert('Please log in to create a story.')
-        return
-      }
+    const template = storyTemplates.find(t => t.id === selectedTemplate)
 
-      const template = storyTemplates.find(t => t.id === selectedTemplate)
+    createStoryMutation.mutate(
+      {
+        title: newProjectName.trim(),
+        bio: newProjectBio.trim(),
+        userId: user.id
+      },
+      {
+        onSuccess: async (newStory) => {
+          if (template) {
+            // Save template nodes as initial canvas data
+            if (template.nodes.length > 0) {
+              const { error: insertError } = await supabase
+                .from('canvas_data')
+                .insert({
+                  story_id: newStory.id,
+                  canvas_type: 'main',
+                  nodes: template.nodes,
+                  connections: template.connections
+                })
 
-      const { data: newStory, error } = await supabase
-        .from('stories')
-        .insert({
-          title: newProjectName.trim(),
-          bio: newProjectBio.trim(),
-          user_id: user.id
-        } as any)
-        .select()
-        .single()
+              if (insertError) {
+                console.error('Error saving template:', insertError)
+              }
+            }
 
-      if (error) {
-        console.error('Error creating story:', error)
-        if (error.message.includes('relation') || error.message.includes('does not exist')) {
-          alert('Database setup incomplete. Please run the database setup script first.')
-        } else {
-          alert(`Failed to create story: ${error.message}`)
-        }
-        return
-      }
-
-      if (newStory && template) {
-        // Save template nodes as initial canvas data
-        if (template.nodes.length > 0) {
-          const { error: insertError } = await supabase
-            .from('canvas_data')
-            .insert({
-              story_id: (newStory as any).id,
-              canvas_type: 'main',
-              nodes: template.nodes,
-              connections: template.connections
-            } as any)
-
-          if (insertError) {
-            console.error('Error saving template:', insertError)
-            return
-          }
-
-          console.log('Template saved successfully for story:', (newStory as any).id)
-        }
-
-        // Save all sub-canvases with Phase 2 features
-        if (template.subCanvases) {
-          for (const [canvasId, canvasData] of Object.entries(template.subCanvases)) {
-            const { error: subCanvasError } = await supabase
-              .from('canvas_data')
-              .insert({
-                story_id: (newStory as any).id,
-                canvas_type: canvasId,
-                nodes: canvasData.nodes,
-                connections: canvasData.connections
-              } as any)
-
-            if (subCanvasError) {
-              console.error('Error saving sub-canvas:', canvasId, subCanvasError)
-            } else {
-              console.log('Sub-canvas saved successfully:', canvasId)
+            // Save all sub-canvases
+            if (template.subCanvases) {
+              for (const [canvasId, canvasData] of Object.entries(template.subCanvases)) {
+                await supabase
+                  .from('canvas_data')
+                  .insert({
+                    story_id: newStory.id,
+                    canvas_type: canvasId,
+                    nodes: canvasData.nodes,
+                    connections: canvasData.connections
+                  })
+              }
             }
           }
+
+          setShowProjectSettings(false)
+          router.push(`/story/${newStory.id}`)
+        },
+        onError: (error: any) => {
+          console.error('Error creating story:', error)
+          if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+            alert('Database setup incomplete. Please run the database setup script first.')
+          } else {
+            alert(`Failed to create story: ${error.message}`)
+          }
         }
-
-        // Navigate to the new story
-        router.push(`/story/${(newStory as any).id}`)
       }
-
-      setShowProjectSettings(false)
-    } catch (error) {
-      console.error('Error in handleSaveNewProject:', error)
-      alert('An unexpected error occurred. Please try again.')
-    }
+    )
   }
 
   function formatDate(dateString: string) {
@@ -289,50 +228,26 @@ export default function DashboardPage() {
   }
 
   async function handleDeleteStory() {
-    if (!deleteDialog.story) return
+    if (!deleteDialog.story || !user?.id) return
 
     setIsDeleting(true)
 
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        console.error('User must be logged in to delete stories')
-        return
+    deleteStoryMutation.mutate(
+      {
+        storyId: deleteDialog.story.id,
+        userId: user.id
+      },
+      {
+        onSuccess: () => {
+          setDeleteDialog({ show: false, story: null })
+          setIsDeleting(false)
+        },
+        onError: (error) => {
+          console.error('Error deleting story:', error)
+          setIsDeleting(false)
+        }
       }
-
-      // Delete all canvas data associated with this story
-      const { error: canvasError } = await supabase
-        .from('canvas_data')
-        .delete()
-        .eq('story_id', deleteDialog.story.id)
-
-      if (canvasError) {
-        console.error('Error deleting canvas data:', canvasError)
-        return
-      }
-
-      // Delete the story itself
-      const { error: storyError } = await supabase
-        .from('stories')
-        .delete()
-        .eq('id', deleteDialog.story.id)
-        .eq('user_id', user.id) // Extra safety check
-
-      if (storyError) {
-        console.error('Error deleting story:', storyError)
-        return
-      }
-
-      // Remove from local state
-      setStories(stories.filter(s => s.id !== deleteDialog.story?.id))
-
-      setDeleteDialog({ show: false, story: null })
-    } catch (error) {
-      console.error('Unexpected error deleting story:', error)
-    } finally {
-      setIsDeleting(false)
-    }
+    )
   }
 
   return (
