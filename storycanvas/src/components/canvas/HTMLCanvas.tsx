@@ -537,7 +537,7 @@ export default function HTMLCanvas({
 
   // Initialize nodes from props when they change (canvas navigation)
   useEffect(() => {
-    console.log('Initializing canvas with:', { nodeCount: initialNodes.length, connectionCount: initialConnections.length })
+    // PERFORMANCE: Removed console.log to reduce CPU load
     setNodes(initialNodes)
     setConnections(initialConnections)
     setVisibleNodeIds(initialNodes.map(node => node.id))
@@ -5198,7 +5198,7 @@ export default function HTMLCanvas({
                       userSelect: (editingField?.nodeId === node.id && editingField?.field === 'title') ? 'text' : 'none'
                     }}
                     onBlur={(e) => {
-                      console.log('💾 onBlur triggered for node title:', node.id, 'New text:', e.currentTarget.textContent)
+                      // PERFORMANCE: Removed console.logs to reduce CPU load
                       const newText = e.currentTarget.textContent || ''
                       const updatedNodes = nodes.map(n =>
                         n.id === node.id ? { ...n, text: newText } : n
@@ -5207,10 +5207,7 @@ export default function HTMLCanvas({
                       saveToHistory(updatedNodes, connections)
                       setEditingField(null)
                       if (onSave) {
-                        console.log('💾 Calling onSave immediately')
                         onSave(updatedNodes, connections)
-                      } else {
-                        console.log('🔴 onSave not available!')
                       }
                     }}
                     onClick={(e) => {
@@ -5482,15 +5479,12 @@ export default function HTMLCanvas({
                                       onClick={async (e) => {
                                         e.stopPropagation()
 
-                                        console.log('=== CHARACTER NAVIGATION FROM LIST DEBUG ===')
-                                        console.log('childNode from render:', childNode)
+                                        // PERFORMANCE: Removed debug console.logs to reduce CPU load
 
                                         // CRITICAL: Get the most up-to-date node from the nodes array
                                         const currentNode = nodes.find(n => n.id === childNode.id)
-                                        console.log('currentNode from nodes array:', currentNode)
 
                                         if (!currentNode || !onNavigateToCanvas) {
-                                          console.log('ABORT: No current node or no navigate callback')
                                           return
                                         }
 
@@ -5498,20 +5492,15 @@ export default function HTMLCanvas({
 
                                         // Use currentNode for linkedCanvasId, not childNode!
                                         if (currentNode.linkedCanvasId) {
-                                          console.log('EXISTING linkedCanvasId found:', currentNode.linkedCanvasId)
                                           colorContext.setCurrentFolderId(currentNode.id)
-                                          console.log('Navigating to EXISTING canvas:', currentNode.linkedCanvasId, 'with title:', nodeTitle)
                                           onNavigateToCanvas(currentNode.linkedCanvasId, nodeTitle)
                                         } else {
                                           // Create new linkedCanvasId
                                           const linkedCanvasId = `character-canvas-${currentNode.id}`
-                                          console.log('Creating NEW linkedCanvasId:', linkedCanvasId)
 
                                           const updatedNodes = nodes.map(n =>
                                             n.id === currentNode.id ? { ...n, linkedCanvasId } : n
                                           )
-
-                                          console.log('Updated node in array:', updatedNodes.find(n => n.id === currentNode.id))
 
                                           // Update state
                                           setNodes(updatedNodes)

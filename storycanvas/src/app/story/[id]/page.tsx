@@ -556,13 +556,14 @@ export default function StoryPage({ params }: PageProps) {
   const handleSaveCanvas = useCallback(async (nodes: any[], connections: any[] = []) => {
     const saveToCanvasId = currentCanvasIdRef.current
 
-    console.log('💾 handleSaveCanvas called:', {
-      storyId: resolvedParams.id,
-      canvasId: saveToCanvasId,
-      nodeCount: nodes.length,
-      connectionCount: connections.length,
-      nodes
-    })
+    // PERFORMANCE: Removed console.log that was serializing huge node arrays 150x/second with 300 users
+    // console.log('💾 handleSaveCanvas called:', {
+    //   storyId: resolvedParams.id,
+    //   canvasId: saveToCanvasId,
+    //   nodeCount: nodes.length,
+    //   connectionCount: connections.length,
+    //   nodes
+    // })
 
     // Update the ref with latest data
     latestCanvasData.current = { nodes, connections }
