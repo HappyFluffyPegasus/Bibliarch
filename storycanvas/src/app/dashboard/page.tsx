@@ -309,105 +309,107 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Create New Story Card */}
-            <Card
-              className="border-dashed border-2 hover:border-sky-400 dark:hover:border-blue-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] group bg-white dark:bg-card"
-              onClick={createNewStory}
-            >
-              <CardHeader className="text-center">
-                <div className="w-16 h-16 rounded-full bg-sky-100 dark:bg-blue-900/20 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <Plus className="w-8 h-8 text-sky-600 dark:text-blue-400" />
-                </div>
-                <CardTitle>Create New Story</CardTitle>
-                <CardDescription>
-                  Start a new adventure with infinite possibilities
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            {/* Story Cards */}
-            {stories.map((story) => (
-              <div key={story.id} className="relative">
-                <Link
-                  href={`/story/${story.id}`}
-                  className="block"
-                >
-                  <Card className="h-full hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer bg-white dark:bg-card">
-                    <CardHeader>
-                      <div className="flex items-start justify-between mb-2">
-                        <FileText className="w-5 h-5 text-sky-600 dark:text-blue-400" />
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {formatDate(story.updated_at)}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              handleDuplicateStory(story)
-                            }}
-                            className="p-1.5 rounded hover:bg-sky-100 dark:hover:bg-blue-900/20 transition-colors group"
-                            title="Duplicate story"
-                          >
-                            <Copy className="w-4 h-4 text-gray-400 group-hover:text-sky-600 dark:group-hover:text-blue-400" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              setDeleteDialog({ show: true, story })
-                            }}
-                            className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors group"
-                            title="Delete story"
-                          >
-                            <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600 dark:group-hover:text-red-400" />
-                          </button>
-                        </div>
-                      </div>
-                      <CardTitle className="line-clamp-1">{story.title}</CardTitle>
-                      <CardDescription className="line-clamp-2">
-                        {story.bio || 'Click to open and edit your story'}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-xs text-muted-foreground">
-                        Created {formatDate(story.created_at)}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </div>
-            ))}
-          </div>
-
-          {/* Load More Button */}
-          {hasNextPage && (
-            <div className="flex justify-center mt-8">
-              <Button
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                variant="outline"
-                size="lg"
-                className="min-w-[200px]"
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Create New Story Card */}
+              <Card
+                className="border-dashed border-2 hover:border-sky-400 dark:hover:border-blue-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] group bg-white dark:bg-card"
+                onClick={createNewStory}
               >
-                {isFetchingNextPage ? (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-2 animate-pulse" />
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    Load More Stories
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      ({stories.length} of {totalCount})
-                    </span>
-                  </>
-                )}
-              </Button>
+                <CardHeader className="text-center">
+                  <div className="w-16 h-16 rounded-full bg-sky-100 dark:bg-blue-900/20 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                    <Plus className="w-8 h-8 text-sky-600 dark:text-blue-400" />
+                  </div>
+                  <CardTitle>Create New Story</CardTitle>
+                  <CardDescription>
+                    Start a new adventure with infinite possibilities
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+
+              {/* Story Cards */}
+              {stories.map((story) => (
+                <div key={story.id} className="relative">
+                  <Link
+                    href={`/story/${story.id}`}
+                    className="block"
+                  >
+                    <Card className="h-full hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer bg-white dark:bg-card">
+                      <CardHeader>
+                        <div className="flex items-start justify-between mb-2">
+                          <FileText className="w-5 h-5 text-sky-600 dark:text-blue-400" />
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {formatDate(story.updated_at)}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleDuplicateStory(story)
+                              }}
+                              className="p-1.5 rounded hover:bg-sky-100 dark:hover:bg-blue-900/20 transition-colors group"
+                              title="Duplicate story"
+                            >
+                              <Copy className="w-4 h-4 text-gray-400 group-hover:text-sky-600 dark:group-hover:text-blue-400" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                setDeleteDialog({ show: true, story })
+                              }}
+                              className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors group"
+                              title="Delete story"
+                            >
+                              <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600 dark:group-hover:text-red-400" />
+                            </button>
+                          </div>
+                        </div>
+                        <CardTitle className="line-clamp-1">{story.title}</CardTitle>
+                        <CardDescription className="line-clamp-2">
+                          {story.bio || 'Click to open and edit your story'}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-xs text-muted-foreground">
+                          Created {formatDate(story.created_at)}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </div>
+              ))}
             </div>
-          )}
+
+            {/* Load More Button */}
+            {hasNextPage && (
+              <div className="flex justify-center mt-8">
+                <Button
+                  onClick={() => fetchNextPage()}
+                  disabled={isFetchingNextPage}
+                  variant="outline"
+                  size="lg"
+                  className="min-w-[200px]"
+                >
+                  {isFetchingNextPage ? (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-2 animate-pulse" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      Load More Stories
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        ({stories.length} of {totalCount})
+                      </span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </>
         )}
 
       </main>
