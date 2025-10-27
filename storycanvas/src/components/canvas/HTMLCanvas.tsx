@@ -103,6 +103,7 @@ interface NodeStylePreferences {
 interface HTMLCanvasProps {
   storyId: string
   currentCanvasId?: string // Current canvas ID to check depth
+  canvasPath?: {id: string, title: string}[] // Navigation path to track depth
   initialNodes?: Node[]
   initialConnections?: Connection[]
   onSave?: (nodes: Node[], connections: Connection[]) => void
@@ -119,6 +120,7 @@ interface HTMLCanvasProps {
 export default function HTMLCanvas({
   storyId,
   currentCanvasId = 'main',
+  canvasPath = [],
   initialNodes = [],
   initialConnections = [],
   onSave,
@@ -4312,12 +4314,16 @@ export default function HTMLCanvas({
                     )}
                   </div>
 
-                  {/* Navigation arrow for event nodes - only show if not already in an event canvas */}
-                  {currentCanvasId.startsWith('event-canvas-') === false && (
-                    <div className="absolute top-1 right-1 flex items-center gap-1">
-                      <div
-                        className="p-1 cursor-pointer ${!isPanning ? 'hover:bg-black/10' : ''} rounded"
-                        onClick={async (e) => {
+                  {/* Navigation arrow for event nodes - hide after 2 event canvas levels */}
+                  {(() => {
+                    const eventCanvasDepth = canvasPath.filter(item => item.id.startsWith('event-canvas-')).length
+                    if (eventCanvasDepth >= 2) return null
+
+                    return (
+                      <div className="absolute top-1 right-1 flex items-center gap-1">
+                        <div
+                          className="p-1 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 rounded"
+                          onClick={async (e) => {
                           e.stopPropagation()
 
                           if (node.linkedCanvasId && onNavigateToCanvas) {
@@ -4345,7 +4351,8 @@ export default function HTMLCanvas({
                         <ArrowRight className="w-5 h-5" style={{ color: getIconColor('event', getNodeColor('event', node.color, node.id)), strokeWidth: 1.5 }} />
                       </div>
                     </div>
-                  )}
+                    )
+                  })()}
 
                   {/* Resize handles for event nodes */}
                   {selectedId === node.id && (
@@ -5763,44 +5770,49 @@ export default function HTMLCanvas({
                                         }}
                                       />
 
-                                      {/* Navigation arrow - only show if this is an event in a main-level list */}
-                                      {currentCanvasId.startsWith('event-canvas-') === false && (
-                                        <div
-                                          className="p-1 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 rounded flex-shrink-0"
-                                          onClick={async (e) => {
-                                            e.stopPropagation()
+                                      {/* Navigation arrow - hide after 2 event canvas levels */}
+                                      {(() => {
+                                        const eventCanvasDepth = canvasPath.filter(item => item.id.startsWith('event-canvas-')).length
+                                        if (eventCanvasDepth >= 2) return null
 
-                                            if (!onNavigateToCanvas) return
+                                        return (
+                                          <div
+                                            className="p-1 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 rounded flex-shrink-0"
+                                            onClick={async (e) => {
+                                              e.stopPropagation()
 
-                                            const currentNode = nodes.find(n => n.id === childNode.id)
-                                            if (!currentNode) return
+                                              if (!onNavigateToCanvas) return
 
-                                            const nodeTitle = currentNode.title || 'Event'
+                                              const currentNode = nodes.find(n => n.id === childNode.id)
+                                              if (!currentNode) return
 
-                                            if (currentNode.linkedCanvasId) {
-                                              onNavigateToCanvas(currentNode.linkedCanvasId, nodeTitle)
-                                            } else {
-                                              // Create new linkedCanvasId
-                                              const linkedCanvasId = `event-canvas-${currentNode.id}`
-                                              const updatedNodes = nodes.map(n =>
-                                                n.id === currentNode.id ? { ...n, linkedCanvasId } : n
-                                              )
-                                              setNodes(updatedNodes)
-                                              saveToHistory(updatedNodes, connections)
+                                              const nodeTitle = currentNode.title || 'Event'
 
-                                              // Save in background without blocking navigation
-                                              if (onSave) {
-                                                onSave(updatedNodes, connections)
+                                              if (currentNode.linkedCanvasId) {
+                                                onNavigateToCanvas(currentNode.linkedCanvasId, nodeTitle)
+                                              } else {
+                                                // Create new linkedCanvasId
+                                                const linkedCanvasId = `event-canvas-${currentNode.id}`
+                                                const updatedNodes = nodes.map(n =>
+                                                  n.id === currentNode.id ? { ...n, linkedCanvasId } : n
+                                                )
+                                                setNodes(updatedNodes)
+                                                saveToHistory(updatedNodes, connections)
+
+                                                // Save in background without blocking navigation
+                                                if (onSave) {
+                                                  onSave(updatedNodes, connections)
+                                                }
+
+                                                onNavigateToCanvas(linkedCanvasId, nodeTitle)
                                               }
-
-                                              onNavigateToCanvas(linkedCanvasId, nodeTitle)
-                                            }
-                                          }}
-                                          title="Break down event"
-                                        >
-                                          <ArrowRight className="w-5 h-5" style={{ color: getIconColor('event', getNodeColor('event', childNode.color, childNode.id), true), strokeWidth: 1.5 }} />
-                                        </div>
-                                      )}
+                                            }}
+                                            title="Break down event"
+                                          >
+                                            <ArrowRight className="w-5 h-5" style={{ color: getIconColor('event', getNodeColor('event', childNode.color, childNode.id), true), strokeWidth: 1.5 }} />
+                                          </div>
+                                        )
+                                      })()}
 
                                       {/* Remove button */}
                                       <button

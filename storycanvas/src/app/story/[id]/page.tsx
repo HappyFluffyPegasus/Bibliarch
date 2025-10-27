@@ -858,6 +858,7 @@ export default function StoryPage({ params }: PageProps) {
           key={currentCanvasId}
           storyId={resolvedParams.id}
           currentCanvasId={currentCanvasId}
+          canvasPath={canvasPath}
           initialNodes={canvasData?.nodes || []}
           initialConnections={canvasData?.connections || []}
           onSave={handleSaveCanvas}
