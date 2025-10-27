@@ -4317,6 +4317,7 @@ export default function HTMLCanvas({
                   {/* Navigation arrow for event nodes - hide after 2 event canvas levels */}
                   {(() => {
                     const eventCanvasDepth = canvasPath.filter(item => item.id.startsWith('event-canvas-')).length
+                    console.log('STANDALONE:', {canvasPath, eventCanvasDepth, show: eventCanvasDepth < 2})
                     if (eventCanvasDepth >= 2) return null
 
                     return (
@@ -5773,6 +5774,7 @@ export default function HTMLCanvas({
                                       {/* Navigation arrow - hide after 2 event canvas levels */}
                                       {(() => {
                                         const eventCanvasDepth = canvasPath.filter(item => item.id.startsWith('event-canvas-')).length
+                                        console.log('LIST:', {canvasPath, eventCanvasDepth, show: eventCanvasDepth < 2})
                                         if (eventCanvasDepth >= 2) return null
 
                                         return (
