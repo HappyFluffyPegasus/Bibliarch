@@ -19,6 +19,7 @@ export default function AdminFeedbackPage() {
   const [statusFilter, setStatusFilter] = useState<FeedbackStatus | 'all'>('all')
   const [typeFilter, setTypeFilter] = useState<FeedbackType | 'all'>('all')
   const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
 
   // Local state for editing
   const [editedStatus, setEditedStatus] = useState<FeedbackStatus>('new')
@@ -84,6 +85,15 @@ export default function AdminFeedbackPage() {
   useEffect(() => {
     let filtered = feedback
 
+    // Hide archived (resolved/won't fix/duplicate) unless explicitly shown
+    if (!showArchived) {
+      filtered = filtered.filter(f =>
+        f.status !== 'resolved' &&
+        f.status !== 'wont_fix' &&
+        f.status !== 'duplicate'
+      )
+    }
+
     // Status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(f => f.status === statusFilter)
@@ -106,7 +116,7 @@ export default function AdminFeedbackPage() {
     }
 
     setFilteredFeedback(filtered)
-  }, [feedback, statusFilter, typeFilter, searchQuery])
+  }, [feedback, statusFilter, typeFilter, searchQuery, showArchived])
 
   async function updateFeedback(id: string, updates: Partial<Feedback>) {
     const { error } = await supabase
@@ -227,6 +237,18 @@ export default function AdminFeedbackPage() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg dark:bg-gray-800 dark:text-white"
             />
           </div>
+
+          {/* Show Archived Toggle */}
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            className={`px-4 py-2 border rounded-lg transition-colors ${
+              showArchived
+                ? 'bg-blue-500 text-white border-blue-500'
+                : 'border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            {showArchived ? '📂 Hide Archived' : '📁 Show Archived'}
+          </button>
 
           {/* Status Filter */}
           <select
