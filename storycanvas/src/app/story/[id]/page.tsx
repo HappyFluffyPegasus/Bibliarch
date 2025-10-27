@@ -857,6 +857,7 @@ export default function StoryPage({ params }: PageProps) {
         <Bibliarch
           key={currentCanvasId}
           storyId={resolvedParams.id}
+          currentCanvasId={currentCanvasId}
           initialNodes={canvasData?.nodes || []}
           initialConnections={canvasData?.connections || []}
           onSave={handleSaveCanvas}
