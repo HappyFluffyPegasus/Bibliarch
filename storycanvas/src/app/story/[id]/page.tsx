@@ -734,6 +734,10 @@ export default function StoryPage({ params }: PageProps) {
           initialConnections={canvasData?.connections || []}
           onSave={handleSaveCanvas}
           onNavigateToCanvas={handleNavigateToCanvas}
+          onStateChange={(nodes, connections) => {
+            // Update ref when state changes (for navigation saves, without triggering saves)
+            latestCanvasData.current = { nodes, connections }
+          }}
           canvasWidth={3000}
           canvasHeight={2000}
           zoom={zoom}

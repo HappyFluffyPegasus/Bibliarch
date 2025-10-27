@@ -106,6 +106,7 @@ interface HTMLCanvasProps {
   initialConnections?: Connection[]
   onSave?: (nodes: Node[], connections: Connection[]) => void
   onNavigateToCanvas?: (canvasId: string, nodeTitle: string) => void
+  onStateChange?: (nodes: Node[], connections: Connection[]) => void  // Called when state changes (no save)
   canvasWidth?: number
   canvasHeight?: number
   initialShowHelp?: boolean
@@ -120,6 +121,7 @@ export default function HTMLCanvas({
   initialConnections = [],
   onSave,
   onNavigateToCanvas,
+  onStateChange,
   canvasWidth = 3000,
   canvasHeight = 2000,
   initialShowHelp = false,
@@ -556,6 +558,13 @@ export default function HTMLCanvas({
       setHistoryIndex(0)
     }
   }, [initialNodes, initialConnections])
+
+  // Notify parent when state changes (for navigation saves, without auto-saving)
+  useEffect(() => {
+    if (onStateChange) {
+      onStateChange(nodes, connections)
+    }
+  }, [nodes, connections, onStateChange])
 
   // Update visible nodes when nodes change - memoized to prevent infinite loops
   const nodeIdsSnapshot = useMemo(() =>
