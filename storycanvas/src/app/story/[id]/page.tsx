@@ -105,6 +105,7 @@ export default function StoryPage({ params }: PageProps) {
   // Track if we have unsaved changes
   const hasUnsavedChanges = useRef(false)
   const isSaving = useRef(false)
+  const isInternalNavigation = useRef(false) // Track if navigation is internal (home button, etc.)
 
   // Handle canvas data loading from cache
   useEffect(() => {
@@ -506,6 +507,11 @@ export default function StoryPage({ params }: PageProps) {
   useEffect(() => {
     // Save when page is about to unload (refresh, close, navigate away)
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Don't interfere with internal navigation (home button, etc.)
+      if (isInternalNavigation.current) {
+        return
+      }
+
       if (hasUnsavedChanges.current && !isSaving.current) {
         // Trigger save
         saveBeforeUnload()
@@ -526,6 +532,12 @@ export default function StoryPage({ params }: PageProps) {
 
     // Handle browser back/forward button (Milanote's "2 clicks" trick)
     const handlePopState = (e: PopStateEvent) => {
+      // Don't interfere with internal navigation (home button, etc.)
+      if (isInternalNavigation.current) {
+        isInternalNavigation.current = false
+        return
+      }
+
       // If we have unsaved changes, save them first
       if (hasUnsavedChanges.current) {
         e.preventDefault()
@@ -657,20 +669,27 @@ export default function StoryPage({ params }: PageProps) {
             {/* Mobile Navigation - Icon only */}
             <div className="flex md:hidden items-center gap-1">
               {/* Home button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={async () => {
-                  // Save current canvas before navigating to dashboard
-                  if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
-                    await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
-                  }
-                  router.push('/dashboard')
-                }}
-              >
-                <HomeIcon className="w-4 h-4" />
-              </Button>
+              <Link href="/dashboard">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={async (e) => {
+                    e.preventDefault()
+                    // Mark as internal navigation to prevent popstate and beforeunload interference
+                    isInternalNavigation.current = true
+                    hasUnsavedChanges.current = false // Clear unsaved changes flag
+                    // Save current canvas before navigating to dashboard
+                    if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+                      await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+                    }
+                    // Use window.location for guaranteed navigation
+                    window.location.href = '/dashboard'
+                  }}
+                >
+                  <HomeIcon className="w-4 h-4" />
+                </Button>
+              </Link>
 
               {/* Back button - only show if in a folder */}
               {canvasPath.length > 0 && (
@@ -735,12 +754,17 @@ export default function StoryPage({ params }: PageProps) {
             <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
               {/* Dashboard link */}
               <button
-                onClick={async () => {
+                onClick={async (e) => {
+                  e.preventDefault()
+                  // Mark as internal navigation to prevent popstate and beforeunload interference
+                  isInternalNavigation.current = true
+                  hasUnsavedChanges.current = false // Clear unsaved changes flag
                   // Save current canvas before navigating to dashboard
                   if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
                     await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
                   }
-                  router.push('/dashboard')
+                  // Use window.location for guaranteed navigation
+                  window.location.href = '/dashboard'
                 }}
                 className="hover:text-foreground transition-colors cursor-pointer"
               >
