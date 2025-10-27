@@ -426,9 +426,18 @@ export default function HTMLCanvas({
     document.documentElement.style.setProperty('--canvas-dot-color', dotColor)
   }, [colorContext])
 
-  // Handle crop dragging and resizing with global mouse events
+  // Helper functions to get coordinates from mouse or touch events
+  const getClientX = (e: MouseEvent | TouchEvent): number => {
+    return 'touches' in e ? e.touches[0].clientX : e.clientX
+  }
+
+  const getClientY = (e: MouseEvent | TouchEvent): number => {
+    return 'touches' in e ? e.touches[0].clientY : e.clientY
+  }
+
+  // Handle crop dragging and resizing with global mouse and touch events
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMove = (e: MouseEvent | TouchEvent) => {
       if (cropModal?.imageWidth && cropModal?.imageHeight && cropImageRef.current) {
         e.preventDefault()
         const img = cropImageRef.current
@@ -436,22 +445,25 @@ export default function HTMLCanvas({
         const scaleX = cropModal.imageWidth / rect.width
         const scaleY = cropModal.imageHeight / rect.height
 
+        const clientX = getClientX(e)
+        const clientY = getClientY(e)
+
         if (isDraggingCrop) {
           // Calculate new position relative to image
           const newX = Math.max(0, Math.min(
             cropModal.imageWidth - cropData.width,
-            (e.clientX - rect.left - dragStartCrop.x) * scaleX
+            (clientX - rect.left - dragStartCrop.x) * scaleX
           ))
           const newY = Math.max(0, Math.min(
             cropModal.imageHeight - cropData.height,
-            (e.clientY - rect.top - dragStartCrop.y) * scaleY
+            (clientY - rect.top - dragStartCrop.y) * scaleY
           ))
 
           setCropData(prev => ({ ...prev, x: newX, y: newY }))
         } else if (isResizingCrop && resizeDirection) {
-          // Calculate mouse position relative to image
-          const mouseX = (e.clientX - rect.left) * scaleX
-          const mouseY = (e.clientY - rect.top) * scaleY
+          // Calculate mouse/touch position relative to image
+          const mouseX = (clientX - rect.left) * scaleX
+          const mouseY = (clientY - rect.top) * scaleY
 
           let newX = cropData.x
           let newY = cropData.y
@@ -487,21 +499,26 @@ export default function HTMLCanvas({
       }
     }
 
-    const handleMouseUp = () => {
+    const handleEnd = () => {
       setIsDraggingCrop(false)
       setIsResizingCrop(false)
       setResizeDirection(null)
     }
 
     if (isDraggingCrop || isResizingCrop) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
+      // Add both mouse and touch event listeners for mobile support
+      document.addEventListener('mousemove', handleMove)
+      document.addEventListener('mouseup', handleEnd)
+      document.addEventListener('touchmove', handleMove, { passive: false })
+      document.addEventListener('touchend', handleEnd)
       document.body.style.cursor = isDraggingCrop ? 'move' : 'nw-resize'
     }
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
+      document.removeEventListener('mousemove', handleMove)
+      document.removeEventListener('mouseup', handleEnd)
+      document.removeEventListener('touchmove', handleMove)
+      document.removeEventListener('touchend', handleEnd)
       document.body.style.cursor = ''
     }
   }, [isDraggingCrop, isResizingCrop, resizeDirection, cropModal, cropData, dragStartCrop])
@@ -937,11 +954,16 @@ export default function HTMLCanvas({
     }
   }, [tool, isDraggingCharacter, zoom, zoomCenter])
 
-  const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
+  const handleCanvasMouseMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    // Get coordinates from either mouse or touch event
+    const clientX = 'touches' in e ? (e.touches.length > 0 ? e.touches[0].clientX : 0) : e.clientX
+    const clientY = 'touches' in e ? (e.touches.length > 0 ? e.touches[0].clientY : 0) : e.clientY
+    const buttons = 'touches' in e ? (e.touches.length > 0 ? 1 : 0) : e.buttons
+
     // CRITICAL: If no mouse buttons are pressed while in "ready" state, cancel it
     // This fixes Mac trackpad sticky behavior where you can click to grab without holding
     // BUT: Don't interrupt active drags (draggingNode/resizingNode) as Mac trackpads may report buttons=0 momentarily
-    if (e.buttons === 0) {
+    if (buttons === 0) {
       // Only cancel "ready" states, not active drags/resizes
       if (isDragReady) {
         setIsDragReady(null)
@@ -964,8 +986,8 @@ export default function HTMLCanvas({
       if (rect) {
         // Get current position relative to canvas element
         // Don't divide by zoom - both selection box and nodes are in same transformed space
-        const currentX = e.clientX - rect.left
-        const currentY = e.clientY - rect.top
+        const currentX = clientX - rect.left
+        const currentY = clientY - rect.top
 
         const x = Math.min(selectionStart.x, currentX)
         const y = Math.min(selectionStart.y, currentY)
@@ -996,8 +1018,8 @@ export default function HTMLCanvas({
     }
 
     if (isPanning && !isDraggingCharacter && !isSelecting) {
-      const deltaX = e.clientX - lastPanPoint.x
-      const deltaY = e.clientY - lastPanPoint.y
+      const deltaX = clientX - lastPanPoint.x
+      const deltaY = clientY - lastPanPoint.y
 
       // Use the parent container for scrolling instead of transform
       const canvasContainer = canvasRef.current?.parentElement
@@ -1006,7 +1028,7 @@ export default function HTMLCanvas({
         canvasContainer.scrollTop -= deltaY
       }
 
-      setLastPanPoint({ x: e.clientX, y: e.clientY })
+      setLastPanPoint({ x: clientX, y: clientY })
     } else if (isDragReady && !draggingNode && !isDraggingCharacter) {
       // In typing mode, disable node dragging completely - only allow text selection
       if (interactionMode === 'typing') {
@@ -1025,8 +1047,8 @@ export default function HTMLCanvas({
       }
 
       // Check if mouse moved enough to start dragging (smaller threshold in moving mode)
-      const deltaX = e.clientX - dragStartPos.x
-      const deltaY = e.clientY - dragStartPos.y
+      const deltaX = clientX - dragStartPos.x
+      const deltaY = clientY - dragStartPos.y
       const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
 
       // In moving mode, use a responsive threshold
@@ -1047,8 +1069,8 @@ export default function HTMLCanvas({
 
     if (isResizeReady) {
       // Check if mouse moved enough to start resizing
-      const deltaX = e.clientX - resizeStartPos.x
-      const deltaY = e.clientY - resizeStartPos.y
+      const deltaX = clientX - resizeStartPos.x
+      const deltaY = clientY - resizeStartPos.y
       const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
 
       const resizeThreshold = 3
@@ -1067,8 +1089,8 @@ export default function HTMLCanvas({
       // Handle node dragging - just update position state, don't re-render nodes
       const rect = canvasRef.current?.getBoundingClientRect()
       if (rect) {
-        let x = e.clientX - rect.left - dragOffset.x
-        let y = e.clientY - rect.top - dragOffset.y
+        let x = clientX - rect.left - dragOffset.x
+        let y = clientY - rect.top - dragOffset.y
 
         // Apply snapping if enabled
         if (snapToGrid) {
@@ -1083,8 +1105,8 @@ export default function HTMLCanvas({
 
     if (resizingNode) {
       // Handle node resizing
-      const deltaX = e.clientX - resizeStartPos.x
-      const deltaY = e.clientY - resizeStartPos.y
+      const deltaX = clientX - resizeStartPos.x
+      const deltaY = clientY - resizeStartPos.y
 
       const resizingNodeObj = nodes.find(n => n.id === resizingNode)
       if (!resizingNodeObj) return
@@ -3200,6 +3222,8 @@ export default function HTMLCanvas({
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={(e) => handleCanvasMouseUp(e)}
           onMouseLeave={() => handleCanvasMouseUp()}
+          onTouchMove={handleCanvasMouseMove}
+          onTouchEnd={(e) => handleCanvasMouseUp()}
           onContextMenu={(e) => e.preventDefault()}
           onWheel={handleWheel}
           style={{
@@ -3595,8 +3619,8 @@ export default function HTMLCanvas({
                   {/* Add corner resize handle for image nodes when selected */}
                   {selectedId === node.id && (
                     <div
-                      className="absolute -bottom-1 -right-1 w-3 h-3 rounded-sm cursor-se-resize border border-black"
-                      style={{ backgroundColor: '#ffffff' }}
+                      className="absolute -bottom-1 -right-1 w-4 h-4 rounded-sm cursor-se-resize border-2 border-black"
+                      style={{ backgroundColor: '#ffffff', touchAction: 'none' }}
                       onMouseDown={(e) => {
                         e.preventDefault() // Prevent text selection during resize
                         e.stopPropagation()
@@ -3605,6 +3629,16 @@ export default function HTMLCanvas({
                         setResizingNode(node.id)
                         setResizeStartSize({ width: node.width || 240, height: node.height })
                         setResizeStartPos({ x: e.clientX, y: e.clientY })
+                      }}
+                      onTouchStart={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        if (e.touches.length > 0) {
+                          document.body.style.userSelect = 'none'
+                          setResizingNode(node.id)
+                          setResizeStartSize({ width: node.width || 240, height: node.height })
+                          setResizeStartPos({ x: e.touches[0].clientX, y: e.touches[0].clientY })
+                        }
                       }}
                       title="Resize image (maintains aspect ratio)"
                     />
@@ -6361,6 +6395,7 @@ export default function HTMLCanvas({
                     top: `${(cropData.y / cropModal.imageHeight) * 100}%`,
                     width: `${(cropData.width / cropModal.imageWidth) * 100}%`,
                     height: `${(cropData.height / cropModal.imageHeight) * 100}%`,
+                    touchAction: 'none', // Prevent default touch actions on mobile
                   }}
                   onMouseDown={(e) => {
                     e.preventDefault()
@@ -6377,35 +6412,74 @@ export default function HTMLCanvas({
                       })
                     }
                   }}
+                  onTouchStart={(e) => {
+                    e.preventDefault()
+                    if (cropImageRef.current && e.touches.length > 0) {
+                      const img = cropImageRef.current
+                      const rect = img.getBoundingClientRect()
+                      const scaleX = cropModal.imageWidth / rect.width
+                      const scaleY = cropModal.imageHeight / rect.height
+
+                      setIsDraggingCrop(true)
+                      setDragStartCrop({
+                        x: e.touches[0].clientX - (cropData.x / scaleX) - rect.left,
+                        y: e.touches[0].clientY - (cropData.y / scaleY) - rect.top
+                      })
+                    }
+                  }}
                 >
                   {/* Resize handles */}
                   <div
-                    className="absolute -top-1 -left-1 w-3 h-3 bg-black border border-white cursor-nw-resize"
+                    className="absolute -top-1 -left-1 w-4 h-4 bg-black border-2 border-white cursor-nw-resize"
+                    style={{ touchAction: 'none' }}
                     onMouseDown={(e) => {
+                      e.stopPropagation()
+                      setIsResizingCrop(true)
+                      setResizeDirection('nw')
+                    }}
+                    onTouchStart={(e) => {
                       e.stopPropagation()
                       setIsResizingCrop(true)
                       setResizeDirection('nw')
                     }}
                   ></div>
                   <div
-                    className="absolute -top-1 -right-1 w-3 h-3 bg-black border border-white cursor-ne-resize"
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-black border-2 border-white cursor-ne-resize"
+                    style={{ touchAction: 'none' }}
                     onMouseDown={(e) => {
+                      e.stopPropagation()
+                      setIsResizingCrop(true)
+                      setResizeDirection('ne')
+                    }}
+                    onTouchStart={(e) => {
                       e.stopPropagation()
                       setIsResizingCrop(true)
                       setResizeDirection('ne')
                     }}
                   ></div>
                   <div
-                    className="absolute -bottom-1 -left-1 w-3 h-3 bg-black border border-white cursor-sw-resize"
+                    className="absolute -bottom-1 -left-1 w-4 h-4 bg-black border-2 border-white cursor-sw-resize"
+                    style={{ touchAction: 'none' }}
                     onMouseDown={(e) => {
+                      e.stopPropagation()
+                      setIsResizingCrop(true)
+                      setResizeDirection('sw')
+                    }}
+                    onTouchStart={(e) => {
                       e.stopPropagation()
                       setIsResizingCrop(true)
                       setResizeDirection('sw')
                     }}
                   ></div>
                   <div
-                    className="absolute -bottom-1 -right-1 w-3 h-3 bg-black border border-white cursor-se-resize"
+                    className="absolute -bottom-1 -right-1 w-4 h-4 bg-black border-2 border-white cursor-se-resize"
+                    style={{ touchAction: 'none' }}
                     onMouseDown={(e) => {
+                      e.stopPropagation()
+                      setIsResizingCrop(true)
+                      setResizeDirection('se')
+                    }}
+                    onTouchStart={(e) => {
                       e.stopPropagation()
                       setIsResizingCrop(true)
                       setResizeDirection('se')
