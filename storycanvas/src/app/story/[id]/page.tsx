@@ -465,8 +465,8 @@ export default function StoryPage({ params }: PageProps) {
       return
     }
 
-    // Use React Query mutation for optimistic updates and caching
-    saveCanvasMutation.mutate({
+    // Use mutateAsync to actually wait for save to complete before navigation
+    await saveCanvasMutation.mutateAsync({
       storyId: resolvedParams.id,
       canvasType: saveToCanvasId,
       nodes,
