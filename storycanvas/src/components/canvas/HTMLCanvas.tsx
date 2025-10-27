@@ -560,11 +560,13 @@ export default function HTMLCanvas({
   }, [initialNodes, initialConnections])
 
   // Notify parent when state changes (for navigation saves, without auto-saving)
+  // onStateChange excluded from deps to prevent cursor jumping from constant re-renders
   useEffect(() => {
     if (onStateChange) {
       onStateChange(nodes, connections)
     }
-  }, [nodes, connections, onStateChange])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, connections])
 
   // Update visible nodes when nodes change - memoized to prevent infinite loops
   const nodeIdsSnapshot = useMemo(() =>
