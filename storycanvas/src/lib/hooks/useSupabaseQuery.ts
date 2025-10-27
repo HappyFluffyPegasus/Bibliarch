@@ -64,7 +64,7 @@ export function useStories(userId: string | null | undefined) {
 
       const { data, error } = await supabase
         .from('stories')
-        .select('*')
+        .select('id, title, bio, created_at, updated_at')
         .eq('user_id', userId)
         .order('updated_at', { ascending: false })
 
@@ -92,7 +92,7 @@ export function useStoriesPaginated(userId: string | null | undefined) {
 
       const { data, error, count } = await supabase
         .from('stories')
-        .select('*', { count: 'exact' })
+        .select('id, title, bio, created_at, updated_at', { count: 'exact' })
         .eq('user_id', userId)
         .order('updated_at', { ascending: false })
         .range(from, to)
@@ -129,7 +129,7 @@ export function useStory(storyId: string | null | undefined, userId: string | nu
 
       const { data, error } = await supabase
         .from('stories')
-        .select('*')
+        .select('id, title, bio')
         .eq('id', storyId)
         .eq('user_id', userId)
         .single()
@@ -153,7 +153,7 @@ export function useCanvas(storyId: string | null | undefined, canvasType: string
 
       const { data, error } = await supabase
         .from('canvas_data')
-        .select('*')
+        .select('id, story_id, canvas_type, nodes, connections, updated_at')
         .eq('story_id', storyId)
         .eq('canvas_type', canvasType)
         .order('updated_at', { ascending: false })

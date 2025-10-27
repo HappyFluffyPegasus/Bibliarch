@@ -2,12 +2,19 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // TEMPORARY: Middleware disabled due to Supabase egress limits
+  // Auth checks moved to page-level to avoid timeouts
+  // TODO: Re-enable once egress resets or plan upgraded
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
 
+  return response
+
+  /* DISABLED UNTIL EGRESS RESETS
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -44,12 +51,13 @@ export async function middleware(request: NextRequest) {
   }
 
   // Auth routes - redirect to dashboard if already logged in
-  if ((request.nextUrl.pathname === '/login' || 
+  if ((request.nextUrl.pathname === '/login' ||
        request.nextUrl.pathname === '/signup') && user) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return response
+  */
 }
 
 export const config = {
