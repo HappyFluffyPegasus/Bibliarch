@@ -572,11 +572,20 @@ export default function StoryPage({ params }: PageProps) {
             {/* Mobile Navigation - Icon only */}
             <div className="flex md:hidden items-center gap-1">
               {/* Home button */}
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <HomeIcon className="w-4 h-4" />
-                </Button>
-              </Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={async () => {
+                  // Save current canvas before navigating to dashboard
+                  if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+                    await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+                  }
+                  router.push('/dashboard')
+                }}
+              >
+                <HomeIcon className="w-4 h-4" />
+              </Button>
 
               {/* Back button - only show if in a folder */}
               {canvasPath.length > 0 && (
@@ -640,9 +649,18 @@ export default function StoryPage({ params }: PageProps) {
             {/* Desktop Breadcrumb navigation */}
             <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
               {/* Dashboard link */}
-              <Link href="/dashboard" className="hover:text-foreground transition-colors cursor-pointer">
+              <button
+                onClick={async () => {
+                  // Save current canvas before navigating to dashboard
+                  if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+                    await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+                  }
+                  router.push('/dashboard')
+                }}
+                className="hover:text-foreground transition-colors cursor-pointer"
+              >
                 Home
-              </Link>
+              </button>
 
               <ChevronRight className="w-4 h-4" />
 
