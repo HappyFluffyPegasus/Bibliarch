@@ -684,7 +684,7 @@ export default function StoryPage({ params }: PageProps) {
                     : "hover:text-foreground cursor-pointer"
                 }`}
               >
-                {story.title}
+                {story?.title || 'Loading...'}
               </button>
 
               {/* Folder path */}

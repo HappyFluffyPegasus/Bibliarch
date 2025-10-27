@@ -1853,23 +1853,23 @@ export default function HTMLCanvas({
   }
 
   const getNodeColor = (nodeType: string, customColor?: string, nodeId?: string, isChildInList: boolean = false) => {
-    // Get the current active palette from color context
-    const currentPalette = colorContext.getCurrentPalette()
-
     let baseColor: string
 
-    if (currentPalette && currentPalette.colors && currentPalette.colors.nodeDefault) {
-      baseColor = currentPalette.colors.nodeDefault
-    } else {
-      // Try getting the color from CSS variables (applied by palette system)
-      const paletteBase = getComputedStyle(document.documentElement)
-        .getPropertyValue('--color-node-default')
-        .trim()
+    // PRIORITY 1: Check CSS variables first (applied immediately by palette system)
+    const paletteBase = getComputedStyle(document.documentElement)
+      .getPropertyValue('--color-node-default')
+      .trim()
 
-      if (paletteBase && paletteBase !== '#ffffff' && paletteBase !== 'white' && paletteBase !== '') {
-        baseColor = paletteBase
+    if (paletteBase && paletteBase !== '#ffffff' && paletteBase !== 'white' && paletteBase !== '') {
+      baseColor = paletteBase
+    } else {
+      // PRIORITY 2: Fall back to context palette (might have timing issues during load)
+      const currentPalette = colorContext.getCurrentPalette()
+
+      if (currentPalette && currentPalette.colors && currentPalette.colors.nodeDefault) {
+        baseColor = currentPalette.colors.nodeDefault
       } else {
-        // Hard fallback - use a nice blue color instead of white
+        // PRIORITY 3: Hard fallback - use a nice blue color instead of white
         baseColor = '#e0f2fe' // Light blue instead of white
       }
     }

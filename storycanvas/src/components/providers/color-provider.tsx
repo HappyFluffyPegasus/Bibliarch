@@ -54,12 +54,28 @@ export function ColorProvider({ children, projectId }: ColorProviderProps) {
 
   // Initialize color system
   useEffect(() => {
-    ColorPaletteManager.initialize()
-    setGlobalTheme(ColorPaletteManager.getGlobalTheme())
+    // Load theme preference but DON'T apply default palette yet
+    const savedTheme = ColorPaletteManager.getGlobalTheme()
+    setGlobalTheme(savedTheme)
+    document.documentElement.setAttribute('data-theme', savedTheme)
 
+    // Load saved project palette first
     if (currentProjectId) {
       const savedProjectPalette = ColorPaletteManager.getProjectPalette(currentProjectId)
       setProjectPaletteState(savedProjectPalette)
+
+      // Apply the saved palette immediately if it exists
+      if (savedProjectPalette) {
+        ColorPaletteManager.applyPalette(savedProjectPalette)
+      } else {
+        // No saved palette - apply default for current theme
+        const defaultPalette = ColorPaletteManager.getAllPalettes().find(p =>
+          p.theme === savedTheme && p.isDefault
+        )
+        if (defaultPalette) {
+          ColorPaletteManager.applyPalette(defaultPalette)
+        }
+      }
     } else {
       setProjectPaletteState(null)
     }
@@ -115,15 +131,14 @@ export function ColorProvider({ children, projectId }: ColorProviderProps) {
     ColorPaletteManager.applyPalette(palette)
   }, [])
 
-  // Only apply palette on initial load and theme changes
-  // DO NOT auto-apply on folder context changes to prevent overwriting user selections
-  useEffect(() => {
-    const currentPalette = getCurrentPalette()
-    if (currentPalette) {
-      applyPalette(currentPalette)
-    }
-  }, [globalTheme, projectPalette, getCurrentPalette, applyPalette])
-  // Removed currentFolderId from dependencies to prevent auto-application on navigation
+  // DISABLED: Palette is now applied in the initialization useEffect above
+  // This useEffect was causing the default palette to override the saved palette
+  // useEffect(() => {
+  //   const currentPalette = getCurrentPalette()
+  //   if (currentPalette) {
+  //     applyPalette(currentPalette)
+  //   }
+  // }, [globalTheme, projectPalette, getCurrentPalette, applyPalette])
 
   const contextValue: ColorContextValue = useMemo(() => ({
     globalTheme,

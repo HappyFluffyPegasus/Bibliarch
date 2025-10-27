@@ -337,16 +337,27 @@ export class ColorPaletteManager {
 
   static getProjectPalette(projectId: string): ColorPalette | null {
     try {
-      const saved = localStorage.getItem(`${this.PROJECT_PALETTE_KEY}-${projectId}`)
-      return saved ? JSON.parse(saved) : null
-    } catch {
+      const key = `${this.PROJECT_PALETTE_KEY}-${projectId}`
+      console.log('[ColorPaletteManager] LOADING palette from localStorage:', key)
+      const saved = localStorage.getItem(key)
+      console.log('[ColorPaletteManager] Found in localStorage:', saved ? 'YES' : 'NO')
+      const palette = saved ? JSON.parse(saved) : null
+      if (palette) {
+        console.log('[ColorPaletteManager] Loaded palette:', palette.name)
+      }
+      return palette
+    } catch (error) {
+      console.error('[ColorPaletteManager] Error loading palette:', error)
       return null
     }
   }
 
   static setProjectPalette(projectId: string, palette: ColorPalette): void {
     try {
-      localStorage.setItem(`${this.PROJECT_PALETTE_KEY}-${projectId}`, JSON.stringify(palette))
+      const key = `${this.PROJECT_PALETTE_KEY}-${projectId}`
+      console.log('[ColorPaletteManager] SAVING palette to localStorage:', key, palette.name)
+      localStorage.setItem(key, JSON.stringify(palette))
+      console.log('[ColorPaletteManager] Saved successfully, verifying:', localStorage.getItem(key) ? 'EXISTS' : 'MISSING')
       this.applyProjectPalette(palette)
     } catch (error) {
       console.error('Failed to save project palette:', error)
