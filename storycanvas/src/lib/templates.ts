@@ -565,7 +565,7 @@ export const subCanvasTemplates: Record<string, { nodes: any[], connections: any
         text: 'Themes',
         content: 'What themes do they represent?',
         width: 280,
-        height: 140,
+        height: 160,
         type: 'text'
       },
       {
