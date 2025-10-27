@@ -102,6 +102,10 @@ export default function StoryPage({ params }: PageProps) {
     }
   }, [])
 
+  // Track if we have unsaved changes
+  const hasUnsavedChanges = useRef(false)
+  const isSaving = useRef(false)
+
   // Handle canvas data loading from cache
   useEffect(() => {
     if (isCanvasLoading) {
@@ -474,6 +478,85 @@ export default function StoryPage({ params }: PageProps) {
     })
   }, [resolvedParams.id, user?.id, saveCanvasMutation])
 
+  // Save function that can be called synchronously for browser navigation
+  const saveBeforeUnload = useCallback(async () => {
+    // Prevent concurrent saves
+    if (isSaving.current) return
+    if (!hasUnsavedChanges.current) return
+    if (!user?.id) return
+
+    isSaving.current = true
+
+    try {
+      const { nodes, connections } = latestCanvasData.current
+      if (nodes.length > 0 || connections.length > 0) {
+        console.log('💾 Browser navigation save triggered:', currentCanvasIdRef.current)
+        await handleSaveCanvas(nodes, connections)
+        hasUnsavedChanges.current = false
+        console.log('✅ Browser navigation save completed')
+      }
+    } catch (error) {
+      console.error('❌ Browser navigation save failed:', error)
+    } finally {
+      isSaving.current = false
+    }
+  }, [user?.id, handleSaveCanvas])
+
+  // Handle browser back/forward/refresh/close
+  useEffect(() => {
+    // Save when page is about to unload (refresh, close, navigate away)
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges.current && !isSaving.current) {
+        // Trigger save
+        saveBeforeUnload()
+
+        // Show browser warning for unsaved changes
+        e.preventDefault()
+        e.returnValue = ''
+        return ''
+      }
+    }
+
+    // Save when tab becomes hidden (tab switch, minimize, etc.)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        saveBeforeUnload()
+      }
+    }
+
+    // Handle browser back/forward button (Milanote's "2 clicks" trick)
+    const handlePopState = (e: PopStateEvent) => {
+      // If we have unsaved changes, save them first
+      if (hasUnsavedChanges.current) {
+        e.preventDefault()
+
+        // Save the data
+        saveBeforeUnload().then(() => {
+          // After save completes, allow navigation
+          console.log('✅ Saved before browser navigation')
+        })
+
+        // Push the state back so user needs to click back again
+        window.history.pushState({ bibliarch: true }, '', window.location.href)
+      }
+    }
+
+    // Push initial state to catch first back button click
+    window.history.pushState({ bibliarch: true }, '', window.location.href)
+
+    // Add event listeners
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      // Cleanup
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [saveBeforeUnload])
+
   async function handleSaveCanvasSettings() {
     if (!editedTitle.trim()) {
       alert('Project name cannot be empty')
@@ -517,6 +600,7 @@ export default function StoryPage({ params }: PageProps) {
     // SAVE CURRENT CANVAS FIRST! Use the latest data from the ref
     if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
       await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+      hasUnsavedChanges.current = false // Reset flag after successful save
       console.log('Saved canvas before navigation:', currentCanvasId, latestCanvasData.current)
     }
 
@@ -537,6 +621,7 @@ export default function StoryPage({ params }: PageProps) {
     // SAVE CURRENT CANVAS FIRST!
     if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
       await handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+      hasUnsavedChanges.current = false // Reset flag after successful save
       console.log('Saved canvas before navigating back:', currentCanvasId, latestCanvasData.current)
     }
 
@@ -755,6 +840,8 @@ export default function StoryPage({ params }: PageProps) {
           onStateChange={(nodes, connections) => {
             // Update ref when state changes (for navigation saves, without triggering saves)
             latestCanvasData.current = { nodes, connections }
+            // Mark as having unsaved changes
+            hasUnsavedChanges.current = true
           }}
           canvasWidth={3000}
           canvasHeight={2000}
