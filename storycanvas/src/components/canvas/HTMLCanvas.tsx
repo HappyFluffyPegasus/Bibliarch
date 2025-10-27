@@ -504,7 +504,10 @@ export default function HTMLCanvas({
     }
   }, [isDraggingCrop, isResizingCrop, resizeDirection, cropModal, cropData, dragStartCrop])
 
-  // Auto-save when nodes change
+  // Auto-save when nodes change (DISABLED FOR TESTING EGRESS)
+  // TEMPORARY: Auto-save disabled to reduce Supabase egress
+  // TODO: Re-enable with longer debounce after egress resets
+  /*
   useEffect(() => {
     const timeoutId = setTimeout(async () => {
       if (onSave && (nodes.length > 0 || connections.length > 0)) {
@@ -524,6 +527,7 @@ export default function HTMLCanvas({
     }, 2000) // Give users more time between saves
     return () => clearTimeout(timeoutId)
   }, [nodes, connections, onSave])
+  */
 
   // Listen for palette changes and force re-render
   useEffect(() => {
