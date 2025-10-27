@@ -1478,7 +1478,10 @@ export default function HTMLCanvas({
   const [allProjectCharacters, setAllProjectCharacters] = useState<Array<{ id: string, name: string, profileImageUrl?: string }>>([])
 
   // Fetch all character nodes from ALL canvases in the project
-  // This runs on EVERY canvas mount to ensure we always have the latest characters
+  // TEMPORARY: Disabled to reduce Supabase egress
+  // This was fetching ALL canvas_data twice per page load (immediate + 1s delayed)
+  // TODO: Re-enable with more efficient approach after egress resets
+  /*
   useEffect(() => {
     const fetchAllProjectCharacters = async () => {
       try {
@@ -1549,6 +1552,7 @@ export default function HTMLCanvas({
 
     return () => clearTimeout(delayedFetch)
   }, [storyId]) // Runs every time component mounts (key={currentCanvasId} causes remount)
+  */
 
   // Character detection system - returns ALL character nodes from entire project
   const getAllCharacters = useCallback(() => {
