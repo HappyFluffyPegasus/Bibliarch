@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { flushSync } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette, ArrowRight, Menu, Grid3x3, Bold, Italic, Underline } from 'lucide-react'
+import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette, ArrowRight, Menu, Grid3x3, Bold, Italic, Underline, ArrowUpRight, StickyNote } from 'lucide-react'
 import { PaletteSelector } from '@/components/ui/palette-selector'
 import { NodeStylePanel } from '@/components/ui/node-style-panel'
 import { PerformanceOptimizer } from '@/lib/performance-utils'
@@ -20,7 +20,7 @@ interface Node {
   content?: string
   width: number
   height: number
-  type?: 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'relationship-canvas'
+  type?: 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'relationship-canvas' | 'line' | 'compact-text'
   color?: string
   linkedCanvasId?: string
   imageUrl?: string
@@ -45,6 +45,16 @@ interface Node {
       position: { x: number; y: number }
     }>
     relationships: RelationshipConnection[]
+  }
+  // Line node properties (for curved lines)
+  linePoints?: {
+    start: { x: number; y: number }
+    middle: { x: number; y: number }
+    end: { x: number; y: number }
+  }
+  lineStyle?: {
+    color: string
+    width: number
   }
   // Layer control
   zIndex?: number // Layer ordering (higher = on top)
@@ -138,7 +148,7 @@ export default function HTMLCanvas({
   const [nodes, setNodes] = useState<Node[]>(initialNodes)
   const [connections, setConnections] = useState<Connection[]>(initialConnections)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [tool, setTool] = useState<'pan' | 'select' | 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'connect' | 'relationship-canvas'>('select')
+  const [tool, setTool] = useState<'pan' | 'select' | 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'connect' | 'relationship-canvas' | 'line' | 'compact-text'>('select')
   const [editingField, setEditingField] = useState<{nodeId: string, field: string} | null>(null)
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
@@ -176,6 +186,7 @@ export default function HTMLCanvas({
   const [resizingNode, setResizingNode] = useState<string | null>(null)
   const [resizeStartSize, setResizeStartSize] = useState({ width: 0, height: 0 })
   const [resizeStartPos, setResizeStartPos] = useState({ x: 0, y: 0 })
+  const [draggingLineVertex, setDraggingLineVertex] = useState<{ nodeId: string; vertex: 'start' | 'middle' | 'end' } | null>(null)
 
   // Use controlled zoom if provided, otherwise use internal state
   const [internalZoom, setInternalZoom] = useState(1)
@@ -887,7 +898,7 @@ export default function HTMLCanvas({
     }
 
     // Only create nodes when a creation tool is selected
-    if (!['text', 'character', 'event', 'location', 'folder', 'list', 'image', 'table', 'relationship-canvas'].includes(tool)) {
+    if (!['text', 'character', 'event', 'location', 'folder', 'list', 'image', 'table', 'relationship-canvas', 'line', 'compact-text'].includes(tool)) {
       return
     }
 
@@ -903,14 +914,22 @@ export default function HTMLCanvas({
       y: Math.max(0, y - 60),
       text: getDefaultText(tool),
       content: getDefaultContent(tool),
-      width: tool === 'list' ? 320 : tool === 'image' ? 300 : tool === 'character' ? 320 : tool === 'location' ? 320 : tool === 'event' ? 220 : tool === 'table' ? 280 : tool === 'relationship-canvas' ? 600 : 300,  // Event nodes portrait: 220px wide, text/folder: 300px
-      height: tool === 'list' ? 240 : tool === 'image' ? 200 : tool === 'character' ? 72 : tool === 'location' ? 72 : tool === 'event' ? 280 : tool === 'table' ? 200 : tool === 'relationship-canvas' ? 400 : 139, // Event nodes portrait: 280px tall, text/folder: 139px (3/4 of Story Overview's 185px)
+      width: tool === 'list' ? 320 : tool === 'image' ? 300 : tool === 'character' ? 320 : tool === 'location' ? 320 : tool === 'event' ? 220 : tool === 'table' ? 280 : tool === 'relationship-canvas' ? 600 : tool === 'line' ? 200 : tool === 'compact-text' ? 200 : 300,  // Event nodes portrait: 220px wide, text/folder: 300px
+      height: tool === 'list' ? 240 : tool === 'image' ? 200 : tool === 'character' ? 72 : tool === 'location' ? 72 : tool === 'event' ? 280 : tool === 'table' ? 200 : tool === 'relationship-canvas' ? 400 : tool === 'line' ? 2 : tool === 'compact-text' ? 32 : 139, // Event nodes portrait: 280px tall, text/folder: 139px, line: 2px, compact-text: auto-expands
       type: tool,
       // Don't set color - let it use dynamic theme colors
       ...(tool === 'list' ? { childIds: [], layoutMode: 'single-column' as const } : {}),
       ...(tool === 'table' ? { tableData: getDefaultTableData() } : {}),
       ...(tool === 'relationship-canvas' ? { relationshipData: { selectedCharacters: [], relationships: [] } } : {}),
-      ...(tool === 'event' ? { title: 'New Event', summary: 'Describe what happens in this event...', durationText: '' } : {})
+      ...(tool === 'event' ? { title: 'New Event', summary: 'Describe what happens in this event...', durationText: '' } : {}),
+      ...(tool === 'line' ? {
+        linePoints: {
+          start: { x: Math.max(0, x - 100), y: Math.max(0, y) },
+          middle: { x: Math.max(0, x), y: Math.max(0, y) },
+          end: { x: Math.max(0, x + 100), y: Math.max(0, y) }
+        },
+        lineStyle: { color: '#000000', width: 2 }
+      } : {})
     }
 
     const newNodes = [...nodes, newNode]
@@ -1127,10 +1146,25 @@ export default function HTMLCanvas({
       } else if (resizingNodeObj.type === 'character' || resizingNodeObj.type === 'location') {
         minWidth = 320  // Character/Location nodes minimum width
         minHeight = 72  // Character/Location nodes minimum height
+      } else if (resizingNodeObj.type === 'compact-text') {
+        minWidth = 100  // Compact text minimum width
+        minHeight = 32  // Minimum height (will auto-expand based on content)
       }
 
       let newWidth = Math.max(minWidth, resizeStartSize.width + deltaX)
       let newHeight = Math.max(minHeight, resizeStartSize.height + deltaY)
+
+      // Compact text nodes only resize width, height is auto
+      if (resizingNodeObj.type === 'compact-text') {
+        setNodes(prevNodes =>
+          prevNodes.map(node =>
+            node.id === resizingNode
+              ? { ...node, width: newWidth }
+              : node
+          )
+        )
+        return // Early return for compact-text
+      }
 
       // Apply node-type specific resize behavior
       if (resizingNodeObj.type === 'image') {
@@ -1272,7 +1306,30 @@ export default function HTMLCanvas({
         )
       )
     }
-  }, [isPanning, lastPanPoint, draggingNode, isDragReady, dragOffset, dragStartPos, resizingNode, resizeStartPos, resizeStartSize, isDraggingCharacter, isSelecting, tool, selectionStart, nodes])
+
+    // Handle line vertex dragging
+    if (draggingLineVertex) {
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (rect) {
+        const x = clientX - rect.left
+        const y = clientY - rect.top
+
+        setNodes(prevNodes =>
+          prevNodes.map(node =>
+            node.id === draggingLineVertex.nodeId && node.linePoints
+              ? {
+                  ...node,
+                  linePoints: {
+                    ...node.linePoints,
+                    [draggingLineVertex.vertex]: { x: Math.max(0, x), y: Math.max(0, y) }
+                  }
+                }
+              : node
+          )
+        )
+      }
+    }
+  }, [isPanning, lastPanPoint, draggingNode, isDragReady, dragOffset, dragStartPos, resizingNode, resizeStartPos, resizeStartSize, isDraggingCharacter, isSelecting, tool, selectionStart, nodes, draggingLineVertex])
 
   const handleCanvasMouseUp = useCallback((e?: React.MouseEvent) => {
     setIsPanning(false)
@@ -1456,12 +1513,21 @@ export default function HTMLCanvas({
       document.body.style.userSelect = ''
 
     }
-    
+
+    if (draggingLineVertex) {
+      // Save line vertex changes to history when dragging ends
+      saveToHistory(nodes, connections)
+      setDraggingLineVertex(null)
+      if (onSave) {
+        onSave(nodes, connections)
+      }
+    }
+
     if (isMoving) {
       // Delay to allow final render with high quality after movement stops
       setTimeout(() => setIsMoving(false), 100)
     }
-  }, [isMoving, draggingNode, isDragReady, isResizeReady, resizingNode, nodes, connections, saveToHistory, dragPosition, tool, selectedIds, zoom, isSelecting, selectionStart, zoomCenter])
+  }, [isMoving, draggingNode, isDragReady, isResizeReady, resizingNode, nodes, connections, saveToHistory, dragPosition, tool, selectedIds, zoom, isSelecting, selectionStart, zoomCenter, draggingLineVertex, onSave])
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     // Check if Ctrl key is pressed for zoom, otherwise allow normal scrolling
@@ -1495,6 +1561,8 @@ export default function HTMLCanvas({
       case 'image': return 'New Image'
       case 'table': return ''
       case 'relationship-canvas': return 'Relationship Map'
+      case 'line': return 'Line'
+      case 'compact-text': return ''
       default: return 'New Text Node'
     }
   }
@@ -1509,6 +1577,8 @@ export default function HTMLCanvas({
       case 'image': return 'Image caption or paste URL here...'
       case 'table': return '' // Tables use tableData instead of content
       case 'relationship-canvas': return '' // Relationship canvas uses relationshipData instead of content
+      case 'line': return '' // Lines don't have content
+      case 'compact-text': return 'Quick note...'
       default: return 'What would you like to write about?'
     }
   }
@@ -2720,6 +2790,8 @@ export default function HTMLCanvas({
       case 'image': return <ImageIcon className="w-5 h-5" />
       case 'table': return <Table className="w-5 h-5" />
       case 'relationship-canvas': return <Heart className="w-5 h-5" />
+      case 'line': return <ArrowUpRight className="w-5 h-5" />
+      case 'compact-text': return <StickyNote className="w-5 h-5" />
       default: return <Type className="w-5 h-5" />
     }
   }
@@ -2830,6 +2902,15 @@ export default function HTMLCanvas({
           </Button>
           <Button
             size="sm"
+            variant={tool === 'compact-text' ? 'default' : 'outline'}
+            onClick={() => setTool('compact-text')}
+            className={`h-12 w-14 p-0 ${tool === 'compact-text' ? 'bg-sky-600 text-white' : ''}`}
+            title="Add Compact Note - Click canvas to create"
+          >
+            <StickyNote className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
             variant={tool === 'character' ? 'default' : 'outline'}
             onClick={() => setTool('character')}
             className={`h-12 w-14 p-0 ${tool === 'character' ? 'bg-sky-600 text-white' : ''}`}
@@ -2899,6 +2980,15 @@ export default function HTMLCanvas({
             title="Add Relationship Canvas - Click canvas to create"
           >
             <Heart className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
+            variant={tool === 'line' ? 'default' : 'outline'}
+            onClick={() => setTool('line')}
+            className={`h-12 w-14 p-0 ${tool === 'line' ? 'bg-sky-600 text-white' : ''}`}
+            title="Add Curved Line - Click canvas to create"
+          >
+            <ArrowUpRight className="w-7 h-7" />
           </Button>
         </div>
 
@@ -3335,7 +3425,262 @@ export default function HTMLCanvas({
             const nodeDetails = { showTitle: true, showContent: true } // Always show all details in fixed canvas
             const isDropTarget = dropTarget === node.id
             const childNodes = node.childIds ? nodes.filter(n => node.childIds?.includes(n.id)) : []
-            
+
+            // Render line nodes with curved SVG path
+            if (node.type === 'line' && node.linePoints) {
+              const start = node.linePoints.start
+              const middle = node.linePoints.middle
+              const end = node.linePoints.end
+
+              // Quadratic bezier that passes through the middle point
+              // Calculate control point so curve passes through middle at t=0.5
+              const controlX = 2 * middle.x - 0.5 * start.x - 0.5 * end.x
+              const controlY = 2 * middle.y - 0.5 * start.y - 0.5 * end.y
+
+              return (
+                <svg
+                  key={node.id}
+                  data-node-id={node.id}
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: 0,
+                    top: 0,
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'visible',
+                    zIndex: node.zIndex || 0
+                  }}
+                >
+                  {/* Define arrowhead marker */}
+                  <defs>
+                    <marker
+                      id={`arrowhead-${node.id}`}
+                      markerWidth="10"
+                      markerHeight="10"
+                      refX="9"
+                      refY="3"
+                      orient="auto"
+                    >
+                      <path
+                        d="M0,0 L0,6 L9,3 z"
+                        fill={getNodeBorderColor('line')}
+                      />
+                    </marker>
+                  </defs>
+
+                  {/* Invisible wider stroke for easier clicking */}
+                  <path
+                    d={`M ${start.x} ${start.y} Q ${controlX} ${controlY}, ${end.x} ${end.y}`}
+                    stroke="transparent"
+                    strokeWidth="20"
+                    fill="none"
+                    className="pointer-events-auto cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setSelectedId(node.id)
+                      setSelectedIds([node.id])
+                    }}
+                  />
+
+                  {/* Visible curved line path with arrowhead - passes through middle point */}
+                  <path
+                    d={`M ${start.x} ${start.y} Q ${controlX} ${controlY}, ${end.x} ${end.y}`}
+                    stroke={getNodeBorderColor('line')}
+                    strokeWidth={node.lineStyle?.width || 2}
+                    fill="none"
+                    markerEnd={`url(#arrowhead-${node.id})`}
+                    className="pointer-events-none"
+                  />
+
+                  {/* Draggable control point circles - only show when selected */}
+                  {(selectedId === node.id || selectedIds.includes(node.id)) && (
+                    <>
+                      <circle
+                        cx={start.x}
+                        cy={start.y}
+                        r="6"
+                        fill={getResizeHandleColor('line')}
+                        stroke={getNodeBorderColor('line')}
+                        strokeWidth="2"
+                        className="pointer-events-auto cursor-move"
+                        onMouseDown={(e) => {
+                          e.stopPropagation()
+                          setDraggingLineVertex({ nodeId: node.id, vertex: 'start' })
+                        }}
+                      />
+                      <circle
+                        cx={middle.x}
+                        cy={middle.y}
+                        r="6"
+                        fill={getResizeHandleColor('line')}
+                        stroke={getNodeBorderColor('line')}
+                        strokeWidth="2"
+                        className="pointer-events-auto cursor-move"
+                        onMouseDown={(e) => {
+                          e.stopPropagation()
+                          setDraggingLineVertex({ nodeId: node.id, vertex: 'middle' })
+                        }}
+                      />
+                      <circle
+                        cx={end.x}
+                        cy={end.y}
+                        r="6"
+                        fill={getResizeHandleColor('line')}
+                        stroke={getNodeBorderColor('line')}
+                        strokeWidth="2"
+                        className="pointer-events-auto cursor-move"
+                        onMouseDown={(e) => {
+                          e.stopPropagation()
+                          setDraggingLineVertex({ nodeId: node.id, vertex: 'end' })
+                        }}
+                      />
+                    </>
+                  )}
+                </svg>
+              )
+            }
+
+            // Render compact-text nodes (minimal text boxes)
+            if (node.type === 'compact-text') {
+              return (
+                <div
+                  key={node.id}
+                  data-node-id={node.id}
+                  className={`absolute border-2 rounded cursor-move ${!isPanning ? 'hover:shadow-lg' : ''} shadow-sm node-background ${
+                    connectingFrom === node.id ? 'ring-2 ring-orange-500' : ''
+                  } ${
+                    isDropTarget ? 'ring-2 ring-green-500 bg-green-50' : ''
+                  }`}
+                  style={{
+                    left: getNodeDragPosition(node).x,
+                    top: getNodeDragPosition(node).y,
+                    width: node.width || 200,
+                    minHeight: '32px',
+                    maxHeight: '400px',
+                    overflow: 'visible',
+                    backgroundColor: getNodeColor('text', node.color, node.id),
+                    borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor('text') : getNodeBorderColor('text'),
+                    outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor('text')}` : 'none',
+                    outlineOffset: '-3px',
+                    opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
+                    padding: '8px',
+                    transition: draggingNode ? 'none' : 'opacity 0.1s ease'
+                  }}
+                  onMouseDown={(e) => {
+                    // Right click on selected node opens context menu
+                    if (e.button === 2 && (selectedId === node.id || selectedIds.includes(node.id))) {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setContextMenu({
+                        node,
+                        position: { x: e.clientX, y: e.clientY }
+                      })
+                      return
+                    }
+
+                    // Middle mouse button pans
+                    if (e.button === 1) {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setIsPanning(true)
+                      setIsMoving(true)
+                      setLastPanPoint({ x: e.clientX, y: e.clientY })
+                      return
+                    }
+
+                    // Only enable dragging in select mode with left click
+                    if (tool === 'select' && e.button === 0) {
+                      // Check if clicking on contentEditable text that is ACTIVELY being edited
+                      const target = e.target as HTMLElement
+                      const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+
+                      // Only prevent dragging if the user is actively editing this field
+                      if (isContentEditable && editingField?.nodeId === node.id) {
+                        return // Don't start dragging, allow text selection
+                      }
+
+                      e.stopPropagation()
+                      setDragStartPos({ x: e.clientX, y: e.clientY })
+                      setIsDragReady(node.id)
+
+                      const rect = canvasRef.current?.getBoundingClientRect()
+                      if (rect) {
+                        const mouseX = e.clientX - rect.left
+                        const mouseY = e.clientY - rect.top
+                        setDragOffset({
+                          x: mouseX - node.x,
+                          y: mouseY - node.y
+                        })
+                      }
+                    }
+                  }}
+                  onClick={(e) => handleNodeClick(node, e)}
+                >
+                  <div
+                    contentEditable={editingField?.nodeId === node.id && editingField?.field === 'content'}
+                    suppressContentEditableWarning
+                    className="w-full bg-transparent border-none outline-none text-sm leading-relaxed"
+                    style={{
+                      color: getTextColor(getNodeColor('text', node.color, node.id)),
+                      caretColor: getTextColor(getNodeColor('text', node.color, node.id)),
+                      userSelect: (editingField?.nodeId === node.id && editingField?.field === 'content') ? 'text' : 'none',
+                      minHeight: '20px',
+                      wordWrap: 'break-word',
+                      overflowWrap: 'break-word',
+                      whiteSpace: 'pre-wrap'
+                    }}
+                    onInput={(e) => {
+                      const newContent = e.currentTarget.innerHTML || ''
+                      const updatedNodes = nodes.map(n =>
+                        n.id === node.id ? { ...n, content: newContent } : n
+                      )
+                      setNodes(updatedNodes)
+                    }}
+                    onBlur={() => {
+                      saveToHistory(nodes, connections)
+                      setEditingField(null)
+                      if (onSave) {
+                        onSave(nodes, connections)
+                      }
+                    }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation()
+                      const target = e.currentTarget
+                      if (editingField?.nodeId === node.id && editingField?.field === 'content') {
+                        target.focus()
+                      } else {
+                        setEditingField({ nodeId: node.id, field: 'content' })
+                        setTimeout(() => target.focus(), 0)
+                      }
+                    }}
+                    spellCheck={false}
+                    ref={(el) => {
+                      if (el && !(editingField?.nodeId === node.id && editingField?.field === 'content')) {
+                        if (el.innerHTML !== (node.content || '')) {
+                          el.innerHTML = node.content || ''
+                        }
+                      }
+                    }}
+                  >
+                  </div>
+
+                  {/* Resize handle - width only */}
+                  {selectedId === node.id && (
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-8 rounded-sm cursor-e-resize"
+                      style={{ backgroundColor: getResizeHandleColor('text') }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation()
+                        setResizingNode(node.id)
+                        setResizeStartSize({ width: node.width || 200, height: 0 })
+                        setResizeStartPos({ x: e.clientX, y: e.clientY })
+                      }}
+                    />
+                  )}
+                </div>
+              )
+            }
+
             // Render image nodes with NO container styling
             if (node.type === 'image') {
               return (
