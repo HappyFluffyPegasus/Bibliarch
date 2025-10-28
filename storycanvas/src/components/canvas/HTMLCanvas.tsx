@@ -112,6 +112,7 @@ interface HTMLCanvasProps {
   initialShowHelp?: boolean
   zoom?: number
   onZoomChange?: (zoom: number) => void
+  eventDepth?: number  // Tracks event-to-event navigation depth (ignores folders/characters/locations)
 }
 
 // Updated with smaller sidebar and trackpad support
@@ -126,7 +127,8 @@ export default function HTMLCanvas({
   canvasHeight = 2000,
   initialShowHelp = false,
   zoom: controlledZoom,
-  onZoomChange
+  onZoomChange,
+  eventDepth = 0
 }: HTMLCanvasProps) {
   const colorContext = useColorContext()
   const [nodes, setNodes] = useState<Node[]>(initialNodes)
@@ -4310,38 +4312,45 @@ export default function HTMLCanvas({
                     )}
                   </div>
 
-                  {/* Navigation arrow for event nodes */}
-                  <div className="absolute top-1 right-1 flex items-center gap-1">
-                    <div
-                      className="p-1 cursor-pointer ${!isPanning ? 'hover:bg-black/10' : ''} rounded"
-                      onClick={async (e) => {
-                        e.stopPropagation()
+                  {/* Navigation arrow for event nodes - only show if event depth < 2 */}
+                  {eventDepth < 2 ? (
+                    <div className="absolute top-1 right-1 flex items-center gap-1">
+                      <div
+                        className="p-1 cursor-pointer ${!isPanning ? 'hover:bg-black/10' : ''} rounded"
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          console.log('[Event Navigation] Clicked event arrow. Node:', node.title, 'Current depth:', eventDepth, 'LinkedCanvas:', node.linkedCanvasId)
 
-                        if (node.linkedCanvasId && onNavigateToCanvas) {
-                          // Navigate to existing canvas
-                          onNavigateToCanvas(node.linkedCanvasId, node.title || 'Event')
-                        } else if (!node.linkedCanvasId && onNavigateToCanvas) {
-                          // Create new linkedCanvasId
-                          const linkedCanvasId = `event-canvas-${node.id}`
-                          const updatedNodes = nodes.map(n =>
-                            n.id === node.id ? { ...n, linkedCanvasId } : n
-                          )
-                          setNodes(updatedNodes)
-                          saveToHistory(updatedNodes, connections)
+                          if (node.linkedCanvasId && onNavigateToCanvas) {
+                            // Navigate to existing canvas
+                            console.log('[Event Navigation] Navigating to existing canvas:', node.linkedCanvasId)
+                            onNavigateToCanvas(node.linkedCanvasId, node.title || 'Event')
+                          } else if (!node.linkedCanvasId && onNavigateToCanvas) {
+                            // Create new linkedCanvasId
+                            const linkedCanvasId = `event-canvas-${node.id}`
+                            console.log('[Event Navigation] Creating new canvas:', linkedCanvasId)
+                            const updatedNodes = nodes.map(n =>
+                              n.id === node.id ? { ...n, linkedCanvasId } : n
+                            )
+                            setNodes(updatedNodes)
+                            saveToHistory(updatedNodes, connections)
 
-                          // Save in background without blocking navigation
-                          if (onSave) {
-                            onSave(updatedNodes, connections)
+                            // Save in background without blocking navigation
+                            if (onSave) {
+                              onSave(updatedNodes, connections)
+                            }
+
+                            onNavigateToCanvas(linkedCanvasId, node.title || 'Event')
                           }
-
-                          onNavigateToCanvas(linkedCanvasId, node.title || 'Event')
-                        }
-                      }}
-                      title="Break down event"
-                    >
-                      <ArrowRight className="w-5 h-5" style={{ color: getIconColor('event', getNodeColor('event', node.color, node.id)), strokeWidth: 1.5 }} />
+                        }}
+                        title="Break down event"
+                      >
+                        <ArrowRight className="w-5 h-5" style={{ color: getIconColor('event', getNodeColor('event', node.color, node.id)), strokeWidth: 1.5 }} />
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    console.log('[Event Navigation] Arrow HIDDEN for event:', node.title, 'depth:', eventDepth), null
+                  )}
 
                   {/* Resize handles for event nodes */}
                   {selectedId === node.id && (

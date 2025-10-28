@@ -598,12 +598,8 @@ export default function StoryPage({ params }: PageProps) {
   }
 
 
-  // Navigate to nested canvas (max 3 levels)
+  // Navigate to nested canvas
   async function handleNavigateToCanvas(canvasId: string, nodeTitle: string) {
-    if (canvasPath.length >= 3) {
-      return
-    }
-
     // Check if already at this canvas (prevent duplicates)
     if (currentCanvasId === canvasId) {
       return
@@ -871,6 +867,11 @@ export default function StoryPage({ params }: PageProps) {
           canvasHeight={2000}
           zoom={zoom}
           onZoomChange={setZoom}
+          eventDepth={(() => {
+            const depth = canvasPath.filter(item => item.id.startsWith('event-canvas-')).length
+            console.log('[Event Depth] Current canvas:', currentCanvasId, 'Path:', canvasPath.map(p => p.id), 'Event depth:', depth)
+            return depth
+          })()}
         />
 
         {/* Loading overlay when switching canvases */}
