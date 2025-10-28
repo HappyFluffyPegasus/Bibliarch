@@ -47,10 +47,12 @@ const getLightnessDescription = (lightness: number): string => {
 
 interface PaletteSelectorProps {
   onColorSelect?: (color: string) => void
-  onPaletteChange?: (palette: ColorPalette) => void
+  onPaletteChange?: (palette: ColorPalette, scope?: 'global' | 'project' | 'folder') => void
   currentPalette?: ColorPalette
   scope?: 'global' | 'project' | 'folder'
   contextId?: string
+  currentFolderId?: string | null // For folder-specific palettes
+  currentFolderTitle?: string | null // For folder-specific palettes
   className?: string
   mode?: 'simple' | 'advanced' // Simple for single colors, advanced for full palettes
   trigger?: React.ReactNode // Custom trigger button
@@ -62,16 +64,19 @@ export function PaletteSelector({
   currentPalette,
   scope = 'global',
   contextId,
+  currentFolderId,
+  currentFolderTitle,
   className,
   mode = 'advanced', // Default to advanced mode for slider-based system
   trigger
 }: PaletteSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
-  
+
   const [selectedTheme, setSelectedTheme] = useState<'light' | 'custom'>('light')
   const [customPalette, setCustomPalette] = useState<ColorPalette | null>(null)
   const [hueAdjustment, setHueAdjustment] = useState([0])
   const [hasShownInitialToast, setHasShownInitialToast] = useState(false)
+  const [selectedScope, setSelectedScope] = useState<'project' | 'folder'>('project')
 
   // Custom color states for the custom color picker (only 3 main colors)
   const [customColors, setCustomColors] = useState({
@@ -147,12 +152,9 @@ export function PaletteSelector({
     }
   }, [baseTemplate, hueAdjustment, selectedTheme, scope, customColors])
   
-  // Show welcome toast when dialog opens and apply initial palette
+  // Show welcome toast when dialog opens (removed auto-apply)
   useEffect(() => {
     if (isOpen && customPalette) {
-      // Apply the current palette when dialog opens
-      applyCurrentPalette()
-      
       if (!hasShownInitialToast) {
 
         setHasShownInitialToast(true)
@@ -179,8 +181,7 @@ export function PaletteSelector({
     if (scope === 'global' && theme === 'light') {
       ColorPaletteManager.setGlobalTheme(theme)
     }
-    // Apply palette after theme change
-    setTimeout(() => applyCurrentPalette(), 0)
+    // Removed auto-apply - user must click "Apply Palette" button
   }
 
   const handleSaveCustomPalette = () => {
@@ -307,7 +308,6 @@ export function PaletteSelector({
                                 ...prev,
                                 [key]: e.target.value
                               }))
-                              setTimeout(() => applyCurrentPalette(), 0)
                             }}
                             className="w-16 h-12 p-0 border-2 rounded cursor-pointer"
                           />
@@ -325,7 +325,6 @@ export function PaletteSelector({
                                   ...prev,
                                   [key]: e.target.value
                                 }))
-                                setTimeout(() => applyCurrentPalette(), 0)
                               }}
                               className="text-sm h-8 mt-1"
                               placeholder="#ffffff"
@@ -334,6 +333,61 @@ export function PaletteSelector({
                         </div>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Scope Selector - only show when in a folder */}
+                  {currentFolderId && currentFolderTitle && (
+                    <div className="space-y-2 pb-2 border-b border-border">
+                      <Label className="text-sm font-medium">Apply to:</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          variant={selectedScope === 'project' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedScope('project')}
+                          className="flex-1"
+                        >
+                          Entire Project
+                        </Button>
+                        <Button
+                          variant={selectedScope === 'folder' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedScope('folder')}
+                          className="flex-1"
+                        >
+                          This Folder
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="space-y-2">
+                    <Button
+                      onClick={() => {
+                        if (customPalette) {
+                          // Apply palette to DOM (CSS variables)
+                          ColorPaletteManager.applyPalette(customPalette)
+
+                          // Also notify parent component if provided
+                          if (onPaletteChange) {
+                            onPaletteChange(customPalette, selectedScope)
+                          }
+
+                          setIsOpen(false)
+                        }
+                      }}
+                      className="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700"
+                    >
+                      Apply Palette
+                    </Button>
+
+                    <Button
+                      onClick={handleSaveCustomPalette}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Save Palette
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -348,7 +402,6 @@ export function PaletteSelector({
                         value={hueAdjustment}
                         onValueChange={(value) => {
                           setHueAdjustment(value)
-                          setTimeout(() => applyCurrentPalette(), 0)
                         }}
                         min={-180}
                         max={180}
@@ -361,6 +414,31 @@ export function PaletteSelector({
                     </div>
                   </div>
 
+                  {/* Scope Selector - only show when in a folder */}
+                  {currentFolderId && currentFolderTitle && (
+                    <div className="space-y-2 pb-2 border-b border-border">
+                      <Label className="text-sm font-medium">Apply to:</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          variant={selectedScope === 'project' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedScope('project')}
+                          className="flex-1"
+                        >
+                          Entire Project
+                        </Button>
+                        <Button
+                          variant={selectedScope === 'folder' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSelectedScope('folder')}
+                          className="flex-1"
+                        >
+                          This Folder
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Action Buttons */}
                   <div className="space-y-2">
                     <Button
@@ -371,9 +449,8 @@ export function PaletteSelector({
 
                           // Also notify parent component if provided
                           if (onPaletteChange) {
-                            onPaletteChange(customPalette)
+                            onPaletteChange(customPalette, selectedScope)
                           }
-
 
                           setIsOpen(false)
                         }

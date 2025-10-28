@@ -72,6 +72,33 @@ export default function StoryPage({ params }: PageProps) {
     colorContext.setCurrentProjectId(resolvedParams.id)
   }, [resolvedParams.id])
 
+  // Set folder context for folder-specific palettes
+  useEffect(() => {
+    // If we're in a folder (not main canvas), set folder context
+    const folderId = currentCanvasId !== 'main' ? currentCanvasId : null
+    colorContext.setCurrentFolderId(folderId)
+
+    // Apply folder palette if exists, otherwise use project palette
+    if (folderId) {
+      const folderPalette = colorContext.getFolderPalette(folderId)
+      if (folderPalette) {
+        colorContext.applyPalette(folderPalette)
+      } else {
+        // Apply project palette if no folder palette exists
+        const projectPalette = colorContext.getCurrentPalette()
+        if (projectPalette) {
+          colorContext.applyPalette(projectPalette)
+        }
+      }
+    } else {
+      // We're on main canvas, use project palette
+      const projectPalette = colorContext.getCurrentPalette()
+      if (projectPalette) {
+        colorContext.applyPalette(projectPalette)
+      }
+    }
+  }, [currentCanvasId, colorContext])
+
   // Track current canvas ID to prevent stale closures
   const currentCanvasIdRef = useRef(currentCanvasId)
   useEffect(() => {
@@ -855,6 +882,8 @@ export default function StoryPage({ params }: PageProps) {
           storyId={resolvedParams.id}
           currentCanvasId={currentCanvasId}
           canvasPath={canvasPath}
+          currentFolderId={currentCanvasId !== 'main' ? currentCanvasId : null}
+          currentFolderTitle={canvasPath.length > 0 ? canvasPath[canvasPath.length - 1].title : null}
           initialNodes={canvasData?.nodes || []}
           initialConnections={canvasData?.connections || []}
           onSave={handleSaveCanvas}

@@ -114,6 +114,8 @@ interface HTMLCanvasProps {
   storyId: string
   currentCanvasId?: string // Current canvas ID to check depth
   canvasPath?: {id: string, title: string}[] // Navigation path to track depth
+  currentFolderId?: string | null // Current folder ID for folder-specific palettes
+  currentFolderTitle?: string | null // Current folder title for folder-specific palettes
   initialNodes?: Node[]
   initialConnections?: Connection[]
   onSave?: (nodes: Node[], connections: Connection[]) => void
@@ -132,6 +134,8 @@ export default function HTMLCanvas({
   storyId,
   currentCanvasId = 'main',
   canvasPath = [],
+  currentFolderId = null,
+  currentFolderTitle = null,
   initialNodes = [],
   initialConnections = [],
   onSave,
@@ -3107,11 +3111,14 @@ export default function HTMLCanvas({
                   (showStylePanel ? 220 : 0) + (showGridPanel ? 220 : 0)
                 }px)`
               }}
+
             >
               <PaletteSelector
                 mode="advanced"
                 scope="project"
                 contextId={storyId}
+                currentFolderId={currentFolderId}
+                currentFolderTitle={currentFolderTitle}
                 onColorSelect={(color) => {
                   if (selectedId) {
                     handleColorChange(selectedId, color)
@@ -3119,11 +3126,16 @@ export default function HTMLCanvas({
 
                   }
                 }}
-                onPaletteChange={(palette) => {
-                  // Apply palette globally to entire project (all sections)
-                  colorContext.setProjectPalette(storyId, palette)
+                onPaletteChange={(palette, selectedScope) => {
+                  if (selectedScope === 'folder' && currentFolderId) {
+                    // Apply to folder only
+                    colorContext.setFolderPalette(currentFolderId, palette)
+                  } else {
+                    // Apply to entire project
+                    colorContext.setProjectPalette(storyId, palette)
+                  }
 
-                  // Apply the palette immediately to all sections
+                  // Apply the palette immediately
                   colorContext.applyPalette(palette)
 
                   // Reset all nodes to use the new theme colors
@@ -3131,8 +3143,6 @@ export default function HTMLCanvas({
 
                   // Force re-render to update node colors
                   setPaletteRefresh(prev => prev + 1)
-
-
                 }}
                 trigger={
                   <Button
@@ -3215,11 +3225,14 @@ export default function HTMLCanvas({
                   (showStylePanel ? 220 : 0) + (showGridPanel ? 220 : 0)
                 }px)`
               }}
+
             >
               <PaletteSelector
                 mode="advanced"
                 scope="project"
                 contextId={storyId}
+                currentFolderId={currentFolderId}
+                currentFolderTitle={currentFolderTitle}
                 onColorSelect={(color) => {
                   if (selectedId) {
                     handleColorChange(selectedId, color)
@@ -3227,11 +3240,16 @@ export default function HTMLCanvas({
 
                   }
                 }}
-                onPaletteChange={(palette) => {
-                  // Apply palette globally to entire project (all sections)
-                  colorContext.setProjectPalette(storyId, palette)
+                onPaletteChange={(palette, selectedScope) => {
+                  if (selectedScope === 'folder' && currentFolderId) {
+                    // Apply to folder only
+                    colorContext.setFolderPalette(currentFolderId, palette)
+                  } else {
+                    // Apply to entire project
+                    colorContext.setProjectPalette(storyId, palette)
+                  }
 
-                  // Apply the palette immediately to all sections
+                  // Apply the palette immediately
                   colorContext.applyPalette(palette)
 
                   // Reset all nodes to use the new theme colors
@@ -3239,8 +3257,6 @@ export default function HTMLCanvas({
 
                   // Force re-render to update node colors
                   setPaletteRefresh(prev => prev + 1)
-
-
                 }}
                 trigger={
                   <Button
