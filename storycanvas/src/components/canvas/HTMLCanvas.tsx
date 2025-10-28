@@ -839,9 +839,24 @@ export default function HTMLCanvas({
       } else if (e.ctrlKey && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
         e.preventDefault()
         redo()
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && (selectedId || selectedIds.length > 0)) {
         e.preventDefault()
-        handleDeleteNode(selectedId)
+        // Delete all selected nodes
+        if (selectedIds.length > 0) {
+          // Delete all selected nodes at once
+          const nodesToDelete = new Set(selectedIds)
+          const newNodes = nodes.filter(node => !nodesToDelete.has(node.id))
+          const newConnections = connections.filter(conn =>
+            !nodesToDelete.has(conn.from) && !nodesToDelete.has(conn.to)
+          )
+          setNodes(newNodes)
+          setConnections(newConnections)
+          saveToHistory(newNodes, newConnections)
+          setSelectedIds([])
+          setSelectedId(null)
+        } else if (selectedId) {
+          handleDeleteNode(selectedId)
+        }
       } else if (e.key === 'Escape') {
         e.preventDefault()
         setSelectedId(null)
@@ -852,7 +867,7 @@ export default function HTMLCanvas({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [undo, redo, selectedId])
+  }, [undo, redo, selectedId, selectedIds, nodes, connections, saveToHistory, setNodes, setConnections, setSelectedId, setSelectedIds])
 
   // Auto-sync: When selectedIds has exactly 1 item, sync to selectedId for single-selection mode
   useEffect(() => {
@@ -1023,6 +1038,20 @@ export default function HTMLCanvas({
 
         // Find nodes within selection box
         const selectedNodes = nodes.filter(node => {
+          // Special handling for line nodes
+          if (node.type === 'line' && node.linePoints) {
+            const { start, middle, end } = node.linePoints
+
+            // Check if any of the three points are within the selection box
+            const pointInBox = (px: number, py: number) =>
+              px >= x && px <= x + width && py >= y && py <= y + height
+
+            return pointInBox(start.x, start.y) ||
+                   pointInBox(middle.x, middle.y) ||
+                   pointInBox(end.x, end.y)
+          }
+
+          // Standard node selection logic
           const nodeRight = node.x + (node.width || 240)
           const nodeBottom = node.y + (node.height || 120)
 
