@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { flushSync } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette, ArrowRight, Menu, Grid3x3 } from 'lucide-react'
+import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette, ArrowRight, Menu, Grid3x3, Bold, Italic, Underline } from 'lucide-react'
 import { PaletteSelector } from '@/components/ui/palette-selector'
 import { NodeStylePanel } from '@/components/ui/node-style-panel'
 import { PerformanceOptimizer } from '@/lib/performance-utils'
@@ -2724,6 +2724,10 @@ export default function HTMLCanvas({
     }
   }
 
+  // Text formatting functions
+  const applyFormatting = (command: string, value?: string) => {
+    document.execCommand(command, false, value)
+  }
 
   return (
     <div className="w-full h-full overflow-hidden flex flex-row bg-background">
@@ -2742,18 +2746,73 @@ export default function HTMLCanvas({
         max-h-screen
         hover-scrollable
       ">
-        {/* Navigation Tools */}
-        <div className="flex flex-col gap-1">
-          <Button
-            size="sm"
-            variant={tool === 'select' ? 'default' : 'outline'}
-            onClick={() => setTool('select')}
-            className={`h-12 w-14 p-0 ${tool === 'select' ? 'bg-sky-600 text-white' : ''}`}
-            title="Select Tool - Move nodes, multi-select with drag or shift-click"
-          >
-            <MousePointer className="w-7 h-7" />
-          </Button>
-        </div>
+        {editingField ? (
+          /* Text Formatting Tools */
+          <>
+            <div className="text-xs text-center text-muted-foreground px-2 mb-2">
+              Text Format
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onMouseDown={(e) => {
+                  e.preventDefault() // Prevent focus loss
+                  applyFormatting('bold')
+                }}
+                className="h-12 w-14 p-0"
+                title="Bold (Ctrl+B)"
+              >
+                <Bold className="w-7 h-7" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onMouseDown={(e) => {
+                  e.preventDefault() // Prevent focus loss
+                  applyFormatting('italic')
+                }}
+                className="h-12 w-14 p-0"
+                title="Italic (Ctrl+I)"
+              >
+                <Italic className="w-7 h-7" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onMouseDown={(e) => {
+                  e.preventDefault() // Prevent focus loss
+                  applyFormatting('underline')
+                }}
+                className="h-12 w-14 p-0"
+                title="Underline (Ctrl+U)"
+              >
+                <Underline className="w-7 h-7" />
+              </Button>
+            </div>
+
+            <div className="w-8 h-px bg-border my-2" />
+
+            <div className="text-xs text-center text-muted-foreground px-2 mt-4">
+              Click outside to close
+            </div>
+          </>
+        ) : (
+          /* Normal Canvas Tools */
+          <>
+            {/* Navigation Tools */}
+            <div className="flex flex-col gap-1">
+              <Button
+                size="sm"
+                variant={tool === 'select' ? 'default' : 'outline'}
+                onClick={() => setTool('select')}
+                className={`h-12 w-14 p-0 ${tool === 'select' ? 'bg-sky-600 text-white' : ''}`}
+                title="Select Tool - Move nodes, multi-select with drag or shift-click"
+              >
+                <MousePointer className="w-7 h-7" />
+              </Button>
+            </div>
 
         {/* Divider */}
         <div className="w-8 h-px bg-border my-2" />
@@ -2914,6 +2973,8 @@ export default function HTMLCanvas({
         <div className="w-8 h-px bg-border my-2" />
 
         {/* Canvas Controls */}
+          </>
+        )}
       </div>
 
       {/* Canvas Area */}
@@ -5951,7 +6012,7 @@ export default function HTMLCanvas({
                                     userSelect: (editingField?.nodeId === childNode.id && editingField?.field === 'content') ? 'text' : 'none'
                                   }}
                                   onBlur={(e) => {
-                                    const newContent = e.currentTarget.textContent || ''
+                                    const newContent = e.currentTarget.innerHTML || ''
                                     const updatedNodes = nodes.map(n =>
                                       n.id === childNode.id ? { ...n, content: newContent } : n
                                     )
@@ -5984,8 +6045,8 @@ export default function HTMLCanvas({
                                   data-placeholder="Write your content here..."
                                   ref={(el) => {
                                     if (el && !(editingField?.nodeId === childNode.id && editingField?.field === 'content')) {
-                                      if (el.textContent !== (childNode.content || '')) {
-                                        el.textContent = childNode.content || ''
+                                      if (el.innerHTML !== (childNode.content || '')) {
+                                        el.innerHTML = childNode.content || ''
                                       }
                                     }
                                   }}
@@ -6078,7 +6139,7 @@ export default function HTMLCanvas({
                         return
                       }
 
-                      const newContent = e.currentTarget.textContent || ''
+                      const newContent = e.currentTarget.innerHTML || ''
                       const updatedNodes = nodes.map(n =>
                         n.id === node.id ? { ...n, content: newContent } : n
                       )
@@ -6126,8 +6187,8 @@ export default function HTMLCanvas({
                     data-placeholder="Write your content here..."
                     ref={(el) => {
                       if (el && !(editingField?.nodeId === node.id && editingField?.field === 'content')) {
-                        if (el.textContent !== (node.content || '')) {
-                          el.textContent = node.content || ''
+                        if (el.innerHTML !== (node.content || '')) {
+                          el.innerHTML = node.content || ''
                         }
                       }
                     }}
