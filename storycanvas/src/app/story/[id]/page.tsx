@@ -853,6 +853,8 @@ export default function StoryPage({ params }: PageProps) {
         <Bibliarch
           key={currentCanvasId}
           storyId={resolvedParams.id}
+          currentCanvasId={currentCanvasId}
+          canvasPath={canvasPath}
           initialNodes={canvasData?.nodes || []}
           initialConnections={canvasData?.connections || []}
           onSave={handleSaveCanvas}
@@ -867,11 +869,7 @@ export default function StoryPage({ params }: PageProps) {
           canvasHeight={2000}
           zoom={zoom}
           onZoomChange={setZoom}
-          eventDepth={(() => {
-            const depth = canvasPath.filter(item => item.id.startsWith('event-canvas-')).length
-            console.log('[Event Depth] Current canvas:', currentCanvasId, 'Path:', canvasPath.map(p => p.id), 'Event depth:', depth)
-            return depth
-          })()}
+          eventDepth={canvasPath.filter(item => item.id.startsWith('event-canvas-')).length}
         />
 
         {/* Loading overlay when switching canvases */}

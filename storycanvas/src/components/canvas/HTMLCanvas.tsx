@@ -102,6 +102,8 @@ interface NodeStylePreferences {
 
 interface HTMLCanvasProps {
   storyId: string
+  currentCanvasId?: string // Current canvas ID to check depth
+  canvasPath?: {id: string, title: string}[] // Navigation path to track depth
   initialNodes?: Node[]
   initialConnections?: Connection[]
   onSave?: (nodes: Node[], connections: Connection[]) => void
@@ -118,6 +120,8 @@ interface HTMLCanvasProps {
 // Updated with smaller sidebar and trackpad support
 export default function HTMLCanvas({
   storyId,
+  currentCanvasId = 'main',
+  canvasPath = [],
   initialNodes = [],
   initialConnections = [],
   onSave,
@@ -4313,22 +4317,19 @@ export default function HTMLCanvas({
                   </div>
 
                   {/* Navigation arrow for event nodes - only show if event depth < 2 */}
-                  {eventDepth < 2 ? (
+                  {eventDepth < 2 && (
                     <div className="absolute top-1 right-1 flex items-center gap-1">
                       <div
-                        className="p-1 cursor-pointer ${!isPanning ? 'hover:bg-black/10' : ''} rounded"
+                        className="p-1 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 rounded"
                         onClick={async (e) => {
                           e.stopPropagation()
-                          console.log('[Event Navigation] Clicked event arrow. Node:', node.title, 'Current depth:', eventDepth, 'LinkedCanvas:', node.linkedCanvasId)
 
                           if (node.linkedCanvasId && onNavigateToCanvas) {
                             // Navigate to existing canvas
-                            console.log('[Event Navigation] Navigating to existing canvas:', node.linkedCanvasId)
                             onNavigateToCanvas(node.linkedCanvasId, node.title || 'Event')
                           } else if (!node.linkedCanvasId && onNavigateToCanvas) {
                             // Create new linkedCanvasId
                             const linkedCanvasId = `event-canvas-${node.id}`
-                            console.log('[Event Navigation] Creating new canvas:', linkedCanvasId)
                             const updatedNodes = nodes.map(n =>
                               n.id === node.id ? { ...n, linkedCanvasId } : n
                             )
@@ -4348,8 +4349,6 @@ export default function HTMLCanvas({
                         <ArrowRight className="w-5 h-5" style={{ color: getIconColor('event', getNodeColor('event', node.color, node.id)), strokeWidth: 1.5 }} />
                       </div>
                     </div>
-                  ) : (
-                    console.log('[Event Navigation] Arrow HIDDEN for event:', node.title, 'depth:', eventDepth), null
                   )}
 
                   {/* Resize handles for event nodes */}
@@ -5767,6 +5766,51 @@ export default function HTMLCanvas({
                                           }
                                         }}
                                       />
+
+                                      {/* Navigation arrow - hide after 2 event canvas levels */}
+                                      {(() => {
+                                        const eventCanvasDepth = canvasPath.filter(item => item.id.startsWith('event-canvas-')).length
+                                        console.log('LIST:', {canvasPath, eventCanvasDepth, show: eventCanvasDepth < 2})
+                                        if (eventCanvasDepth >= 2) return null
+
+                                        return (
+                                          <div
+                                            className="p-1 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 rounded flex-shrink-0"
+                                            onClick={async (e) => {
+                                              e.stopPropagation()
+
+                                              if (!onNavigateToCanvas) return
+
+                                              const currentNode = nodes.find(n => n.id === childNode.id)
+                                              if (!currentNode) return
+
+                                              const nodeTitle = currentNode.title || 'Event'
+
+                                              if (currentNode.linkedCanvasId) {
+                                                onNavigateToCanvas(currentNode.linkedCanvasId, nodeTitle)
+                                              } else {
+                                                // Create new linkedCanvasId
+                                                const linkedCanvasId = `event-canvas-${currentNode.id}`
+                                                const updatedNodes = nodes.map(n =>
+                                                  n.id === currentNode.id ? { ...n, linkedCanvasId } : n
+                                                )
+                                                setNodes(updatedNodes)
+                                                saveToHistory(updatedNodes, connections)
+
+                                                // Save in background without blocking navigation
+                                                if (onSave) {
+                                                  onSave(updatedNodes, connections)
+                                                }
+
+                                                onNavigateToCanvas(linkedCanvasId, nodeTitle)
+                                              }
+                                            }}
+                                            title="Break down event"
+                                          >
+                                            <ArrowRight className="w-5 h-5" style={{ color: getIconColor('event', getNodeColor('event', childNode.color, childNode.id), true), strokeWidth: 1.5 }} />
+                                          </div>
+                                        )
+                                      })()}
 
                                       {/* Remove button */}
                                       <button
