@@ -724,9 +724,11 @@ export default function HTMLCanvas({
 
   // Redo function
   const redo = useCallback(() => {
+    let shouldIncrement = false
     setHistoryIndex(currentIndex => {
       setHistory(currentHistory => {
         if (currentIndex < currentHistory.length - 1) {
+          shouldIncrement = true
           const newIndex = currentIndex + 1
           const nextState = currentHistory[newIndex]
           if (nextState) {
@@ -734,13 +736,12 @@ export default function HTMLCanvas({
             setNodes(JSON.parse(JSON.stringify(nextState.nodes)))
             setConnections(JSON.parse(JSON.stringify(nextState.connections)))
           }
-          return currentHistory
         }
         return currentHistory
       })
-      return currentIndex < history.length - 1 ? currentIndex + 1 : currentIndex
+      return shouldIncrement ? currentIndex + 1 : currentIndex
     })
-  }, [history.length])
+  }, [])
 
   // Node style preferences update function
   const updateNodeStylePreference = useCallback((key: keyof NodeStylePreferences, value: string) => {
