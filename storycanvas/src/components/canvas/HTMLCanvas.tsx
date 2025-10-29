@@ -574,9 +574,32 @@ export default function HTMLCanvas({
     const handlePaletteChange = () => {
       setPaletteRefresh(prev => prev + 1)
     }
-    
+
     window.addEventListener('paletteChanged', handlePaletteChange)
     return () => window.removeEventListener('paletteChanged', handlePaletteChange)
+  }, [])
+
+  // Add native wheel event listener with passive: false to enable zoom preventDefault
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const handleNativeWheel = (e: WheelEvent) => {
+      // Check if Ctrl/Cmd key is pressed for zoom
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault() // This now works because passive: false
+
+        // Use same zoom delta as buttons for consistent behavior (1.2x / 0.8x = 20% change)
+        const zoomDelta = e.deltaY > 0 ? 0.8 : 1.2
+        setZoom(currentZoom => {
+          const newZoom = Math.max(0.1, Math.min(3, currentZoom * zoomDelta))
+          return newZoom
+        })
+      }
+    }
+
+    canvas.addEventListener('wheel', handleNativeWheel, { passive: false })
+    return () => canvas.removeEventListener('wheel', handleNativeWheel)
   }, [])
 
   // Initialize nodes from props when they change (canvas navigation)
@@ -1563,27 +1586,8 @@ export default function HTMLCanvas({
     }
   }, [isMoving, draggingNode, isDragReady, isResizeReady, resizingNode, nodes, connections, saveToHistory, dragPosition, tool, selectedIds, zoom, isSelecting, selectionStart, zoomCenter, draggingLineVertex, onSave])
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    // Check if Ctrl key is pressed for zoom, otherwise allow normal scrolling
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault()
-
-      const rect = canvasRef.current?.getBoundingClientRect()
-      if (!rect) return
-
-      // Calculate zoom center relative to canvas
-      const centerX = e.clientX - rect.left
-      const centerY = e.clientY - rect.top
-
-      // Zoom delta
-      const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1
-      const newZoom = Math.max(0.1, Math.min(3, zoom * zoomDelta))
-
-      setZoom(newZoom)
-      setZoomCenter({ x: centerX, y: centerY })
-    }
-    // Allow normal scrolling when Ctrl is not pressed
-  }, [zoom])
+  // Note: Mouse wheel zoom is now handled by native event listener with passive:false (see useEffect above)
+  // This ensures preventDefault() works to stop browser zoom
 
   const getDefaultText = (nodeType: string) => {
     switch (nodeType) {
@@ -3428,7 +3432,6 @@ export default function HTMLCanvas({
           onTouchMove={handleCanvasMouseMove}
           onTouchEnd={(e) => handleCanvasMouseUp()}
           onContextMenu={(e) => e.preventDefault()}
-          onWheel={handleWheel}
           style={{
             width: `${canvasWidth}px`,
             height: `${canvasHeight}px`,
