@@ -3031,9 +3031,9 @@ export default function HTMLCanvas({
 
         {/* Undo/Redo Controls */}
         <div className="flex flex-col gap-1">
-          <Button 
-            size="sm" 
-            variant="outline" 
+          <Button
+            size="sm"
+            variant="outline"
             onClick={undo}
             disabled={historyIndex <= 0}
             className="h-11 w-14 p-0"
@@ -3041,9 +3041,9 @@ export default function HTMLCanvas({
           >
             <Undo className="w-7 h-7" />
           </Button>
-          <Button 
-            size="sm" 
-            variant="outline" 
+          <Button
+            size="sm"
+            variant="outline"
             onClick={redo}
             disabled={historyIndex >= history.length - 1}
             className="h-11 w-14 p-0"
@@ -3603,7 +3603,7 @@ export default function HTMLCanvas({
                     width: node.width || 200,
                     minHeight: '32px',
                     maxHeight: '400px',
-                    overflow: 'visible',
+                    overflow: 'hidden',
                     backgroundColor: getNodeColor('text', node.color, node.id),
                     borderColor: (selectedId === node.id || selectedIds.includes(node.id)) ? getResizeHandleColor('text') : getNodeBorderColor('text'),
                     outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor('text')}` : 'none',
@@ -5567,6 +5567,7 @@ export default function HTMLCanvas({
                 outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
                 outlineOffset: '-3px',
                 opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
+                overflow: 'hidden',
                 transition: draggingNode ? 'none' : 'opacity 0.1s ease'
               }}
               onDoubleClick={(e) => {
