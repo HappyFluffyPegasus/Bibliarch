@@ -7663,6 +7663,9 @@ export default function HTMLCanvas({
 
                     setNodes(updatedNodes)
                     saveToHistory(updatedNodes, connections)
+                    if (onSave) {
+                      onSave(updatedNodes, connections)
+                    }
 
                     // Update modal state
                     const updatedNode = updatedNodes.find(n => n.id === currentNode.id)
@@ -7778,6 +7781,9 @@ export default function HTMLCanvas({
 
                     setNodes(updatedNodes)
                     saveToHistory(updatedNodes, connections)
+                    if (onSave) {
+                      onSave(updatedNodes, connections)
+                    }
 
                     // Update modal state
                     const updatedNode = updatedNodes.find(n => n.id === currentNode.id)
