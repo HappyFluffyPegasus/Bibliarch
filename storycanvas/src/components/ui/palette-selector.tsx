@@ -102,12 +102,35 @@ export function PaletteSelector({
 
   useEffect(() => {
     // Set initial theme based on current palette or default to light
-    if (currentPalette && currentPalette.theme === 'light') {
-      setSelectedTheme('light')
+    if (currentPalette) {
+      // Check if this is a custom color palette (ID starts with "custom-")
+      if (currentPalette.id.startsWith('custom-')) {
+        setSelectedTheme('custom')
+        // Try to extract custom colors from the palette if possible
+        if (currentPalette.colors) {
+          setCustomColors({
+            main: currentPalette.colors.nodeDefault || '#FFB6C1',
+            complementary: currentPalette.colors.nodeText || '#3F3F46',
+            accent: currentPalette.colors.canvasBackground || '#E0F2FE'
+          })
+        }
+      } else {
+        // It's a slider-based palette
+        setSelectedTheme('light')
+
+        // Extract hue from the current palette to initialize slider position
+        const matches = currentPalette.id.match(/-(\d+)-/)
+        if (matches) {
+          const currentHue = parseInt(matches[1])
+          const baseHue = 200 // Our base hue
+          const hueOffset = ((currentHue - baseHue + 540) % 360) - 180 // Calculate offset (-180 to 180)
+          setHueAdjustment([hueOffset])
+        }
+      }
     } else {
       setSelectedTheme('light') // Always default to light since we removed dark mode
     }
-  }, [currentPalette])
+  }, [currentPalette, isOpen])
 
   useEffect(() => {
     if (selectedTheme === 'custom') {
@@ -388,6 +411,34 @@ export function PaletteSelector({
                     >
                       Save Palette
                     </Button>
+
+                    {(currentPalette || (selectedScope === 'folder' && currentFolderId)) && (
+                      <Button
+                        onClick={() => {
+                          if (selectedScope === 'folder' && currentFolderId) {
+                            // Remove folder palette - let it inherit from project
+                            localStorage.removeItem(`neighbornotes-folder-palettes-${currentFolderId}`)
+                          } else if (contextId) {
+                            // Remove project palette - let it use default
+                            localStorage.removeItem(`neighbornotes-project-palette-${contextId}`)
+                          }
+
+                          // Apply default palette
+                          const defaultPalette = ColorPaletteManager.getAllPalettes().find(p => p.theme === 'light' && p.isDefault)
+                          if (defaultPalette && onPaletteChange) {
+                            ColorPaletteManager.applyPalette(defaultPalette)
+                            onPaletteChange(defaultPalette, selectedScope)
+                          }
+
+                          setIsOpen(false)
+                        }}
+                        variant="outline"
+                        className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Remove Custom Palette
+                      </Button>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -467,6 +518,34 @@ export function PaletteSelector({
                     >
                       Save Palette
                     </Button>
+
+                    {(currentPalette || (selectedScope === 'folder' && currentFolderId)) && (
+                      <Button
+                        onClick={() => {
+                          if (selectedScope === 'folder' && currentFolderId) {
+                            // Remove folder palette - let it inherit from project
+                            localStorage.removeItem(`neighbornotes-folder-palettes-${currentFolderId}`)
+                          } else if (contextId) {
+                            // Remove project palette - let it use default
+                            localStorage.removeItem(`neighbornotes-project-palette-${contextId}`)
+                          }
+
+                          // Apply default palette
+                          const defaultPalette = ColorPaletteManager.getAllPalettes().find(p => p.theme === 'light' && p.isDefault)
+                          if (defaultPalette && onPaletteChange) {
+                            ColorPaletteManager.applyPalette(defaultPalette)
+                            onPaletteChange(defaultPalette, selectedScope)
+                          }
+
+                          setIsOpen(false)
+                        }}
+                        variant="outline"
+                        className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Remove Custom Palette
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}

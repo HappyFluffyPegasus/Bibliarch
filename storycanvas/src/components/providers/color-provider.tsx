@@ -68,12 +68,15 @@ export function ColorProvider({ children, projectId }: ColorProviderProps) {
       if (savedProjectPalette) {
         ColorPaletteManager.applyPalette(savedProjectPalette)
       } else {
-        // No saved palette - apply default for current theme
+        // No saved palette - apply and SAVE default for current theme
         const defaultPalette = ColorPaletteManager.getAllPalettes().find(p =>
           p.theme === savedTheme && p.isDefault
         )
         if (defaultPalette) {
           ColorPaletteManager.applyPalette(defaultPalette)
+          // Save the default palette so it persists for this project
+          ColorPaletteManager.setProjectPalette(currentProjectId, defaultPalette)
+          setProjectPaletteState(defaultPalette)
         }
       }
     } else {
