@@ -154,6 +154,7 @@ export default function HTMLCanvas({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [tool, setTool] = useState<'pan' | 'select' | 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'connect' | 'relationship-canvas' | 'line' | 'compact-text'>('select')
   const [editingField, setEditingField] = useState<{nodeId: string, field: string} | null>(null)
+  const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
   const [showHelp, setShowHelp] = useState(initialShowHelp)
@@ -315,6 +316,29 @@ export default function HTMLCanvas({
   const [history, setHistory] = useState<{ nodes: Node[], connections: Connection[] }[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const maxHistorySize = 50
+
+  // Delayed blur handler to allow Grammarly and other extensions to apply changes
+  const handleDelayedBlur = useCallback((callback: () => void) => {
+    // Clear any existing timeout
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current)
+    }
+
+    // Set a new timeout to exit edit mode after 150ms
+    // This gives Grammarly time to apply its corrections
+    blurTimeoutRef.current = setTimeout(() => {
+      callback()
+      blurTimeoutRef.current = null
+    }, 150)
+  }, [])
+
+  // Cancel blur timeout if field regains focus
+  const cancelDelayedBlur = useCallback(() => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current)
+      blurTimeoutRef.current = null
+    }
+  }, [])
 
   // Function to preserve cursor position during content updates
   const preserveCursorPosition = useCallback((element: HTMLElement, newContent: string) => {
@@ -3719,12 +3743,15 @@ export default function HTMLCanvas({
                       setNodes(updatedNodes)
                     }}
                     onBlur={() => {
-                      saveToHistory(nodes, connections)
-                      setEditingField(null)
-                      if (onSave) {
-                        onSave(nodes, connections)
-                      }
+                      handleDelayedBlur(() => {
+                        saveToHistory(nodes, connections)
+                        setEditingField(null)
+                        if (onSave) {
+                          onSave(nodes, connections)
+                        }
+                      })
                     }}
+                    onFocus={cancelDelayedBlur}
                     onDoubleClick={(e) => {
                       e.stopPropagation()
                       const target = e.currentTarget
@@ -3857,12 +3884,15 @@ export default function HTMLCanvas({
                             n.id === node.id ? { ...n, title: newTitle } : n
                           )
                           setNodes(updatedNodes)
-                          saveToHistory(updatedNodes, connections)
-                          setEditingField(null)
-                          if (onSave) {
-                            onSave(updatedNodes, connections)
-                          }
+                          handleDelayedBlur(() => {
+                            saveToHistory(updatedNodes, connections)
+                            setEditingField(null)
+                            if (onSave) {
+                              onSave(updatedNodes, connections)
+                            }
+                          })
                         }}
+                        onFocus={cancelDelayedBlur}
                         onClick={(e) => {
                           e.stopPropagation()
                           if (editingField?.nodeId === node.id && editingField?.field === 'header') {
@@ -4074,12 +4104,15 @@ export default function HTMLCanvas({
                             n.id === node.id ? { ...n, content: newCaption } : n
                           )
                           setNodes(updatedNodes)
-                          saveToHistory(updatedNodes, connections)
-                          setEditingField(null)
-                          if (onSave) {
-                            onSave(updatedNodes, connections)
-                          }
+                          handleDelayedBlur(() => {
+                            saveToHistory(updatedNodes, connections)
+                            setEditingField(null)
+                            if (onSave) {
+                              onSave(updatedNodes, connections)
+                            }
+                          })
                         }}
+                        onFocus={cancelDelayedBlur}
                         onClick={(e) => {
                           e.stopPropagation()
                           if (editingField?.nodeId === node.id && editingField?.field === 'caption') {
@@ -4436,12 +4469,15 @@ export default function HTMLCanvas({
                             n.id === node.id ? { ...n, text: newText } : n
                           )
                           setNodes(updatedNodes)
-                          saveToHistory(updatedNodes, connections)
-                          setEditingField(null)
-                          if (onSave) {
-                            onSave(updatedNodes, connections)
-                          }
+                          handleDelayedBlur(() => {
+                            saveToHistory(updatedNodes, connections)
+                            setEditingField(null)
+                            if (onSave) {
+                              onSave(updatedNodes, connections)
+                            }
+                          })
                         }}
+                        onFocus={cancelDelayedBlur}
                         onClick={(e) => {
                           e.stopPropagation()
                           if (editingField?.nodeId === node.id && editingField?.field === 'title') {
@@ -5488,12 +5524,15 @@ export default function HTMLCanvas({
                             n.id === node.id ? { ...n, text: newText } : n
                           )
                           setNodes(updatedNodes)
-                          saveToHistory(updatedNodes, connections)
-                          setEditingField(null)
-                          if (onSave) {
-                            onSave(updatedNodes, connections)
-                          }
+                          handleDelayedBlur(() => {
+                            saveToHistory(updatedNodes, connections)
+                            setEditingField(null)
+                            if (onSave) {
+                              onSave(updatedNodes, connections)
+                            }
+                          })
                         }}
+                        onFocus={cancelDelayedBlur}
                         onClick={(e) => {
                           e.stopPropagation()
                           if (editingField?.nodeId === node.id && editingField?.field === 'title') {
@@ -6593,12 +6632,15 @@ export default function HTMLCanvas({
                       }
                     }}
                     onBlur={() => {
-                      saveToHistory(nodes, connections)
-                      setEditingField(null)
-                      if (onSave) {
-                        onSave(nodes, connections)
-                      }
+                      handleDelayedBlur(() => {
+                        saveToHistory(nodes, connections)
+                        setEditingField(null)
+                        if (onSave) {
+                          onSave(nodes, connections)
+                        }
+                      })
                     }}
+                    onFocus={cancelDelayedBlur}
                     onDoubleClick={(e) => {
                       e.stopPropagation()
                       const target = e.currentTarget
@@ -7326,16 +7368,42 @@ export default function HTMLCanvas({
                             // First character selected
                             setSelectedCharacterForConnection(character.id)
                           } else if (selectedCharacterForConnection !== character.id) {
-                            // Second character selected, create relationship
+                            // Second character selected - check if relationship already exists
                             const fromCharacter = relationshipCanvasModal.node.relationshipData?.selectedCharacters?.find(c => c.id === selectedCharacterForConnection)
                             const toCharacter = character
 
                             if (fromCharacter) {
-                              setRelationshipModal({
-                                isOpen: true,
-                                fromCharacter: { id: fromCharacter.id, name: fromCharacter.name },
-                                toCharacter: { id: toCharacter.id, name: toCharacter.name }
-                              })
+                              // Check for existing relationship (in either direction)
+                              const existingRelationship = relationshipCanvasModal.node.relationshipData?.relationships?.find(rel =>
+                                (rel.fromCharacterId === fromCharacter.id && rel.toCharacterId === toCharacter.id) ||
+                                (rel.fromCharacterId === toCharacter.id && rel.toCharacterId === fromCharacter.id)
+                              )
+
+                              if (existingRelationship) {
+                                // Open edit modal for existing relationship
+                                setRelationshipModal({
+                                  isOpen: true,
+                                  fromCharacter: { id: fromCharacter.id, name: fromCharacter.name },
+                                  toCharacter: { id: toCharacter.id, name: toCharacter.name },
+                                  editingRelationship: {
+                                    id: existingRelationship.id,
+                                    relationshipType: existingRelationship.relationshipType,
+                                    strength: existingRelationship.strength,
+                                    label: existingRelationship.label,
+                                    notes: existingRelationship.notes || '',
+                                    reverseRelationshipType: existingRelationship.reverseRelationshipType,
+                                    reverseStrength: existingRelationship.reverseStrength,
+                                    reverseLabel: existingRelationship.reverseLabel
+                                  }
+                                })
+                              } else {
+                                // Open create modal for new relationship
+                                setRelationshipModal({
+                                  isOpen: true,
+                                  fromCharacter: { id: fromCharacter.id, name: fromCharacter.name },
+                                  toCharacter: { id: toCharacter.id, name: toCharacter.name }
+                                })
+                              }
                             }
                             setSelectedCharacterForConnection(null)
                           }
@@ -7405,7 +7473,10 @@ export default function HTMLCanvas({
       {/* Relationship Creation Modal */}
       {relationshipModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-background p-6 rounded-lg shadow-lg border max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div
+            key={relationshipModal.editingRelationship?.id || 'new'}
+            className="bg-background p-6 rounded-lg shadow-lg border max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto"
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">
                 {relationshipModal.editingRelationship ? 'Edit Relationship' : 'Create Relationship'}
@@ -7618,6 +7689,9 @@ export default function HTMLCanvas({
 
                     setNodes(updatedNodes)
                     saveToHistory(updatedNodes, connections)
+                    if (onSave) {
+                      onSave(updatedNodes, connections)
+                    }
 
                     // Update modal state
                     const updatedNode = updatedNodes.find(n => n.id === currentNode.id)
