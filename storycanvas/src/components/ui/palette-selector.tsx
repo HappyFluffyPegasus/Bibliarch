@@ -47,7 +47,7 @@ const getLightnessDescription = (lightness: number): string => {
 
 interface PaletteSelectorProps {
   onColorSelect?: (color: string) => void
-  onPaletteChange?: (palette: ColorPalette, scope?: 'global' | 'project' | 'folder') => void
+  onPaletteChange?: (palette: ColorPalette, scope?: 'reset' | 'project' | 'folder') => void
   currentPalette?: ColorPalette
   scope?: 'global' | 'project' | 'folder'
   contextId?: string
@@ -76,7 +76,7 @@ export function PaletteSelector({
   const [customPalette, setCustomPalette] = useState<ColorPalette | null>(null)
   const [hueAdjustment, setHueAdjustment] = useState([0])
   const [hasShownInitialToast, setHasShownInitialToast] = useState(false)
-  const [selectedScope, setSelectedScope] = useState<'project' | 'folder'>('project')
+  const [selectedScope, setSelectedScope] = useState<'global' | 'project' | 'folder' | 'reset'>('project')
 
   // Custom color states for the custom color picker (only 3 main colors)
   const [customColors, setCustomColors] = useState({
@@ -358,30 +358,43 @@ export function PaletteSelector({
                     </div>
                   </div>
 
-                  {/* Scope Selector - only show when in a folder */}
-                  {currentFolderId && currentFolderTitle && (
-                    <div className="space-y-2 pb-2 border-b border-border">
-                      <Label className="text-sm font-medium">Apply to:</Label>
-                      <div className="flex gap-2">
-                        <Button
-                          variant={selectedScope === 'project' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedScope('project')}
-                          className="flex-1"
-                        >
-                          Entire Project
-                        </Button>
-                        <Button
-                          variant={selectedScope === 'folder' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedScope('folder')}
-                          className="flex-1"
-                        >
-                          This Folder
-                        </Button>
-                      </div>
+                  {/* Scope Selector */}
+                  <div className="space-y-2 pb-2 border-b border-border">
+                    <Label className="text-sm font-medium">Apply to:</Label>
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        variant={selectedScope === 'project' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedScope('project')}
+                        className="w-full"
+                      >
+                        Main Theme
+                      </Button>
+                      <Button
+                        variant={selectedScope === 'reset' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedScope('reset')}
+                        className="w-full"
+                      >
+                        Reset All Sections
+                      </Button>
+                      <Button
+                        variant={selectedScope === 'folder' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedScope('folder')}
+                        disabled={!currentFolderId}
+                        className="w-full"
+                        title={!currentFolderId ? 'Navigate to a section to use this option' : currentFolderTitle ? `Apply to ${currentFolderTitle}` : 'This Section Only'}
+                      >
+                        {currentFolderTitle ? currentFolderTitle : 'This Section Only'}
+                      </Button>
+                      {!currentFolderId && (
+                        <p className="text-xs text-muted-foreground">
+                          Navigate to a section to customize it
+                        </p>
+                      )}
                     </div>
-                  )}
+                  </div>
 
                   {/* Action Buttons */}
                   <div className="space-y-2">
@@ -412,7 +425,7 @@ export function PaletteSelector({
                       Save Palette
                     </Button>
 
-                    {(currentPalette || (selectedScope === 'folder' && currentFolderId)) && (
+                    {(currentPalette || (selectedScope === 'folder' && currentFolderId) || selectedScope === 'project') && selectedScope !== 'reset' && (
                       <Button
                         onClick={() => {
                           if (selectedScope === 'folder' && currentFolderId) {
@@ -465,30 +478,43 @@ export function PaletteSelector({
                     </div>
                   </div>
 
-                  {/* Scope Selector - only show when in a folder */}
-                  {currentFolderId && currentFolderTitle && (
-                    <div className="space-y-2 pb-2 border-b border-border">
-                      <Label className="text-sm font-medium">Apply to:</Label>
-                      <div className="flex gap-2">
-                        <Button
-                          variant={selectedScope === 'project' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedScope('project')}
-                          className="flex-1"
-                        >
-                          Entire Project
-                        </Button>
-                        <Button
-                          variant={selectedScope === 'folder' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedScope('folder')}
-                          className="flex-1"
-                        >
-                          This Folder
-                        </Button>
-                      </div>
+                  {/* Scope Selector */}
+                  <div className="space-y-2 pb-2 border-b border-border">
+                    <Label className="text-sm font-medium">Apply to:</Label>
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        variant={selectedScope === 'project' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedScope('project')}
+                        className="w-full"
+                      >
+                        Main Theme
+                      </Button>
+                      <Button
+                        variant={selectedScope === 'reset' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedScope('reset')}
+                        className="w-full"
+                      >
+                        Reset All Sections
+                      </Button>
+                      <Button
+                        variant={selectedScope === 'folder' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedScope('folder')}
+                        disabled={!currentFolderId}
+                        className="w-full"
+                        title={!currentFolderId ? 'Navigate to a section to use this option' : currentFolderTitle ? `Apply to ${currentFolderTitle}` : 'This Section Only'}
+                      >
+                        {currentFolderTitle ? currentFolderTitle : 'This Section Only'}
+                      </Button>
+                      {!currentFolderId && (
+                        <p className="text-xs text-muted-foreground">
+                          Navigate to a section to customize it
+                        </p>
+                      )}
                     </div>
-                  )}
+                  </div>
 
                   {/* Action Buttons */}
                   <div className="space-y-2">
@@ -519,7 +545,7 @@ export function PaletteSelector({
                       Save Palette
                     </Button>
 
-                    {(currentPalette || (selectedScope === 'folder' && currentFolderId)) && (
+                    {(currentPalette || (selectedScope === 'folder' && currentFolderId) || selectedScope === 'project') && selectedScope !== 'reset' && (
                       <Button
                         onClick={() => {
                           if (selectedScope === 'folder' && currentFolderId) {

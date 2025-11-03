@@ -382,6 +382,25 @@ export class ColorPaletteManager {
     }
   }
 
+  // Clear all folder palettes for a project (for clean slate reset)
+  static clearAllFolderPalettes(): void {
+    try {
+      // Find all localStorage keys that match folder palette pattern
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith('neighbornotes-folder-palettes-')) {
+          keysToRemove.push(key)
+        }
+      }
+
+      // Remove all folder palette keys
+      keysToRemove.forEach(key => localStorage.removeItem(key))
+    } catch (error) {
+      console.error('Failed to clear folder palettes:', error)
+    }
+  }
+
   // Palette application functions
   static applyGlobalTheme(theme: 'light' | 'dark'): void {
     document.documentElement.setAttribute('data-theme', theme)

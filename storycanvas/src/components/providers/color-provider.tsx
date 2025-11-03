@@ -7,25 +7,28 @@ interface ColorContextValue {
   // Global theme (light/dark)
   globalTheme: 'light' | 'dark'
   setGlobalTheme: (theme: 'light' | 'dark') => void
-  
+
   // Project-level palette
   projectPalette: ColorPalette | null
   setProjectPalette: (projectId: string, palette: ColorPalette | null) => void
 
+  // Reset all palettes to a single palette (one-time action)
+  resetAllPalettes: (projectId: string, palette: ColorPalette) => void
+
   // Update current project context
   setCurrentProjectId: (projectId: string | null) => void
-  
+
   // Current folder context for hierarchical colors
   currentFolderId: string | null
   setCurrentFolderId: (folderId: string | null) => void
-  
+
   // Get effective palette for current context
   getCurrentPalette: () => ColorPalette | null
-  
+
   // Folder palette management
   getFolderPalette: (folderId: string) => ColorPalette | null
   setFolderPalette: (folderId: string, palette: ColorPalette | null) => void
-  
+
   // Apply palette to DOM
   applyPalette: (palette: ColorPalette) => void
 }
@@ -59,8 +62,8 @@ export function ColorProvider({ children, projectId }: ColorProviderProps) {
     setGlobalTheme(savedTheme)
     document.documentElement.setAttribute('data-theme', savedTheme)
 
-    // Load saved project palette first
     if (currentProjectId) {
+      // Load saved project palette
       const savedProjectPalette = ColorPaletteManager.getProjectPalette(currentProjectId)
       setProjectPaletteState(savedProjectPalette)
 
@@ -103,6 +106,19 @@ export function ColorProvider({ children, projectId }: ColorProviderProps) {
     }
   }, [])
 
+  const handleResetAllPalettes = useCallback((projectId: string, palette: ColorPalette) => {
+    // Set the project palette
+    ColorPaletteManager.setProjectPalette(projectId, palette)
+    setProjectPaletteState(palette)
+
+    // Clear all folder-specific palettes
+    ColorPaletteManager.clearAllFolderPalettes()
+    setFolderPalettes({})
+
+    // Apply the palette immediately
+    ColorPaletteManager.applyPalette(palette)
+  }, [])
+
   const getFolderPalette = useCallback((folderId: string): ColorPalette | null => {
     return folderPalettes[folderId] || ColorPaletteManager.getFolderPalette(folderId)
   }, [folderPalettes])
@@ -119,35 +135,33 @@ export function ColorProvider({ children, projectId }: ColorProviderProps) {
     }
   }, [])
 
-  // Get the effective palette for the current context (global only - no folder-specific palettes)
+  // Get the effective palette for the current context (folder > project > default)
   const getCurrentPalette = useCallback((): ColorPalette | null => {
-    // 1. Use project palette if set
+    // 1. Check for folder-specific palette
+    if (currentFolderId) {
+      const folderPalette = ColorPaletteManager.getFolderPalette(currentFolderId)
+      if (folderPalette) return folderPalette
+    }
+
+    // 2. Use project palette if set
     if (projectPalette) return projectPalette
 
-    // 2. Fall back to global theme default palette
+    // 3. Fall back to global theme default palette
     return ColorPaletteManager.getAllPalettes().find(p =>
       p.theme === globalTheme && p.isDefault
     ) || null
-  }, [projectPalette, globalTheme])
+  }, [currentFolderId, projectPalette, globalTheme])
 
   const applyPalette = useCallback((palette: ColorPalette) => {
     ColorPaletteManager.applyPalette(palette)
   }, [])
-
-  // DISABLED: Palette is now applied in the initialization useEffect above
-  // This useEffect was causing the default palette to override the saved palette
-  // useEffect(() => {
-  //   const currentPalette = getCurrentPalette()
-  //   if (currentPalette) {
-  //     applyPalette(currentPalette)
-  //   }
-  // }, [globalTheme, projectPalette, getCurrentPalette, applyPalette])
 
   const contextValue: ColorContextValue = useMemo(() => ({
     globalTheme,
     setGlobalTheme: handleSetGlobalTheme,
     projectPalette,
     setProjectPalette: handleSetProjectPalette,
+    resetAllPalettes: handleResetAllPalettes,
     setCurrentProjectId,
     currentFolderId,
     setCurrentFolderId,
@@ -160,6 +174,7 @@ export function ColorProvider({ children, projectId }: ColorProviderProps) {
     handleSetGlobalTheme,
     projectPalette,
     handleSetProjectPalette,
+    handleResetAllPalettes,
     setCurrentProjectId,
     currentFolderId,
     setCurrentFolderId,

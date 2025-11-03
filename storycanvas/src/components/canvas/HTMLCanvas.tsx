@@ -9,6 +9,7 @@ import { PaletteSelector } from '@/components/ui/palette-selector'
 import { NodeStylePanel } from '@/components/ui/node-style-panel'
 import { PerformanceOptimizer } from '@/lib/performance-utils'
 import { useColorContext } from '@/components/providers/color-provider'
+import { ColorPaletteManager } from '@/lib/color-palette'
 import { NodeContextMenu } from './NodeContextMenu'
 import { createClient } from '@/lib/supabase/client'
 
@@ -3198,16 +3199,20 @@ export default function HTMLCanvas({
                   }
                 }}
                 onPaletteChange={(palette, selectedScope) => {
-                  if (selectedScope === 'folder' && currentFolderId) {
+                  if (selectedScope === 'reset') {
+                    // Reset all sections to use this palette (one-time action - clears all section palettes)
+                    colorContext.resetAllPalettes(storyId, palette)
+                  } else if (selectedScope === 'folder' && currentFolderId) {
                     // Apply to folder only
                     colorContext.setFolderPalette(currentFolderId, palette)
+                    // Apply the palette immediately
+                    colorContext.applyPalette(palette)
                   } else {
-                    // Apply to entire project
+                    // Apply to entire project (default - can be overridden by sections)
                     colorContext.setProjectPalette(storyId, palette)
+                    // Apply the palette immediately
+                    colorContext.applyPalette(palette)
                   }
-
-                  // Apply the palette immediately
-                  colorContext.applyPalette(palette)
 
                   // Reset all nodes to use the new theme colors
                   resetAllNodesToThemeColors()
@@ -3313,16 +3318,20 @@ export default function HTMLCanvas({
                   }
                 }}
                 onPaletteChange={(palette, selectedScope) => {
-                  if (selectedScope === 'folder' && currentFolderId) {
+                  if (selectedScope === 'reset') {
+                    // Reset all sections to use this palette (one-time action - clears all section palettes)
+                    colorContext.resetAllPalettes(storyId, palette)
+                  } else if (selectedScope === 'folder' && currentFolderId) {
                     // Apply to folder only
                     colorContext.setFolderPalette(currentFolderId, palette)
+                    // Apply the palette immediately
+                    colorContext.applyPalette(palette)
                   } else {
-                    // Apply to entire project
+                    // Apply to entire project (default - can be overridden by sections)
                     colorContext.setProjectPalette(storyId, palette)
+                    // Apply the palette immediately
+                    colorContext.applyPalette(palette)
                   }
-
-                  // Apply the palette immediately
-                  colorContext.applyPalette(palette)
 
                   // Reset all nodes to use the new theme colors
                   resetAllNodesToThemeColors()
@@ -3588,11 +3597,11 @@ export default function HTMLCanvas({
                     </marker>
                   </defs>
 
-                  {/* Invisible wider stroke for easier clicking */}
+                  {/* Invisible wider stroke for easier clicking - scale inversely with zoom */}
                   <path
                     d={`M ${start.x} ${start.y} Q ${controlX} ${controlY}, ${end.x} ${end.y}`}
                     stroke="transparent"
-                    strokeWidth="20"
+                    strokeWidth={20 / zoom}
                     fill="none"
                     className="pointer-events-auto cursor-pointer"
                     onClick={(e) => {
@@ -3612,16 +3621,16 @@ export default function HTMLCanvas({
                     className="pointer-events-none"
                   />
 
-                  {/* Draggable control point circles - only show when selected */}
+                  {/* Draggable control point circles - only show when selected, scale inversely with zoom */}
                   {(selectedId === node.id || selectedIds.includes(node.id)) && (
                     <>
                       <circle
                         cx={start.x}
                         cy={start.y}
-                        r="6"
+                        r={6 / zoom}
                         fill={getResizeHandleColor('line')}
                         stroke={getNodeBorderColor('line')}
-                        strokeWidth="2"
+                        strokeWidth={2 / zoom}
                         className="pointer-events-auto cursor-move"
                         onMouseDown={(e) => {
                           e.stopPropagation()
@@ -3631,10 +3640,10 @@ export default function HTMLCanvas({
                       <circle
                         cx={middle.x}
                         cy={middle.y}
-                        r="6"
+                        r={6 / zoom}
                         fill={getResizeHandleColor('line')}
                         stroke={getNodeBorderColor('line')}
-                        strokeWidth="2"
+                        strokeWidth={2 / zoom}
                         className="pointer-events-auto cursor-move"
                         onMouseDown={(e) => {
                           e.stopPropagation()
@@ -3644,10 +3653,10 @@ export default function HTMLCanvas({
                       <circle
                         cx={end.x}
                         cy={end.y}
-                        r="6"
+                        r={6 / zoom}
                         fill={getResizeHandleColor('line')}
                         stroke={getNodeBorderColor('line')}
-                        strokeWidth="2"
+                        strokeWidth={2 / zoom}
                         className="pointer-events-auto cursor-move"
                         onMouseDown={(e) => {
                           e.stopPropagation()
@@ -4611,6 +4620,7 @@ export default function HTMLCanvas({
                     opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
                     transition: draggingNode ? 'none' : 'opacity 0.1s ease'
                   }}
+                  onClick={(e) => handleNodeClick(node, e)}
                   onDoubleClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
