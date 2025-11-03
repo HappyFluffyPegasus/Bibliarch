@@ -647,7 +647,7 @@ export default function HTMLCanvas({
         // Use same zoom delta as buttons for consistent behavior (1.2x / 0.8x = 20% change)
         const zoomDelta = e.deltaY > 0 ? 0.8 : 1.2
         setZoom(currentZoom => {
-          const newZoom = Math.max(0.1, Math.min(3, currentZoom * zoomDelta))
+          const newZoom = Math.max(0.47, Math.min(3, currentZoom * zoomDelta))
           return newZoom
         })
       }
@@ -1003,8 +1003,9 @@ export default function HTMLCanvas({
     const rect = canvasRef.current?.getBoundingClientRect()
     if (!rect) return
 
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    // Convert screen coordinates to canvas coordinates by dividing by zoom
+    const x = (e.clientX - rect.left) / zoom
+    const y = (e.clientY - rect.top) / zoom
 
     const newNode: Node = {
       id: `${tool}-${Date.now()}`,
@@ -1062,9 +1063,9 @@ export default function HTMLCanvas({
       const rect = canvasRef.current?.getBoundingClientRect()
       if (rect) {
         // Get position relative to canvas element
-        // Don't divide by zoom - both selection box and nodes are in same transformed space
-        const x = e.clientX - rect.left
-        const y = e.clientY - rect.top
+        // Convert screen coordinates to canvas coordinates by dividing by zoom
+        const x = (e.clientX - rect.left) / zoom
+        const y = (e.clientY - rect.top) / zoom
 
         setSelectionStart({ x, y })
         setSelectionBox({ x, y, width: 0, height: 0 })
@@ -1108,9 +1109,9 @@ export default function HTMLCanvas({
       const rect = canvasRef.current?.getBoundingClientRect()
       if (rect) {
         // Get current position relative to canvas element
-        // Don't divide by zoom - both selection box and nodes are in same transformed space
-        const currentX = clientX - rect.left
-        const currentY = clientY - rect.top
+        // Convert screen coordinates to canvas coordinates by dividing by zoom
+        const currentX = (clientX - rect.left) / zoom
+        const currentY = (clientY - rect.top) / zoom
 
         const x = Math.min(selectionStart.x, currentX)
         const y = Math.min(selectionStart.y, currentY)
@@ -1226,8 +1227,9 @@ export default function HTMLCanvas({
       // Handle node dragging - just update position state, don't re-render nodes
       const rect = canvasRef.current?.getBoundingClientRect()
       if (rect) {
-        let x = clientX - rect.left - dragOffset.x
-        let y = clientY - rect.top - dragOffset.y
+        // Convert screen coordinates to canvas coordinates by dividing by zoom
+        let x = (clientX - rect.left) / zoom - dragOffset.x
+        let y = (clientY - rect.top) / zoom - dragOffset.y
 
         // Apply snapping if enabled
         if (snapToGrid) {
@@ -1242,8 +1244,9 @@ export default function HTMLCanvas({
 
     if (resizingNode) {
       // Handle node resizing
-      const deltaX = clientX - resizeStartPos.x
-      const deltaY = clientY - resizeStartPos.y
+      // Convert screen delta to canvas delta by dividing by zoom
+      const deltaX = (clientX - resizeStartPos.x) / zoom
+      const deltaY = (clientY - resizeStartPos.y) / zoom
 
       const resizingNodeObj = nodes.find(n => n.id === resizingNode)
       if (!resizingNodeObj) return
@@ -1423,8 +1426,9 @@ export default function HTMLCanvas({
     if (draggingLineVertex) {
       const rect = canvasRef.current?.getBoundingClientRect()
       if (rect) {
-        const x = clientX - rect.left
-        const y = clientY - rect.top
+        // Convert screen coordinates to canvas coordinates by dividing by zoom
+        const x = (clientX - rect.left) / zoom
+        const y = (clientY - rect.top) / zoom
 
         setNodes(prevNodes =>
           prevNodes.map(node =>
@@ -3133,7 +3137,7 @@ export default function HTMLCanvas({
             size="sm"
             variant="outline"
             onClick={() => {
-              const newZoom = Math.max(0.1, zoom * 0.8)
+              const newZoom = Math.max(0.47, zoom * 0.8)
               setZoom(newZoom)
             }}
             className="h-11 w-14 p-0"
@@ -3161,8 +3165,14 @@ export default function HTMLCanvas({
       </div>
 
       {/* Canvas Area */}
-      <div className="flex-1 relative overflow-auto mac-style-scrollbar" style={{ backgroundColor: 'var(--color-canvas-bg, hsl(var(--background)))' }}>
-        {/* Top-right buttons when help is shown */}
+      <div className="flex-1 relative mac-style-scrollbar overflow-auto" style={{ backgroundColor: 'var(--color-canvas-bg, hsl(var(--background)))' }}>
+        <div style={{
+          width: `${canvasWidth * zoom}px`,
+          height: `${canvasHeight * zoom}px`,
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+            {/* Top-right buttons when help is shown */}
         {showHelp && (
           <div className="flex fixed top-[72px] right-4 z-50 gap-2 items-start">
             <div
@@ -3495,15 +3505,19 @@ export default function HTMLCanvas({
             minWidth: `${canvasWidth}px`,
             minHeight: `${canvasHeight}px`,
             transform: `scale(${zoom})`,
-            transformOrigin: zoom !== 1 ? `${zoomCenter.x}px ${zoomCenter.y}px` : 'center center',
+            transformOrigin: 'top left',
             transition: 'transform 0.1s ease-out'
           }}
         >
-          {/* Grid overlay */}
+          {/* Grid overlay - extended to cover much larger area */}
           {showGrid && (
             <div
-              className="absolute inset-0 pointer-events-none"
+              className="absolute pointer-events-none"
               style={{
+                top: '-5000px',
+                left: '-5000px',
+                width: `${canvasWidth + 10000}px`,
+                height: `${canvasHeight + 10000}px`,
                 backgroundImage: `
                   linear-gradient(to right, rgba(156, 163, 175, 0.2) 1px, transparent 1px),
                   linear-gradient(to bottom, rgba(156, 163, 175, 0.2) 1px, transparent 1px)
@@ -3711,8 +3725,8 @@ export default function HTMLCanvas({
 
                       const rect = canvasRef.current?.getBoundingClientRect()
                       if (rect) {
-                        const mouseX = e.clientX - rect.left
-                        const mouseY = e.clientY - rect.top
+                        const mouseX = (e.clientX - rect.left) / zoom
+                        const mouseY = (e.clientY - rect.top) / zoom
                         setDragOffset({
                           x: mouseX - node.x,
                           y: mouseY - node.y
@@ -3853,8 +3867,8 @@ export default function HTMLCanvas({
 
                       const rect = canvasRef.current?.getBoundingClientRect()
                       if (rect) {
-                        const mouseX = e.clientX - rect.left
-                        const mouseY = e.clientY - rect.top
+                        const mouseX = (e.clientX - rect.left) / zoom
+                        const mouseY = (e.clientY - rect.top) / zoom
                         setDragOffset({
                           x: mouseX - node.x,
                           y: mouseY - node.y
@@ -4236,8 +4250,8 @@ export default function HTMLCanvas({
 
                       const rect = canvasRef.current?.getBoundingClientRect()
                       if (rect) {
-                        const mouseX = e.clientX - rect.left
-                        const mouseY = e.clientY - rect.top
+                        const mouseX = (e.clientX - rect.left) / zoom
+                        const mouseY = (e.clientY - rect.top) / zoom
                         setDragOffset({
                           x: mouseX - node.x,
                           y: mouseY - node.y
@@ -4433,8 +4447,8 @@ export default function HTMLCanvas({
 
                       const rect = canvasRef.current?.getBoundingClientRect()
                       if (rect) {
-                        const mouseX = e.clientX - rect.left
-                        const mouseY = e.clientY - rect.top
+                        const mouseX = (e.clientX - rect.left) / zoom
+                        const mouseY = (e.clientY - rect.top) / zoom
                         setDragOffset({
                           x: mouseX - node.x,
                           y: mouseY - node.y
@@ -4641,8 +4655,8 @@ export default function HTMLCanvas({
 
                       const rect = canvasRef.current?.getBoundingClientRect()
                       if (rect) {
-                        const mouseX = e.clientX - rect.left
-                        const mouseY = e.clientY - rect.top
+                        const mouseX = (e.clientX - rect.left) / zoom
+                        const mouseY = (e.clientY - rect.top) / zoom
                         setDragOffset({
                           x: mouseX - node.x,
                           y: mouseY - node.y
@@ -4962,8 +4976,8 @@ export default function HTMLCanvas({
 
                       const rect = canvasRef.current?.getBoundingClientRect()
                       if (rect) {
-                        const mouseX = e.clientX - rect.left
-                        const mouseY = e.clientY - rect.top
+                        const mouseX = (e.clientX - rect.left) / zoom
+                        const mouseY = (e.clientY - rect.top) / zoom
                         setDragOffset({
                           x: mouseX - node.x,
                           y: mouseY - node.y
@@ -5427,8 +5441,8 @@ export default function HTMLCanvas({
 
                       const rect = canvasRef.current?.getBoundingClientRect()
                       if (rect) {
-                        const mouseX = e.clientX - rect.left
-                        const mouseY = e.clientY - rect.top
+                        const mouseX = (e.clientX - rect.left) / zoom
+                        const mouseY = (e.clientY - rect.top) / zoom
                         setDragOffset({
                           x: mouseX - node.x,
                           y: mouseY - node.y
@@ -5720,7 +5734,7 @@ export default function HTMLCanvas({
                   setIsDragReady(node.id)
                   const rect = canvasRef.current?.getBoundingClientRect()
                   if (rect) {
-                    setDragOffset({ x: e.clientX - rect.left - node.x, y: e.clientY - rect.top - node.y })
+                    setDragOffset({ x: (e.clientX - rect.left) / zoom - node.x, y: (e.clientY - rect.top) / zoom - node.y })
                   }
                 }}
               />
@@ -5734,7 +5748,7 @@ export default function HTMLCanvas({
                   setIsDragReady(node.id)
                   const rect = canvasRef.current?.getBoundingClientRect()
                   if (rect) {
-                    setDragOffset({ x: e.clientX - rect.left - node.x, y: e.clientY - rect.top - node.y })
+                    setDragOffset({ x: (e.clientX - rect.left) / zoom - node.x, y: (e.clientY - rect.top) / zoom - node.y })
                   }
                 }}
               />
@@ -5748,7 +5762,7 @@ export default function HTMLCanvas({
                   setIsDragReady(node.id)
                   const rect = canvasRef.current?.getBoundingClientRect()
                   if (rect) {
-                    setDragOffset({ x: e.clientX - rect.left - node.x, y: e.clientY - rect.top - node.y })
+                    setDragOffset({ x: (e.clientX - rect.left) / zoom - node.x, y: (e.clientY - rect.top) / zoom - node.y })
                   }
                 }}
               />
@@ -5762,7 +5776,7 @@ export default function HTMLCanvas({
                   setIsDragReady(node.id)
                   const rect = canvasRef.current?.getBoundingClientRect()
                   if (rect) {
-                    setDragOffset({ x: e.clientX - rect.left - node.x, y: e.clientY - rect.top - node.y })
+                    setDragOffset({ x: (e.clientX - rect.left) / zoom - node.x, y: (e.clientY - rect.top) / zoom - node.y })
                   }
                 }}
               />
@@ -6933,6 +6947,7 @@ export default function HTMLCanvas({
             />
           )}
         </div>
+        </div>
       </div>
 
       {/* Image Cropping Modal */}
@@ -7934,3 +7949,5 @@ export default function HTMLCanvas({
     </div>
   )
 }
+
+
