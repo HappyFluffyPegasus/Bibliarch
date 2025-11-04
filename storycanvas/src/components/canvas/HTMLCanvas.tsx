@@ -317,6 +317,7 @@ export default function HTMLCanvas({
   const [history, setHistory] = useState<{ nodes: Node[], connections: Connection[] }[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const maxHistorySize = 50
+  const isUndoRedoRef = useRef(false) // Flag to prevent saveToHistory during undo/redo
 
   // Delayed blur handler to allow Grammarly and other extensions to apply changes
   const handleDelayedBlur = useCallback((callback: () => void) => {
@@ -665,15 +666,13 @@ export default function HTMLCanvas({
     setConnections(initialConnections)
     setVisibleNodeIds(initialNodes.map(node => node.id))
 
-    // Initialize history with the first state using deep clone
-    if (initialNodes.length > 0 || initialConnections.length > 0) {
-      const initialState = {
-        nodes: JSON.parse(JSON.stringify(initialNodes)),
-        connections: JSON.parse(JSON.stringify(initialConnections))
-      }
-      setHistory([initialState])
-      setHistoryIndex(0)
+    // Initialize history with the first state using deep clone (even if empty)
+    const initialState = {
+      nodes: JSON.parse(JSON.stringify(initialNodes)),
+      connections: JSON.parse(JSON.stringify(initialConnections))
     }
+    setHistory([initialState])
+    setHistoryIndex(0)
   }, [initialNodes, initialConnections])
 
   // Notify parent when state changes (for navigation saves, without auto-saving)
@@ -761,66 +760,78 @@ export default function HTMLCanvas({
 
   // Save state to history
   const saveToHistory = useCallback((newNodes: Node[], newConnections: Connection[]) => {
-    setHistoryIndex(currentIndex => {
-      setHistory(prev => {
-        // Clear any future history if we're not at the end
-        const newHistory = prev.slice(0, currentIndex + 1)
-        newHistory.push({ nodes: JSON.parse(JSON.stringify(newNodes)), connections: JSON.parse(JSON.stringify(newConnections)) })
+    // Skip saving to history during undo/redo operations
+    if (isUndoRedoRef.current) {
+      return
+    }
 
-        // Limit history size
-        if (newHistory.length > maxHistorySize) {
-          newHistory.shift()
-          return newHistory
-        }
+    // Clear any future history if we're not at the end
+    const clearedHistory = history.slice(0, historyIndex + 1)
 
-        return newHistory
-      })
-
-      // Return the new index
-      return Math.min(currentIndex + 1, maxHistorySize - 1)
+    // Add the new state (deep clone to prevent mutations)
+    clearedHistory.push({
+      nodes: JSON.parse(JSON.stringify(newNodes)),
+      connections: JSON.parse(JSON.stringify(newConnections))
     })
-  }, [maxHistorySize])
+
+    // Limit history size
+    let newIndex = clearedHistory.length - 1
+    if (clearedHistory.length > maxHistorySize) {
+      clearedHistory.shift()
+      newIndex = clearedHistory.length - 1
+    }
+
+    setHistory(clearedHistory)
+    setHistoryIndex(newIndex)
+  }, [history, historyIndex, maxHistorySize])
 
   // Undo function
   const undo = useCallback(() => {
-    setHistoryIndex(currentIndex => {
-      if (currentIndex > 0) {
-        setHistory(currentHistory => {
-          const newIndex = currentIndex - 1
-          const prevState = currentHistory[newIndex]
-          if (prevState) {
-            // Deep clone to avoid reference issues
-            setNodes(JSON.parse(JSON.stringify(prevState.nodes)))
-            setConnections(JSON.parse(JSON.stringify(prevState.connections)))
-          }
-          return currentHistory
-        })
-        return currentIndex - 1
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1
+      const prevState = history[newIndex]
+
+      if (prevState) {
+        // Set flag to prevent saveToHistory from being called during state updates
+        isUndoRedoRef.current = true
+        try {
+          // Deep clone to avoid reference issues
+          setNodes(JSON.parse(JSON.stringify(prevState.nodes)))
+          setConnections(JSON.parse(JSON.stringify(prevState.connections)))
+          setHistoryIndex(newIndex)
+        } finally {
+          // Clear flag after state updates (use setTimeout to ensure all effects have run)
+          setTimeout(() => {
+            isUndoRedoRef.current = false
+          }, 0)
+        }
       }
-      return currentIndex
-    })
-  }, [])
+    }
+  }, [history, historyIndex])
 
   // Redo function
   const redo = useCallback(() => {
-    let shouldIncrement = false
-    setHistoryIndex(currentIndex => {
-      setHistory(currentHistory => {
-        if (currentIndex < currentHistory.length - 1) {
-          shouldIncrement = true
-          const newIndex = currentIndex + 1
-          const nextState = currentHistory[newIndex]
-          if (nextState) {
-            // Deep clone to avoid reference issues
-            setNodes(JSON.parse(JSON.stringify(nextState.nodes)))
-            setConnections(JSON.parse(JSON.stringify(nextState.connections)))
-          }
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1
+      const nextState = history[newIndex]
+
+      if (nextState) {
+        // Set flag to prevent saveToHistory from being called during state updates
+        isUndoRedoRef.current = true
+        try {
+          // Deep clone to avoid reference issues
+          setNodes(JSON.parse(JSON.stringify(nextState.nodes)))
+          setConnections(JSON.parse(JSON.stringify(nextState.connections)))
+          setHistoryIndex(newIndex)
+        } finally {
+          // Clear flag after state updates (use setTimeout to ensure all effects have run)
+          setTimeout(() => {
+            isUndoRedoRef.current = false
+          }, 0)
         }
-        return currentHistory
-      })
-      return shouldIncrement ? currentIndex + 1 : currentIndex
-    })
-  }, [])
+      }
+    }
+  }, [history, historyIndex])
 
   // Node style preferences update function
   const updateNodeStylePreference = useCallback((key: keyof NodeStylePreferences, value: string) => {
@@ -917,10 +928,13 @@ export default function HTMLCanvas({
       if (document.activeElement?.getAttribute('contenteditable') === 'true') return
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return
 
-      if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+      // Support both Ctrl (Windows/Linux) and Cmd (Mac)
+      const cmdOrCtrl = e.ctrlKey || e.metaKey
+
+      if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
         undo()
-      } else if (e.ctrlKey && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+      } else if (cmdOrCtrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
         e.preventDefault()
         redo()
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && (selectedId || selectedIds.length > 0)) {
@@ -3101,7 +3115,7 @@ export default function HTMLCanvas({
             onClick={undo}
             disabled={historyIndex <= 0}
             className="h-11 w-14 p-0"
-            title="Undo (Ctrl+Z)"
+            title="Undo (Ctrl+Z / Cmd+Z)"
           >
             <Undo className="w-7 h-7" />
           </Button>
@@ -3111,7 +3125,7 @@ export default function HTMLCanvas({
             onClick={redo}
             disabled={historyIndex >= history.length - 1}
             className="h-11 w-14 p-0"
-            title="Redo (Ctrl+Y)"
+            title="Redo (Ctrl+Y / Cmd+Shift+Z)"
           >
             <Redo className="w-7 h-7" />
           </Button>
@@ -5094,7 +5108,15 @@ export default function HTMLCanvas({
                               setIsDraggingCharacter(false)
 
                               if (hasMoved) {
-                                saveToHistory(nodes, connections)
+                                // Ensure state updates have completed before saving to history
+                                // Use requestAnimationFrame to wait for React to flush state updates
+                                requestAnimationFrame(() => {
+                                  setNodes(currentNodes => {
+                                    // Call saveToHistory in next tick to avoid state update conflicts
+                                    setTimeout(() => saveToHistory(currentNodes, connections), 0)
+                                    return currentNodes // Don't modify nodes
+                                  })
+                                })
                               }
                             }
 
@@ -7363,7 +7385,15 @@ export default function HTMLCanvas({
                   onMouseUp={() => {
                     if (draggingCharacter) {
                       setDraggingCharacter(null)
-                      saveToHistory(nodes, connections)
+                      // Ensure state updates have completed before saving to history
+                      // Use requestAnimationFrame to wait for React to flush state updates
+                      requestAnimationFrame(() => {
+                        setNodes(currentNodes => {
+                          // Call saveToHistory in next tick to avoid state update conflicts
+                          setTimeout(() => saveToHistory(currentNodes, connections), 0)
+                          return currentNodes // Don't modify nodes
+                        })
+                      })
                     }
                   }}
                 >
