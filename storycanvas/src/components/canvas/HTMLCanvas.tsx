@@ -3794,11 +3794,15 @@ export default function HTMLCanvas({
                     }}
                     onBlur={() => {
                       handleDelayedBlur(() => {
-                        saveToHistory(nodes, connections)
+                        // Use setNodes callback to get current state for history
+                        setNodes(currentNodes => {
+                          saveToHistory(currentNodes, connections)
+                          if (onSave) {
+                            onSave(currentNodes, connections)
+                          }
+                          return currentNodes // Don't modify nodes
+                        })
                         setEditingField(null)
-                        if (onSave) {
-                          onSave(nodes, connections)
-                        }
                       })
                     }}
                     onFocus={cancelDelayedBlur}
@@ -4743,11 +4747,15 @@ export default function HTMLCanvas({
                           }
                         }}
                         onBlur={() => {
-                          saveToHistory(nodes, connections)
+                          // Use setNodes callback to get current state for history
+                          setNodes(currentNodes => {
+                            saveToHistory(currentNodes, connections)
+                            if (onSave) {
+                              onSave(currentNodes, connections)
+                            }
+                            return currentNodes // Don't modify nodes
+                          })
                           setEditingField(null)
-                          if (onSave) {
-                            onSave(nodes, connections)
-                          }
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -4820,11 +4828,15 @@ export default function HTMLCanvas({
                           }
                         }}
                         onBlur={() => {
-                          saveToHistory(nodes, connections)
+                          // Use setNodes callback to get current state for history
+                          setNodes(currentNodes => {
+                            saveToHistory(currentNodes, connections)
+                            if (onSave) {
+                              onSave(currentNodes, connections)
+                            }
+                            return currentNodes // Don't modify nodes
+                          })
                           setEditingField(null)
-                          if (onSave) {
-                            onSave(nodes, connections)
-                          }
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -6692,11 +6704,15 @@ export default function HTMLCanvas({
                     }}
                     onBlur={() => {
                       handleDelayedBlur(() => {
-                        saveToHistory(nodes, connections)
+                        // Use setNodes callback to get current state for history
+                        setNodes(currentNodes => {
+                          saveToHistory(currentNodes, connections)
+                          if (onSave) {
+                            onSave(currentNodes, connections)
+                          }
+                          return currentNodes // Don't modify nodes
+                        })
                         setEditingField(null)
-                        if (onSave) {
-                          onSave(nodes, connections)
-                        }
                       })
                     }}
                     onFocus={cancelDelayedBlur}
