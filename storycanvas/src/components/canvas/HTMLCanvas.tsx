@@ -318,6 +318,8 @@ export default function HTMLCanvas({
   const [historyIndex, setHistoryIndex] = useState(-1)
   const maxHistorySize = 50
   const isUndoRedoRef = useRef(false) // Flag to prevent saveToHistory during undo/redo
+  const historyRef = useRef<{ nodes: Node[], connections: Connection[] }[]>([])
+  const historyIndexRef = useRef(-1)
 
   // Delayed blur handler to allow Grammarly and other extensions to apply changes
   const handleDelayedBlur = useCallback((callback: () => void) => {
@@ -758,6 +760,12 @@ export default function HTMLCanvas({
     setViewportNodes(nodes.filter(node => visibleNodeIds.includes(node.id)))
   }, [nodes, visibleNodeIds])
 
+  // Keep refs in sync with state
+  useEffect(() => {
+    historyRef.current = history
+    historyIndexRef.current = historyIndex
+  }, [history, historyIndex])
+
   // Save state to history
   const saveToHistory = useCallback((newNodes: Node[], newConnections: Connection[]) => {
     // Skip saving to history during undo/redo operations
@@ -765,8 +773,12 @@ export default function HTMLCanvas({
       return
     }
 
+    // Use refs to get the most current values
+    const currentHistory = historyRef.current
+    const currentIndex = historyIndexRef.current
+
     // Clear any future history if we're not at the end
-    const clearedHistory = history.slice(0, historyIndex + 1)
+    const clearedHistory = currentHistory.slice(0, currentIndex + 1)
 
     // Add the new state (deep clone to prevent mutations)
     clearedHistory.push({
@@ -781,9 +793,10 @@ export default function HTMLCanvas({
       newIndex = clearedHistory.length - 1
     }
 
+    // Update state (React will batch these automatically)
     setHistory(clearedHistory)
     setHistoryIndex(newIndex)
-  }, [history, historyIndex, maxHistorySize])
+  }, [maxHistorySize])
 
   // Undo function
   const undo = useCallback(() => {
