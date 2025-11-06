@@ -1133,8 +1133,11 @@ export default function HTMLCanvas({
     onSave(newNodes, connections)  // Save to database immediately
 
     // Clear any multi-selection and select only the newly created node
-    setSelectedIds([])
-    setSelectedId(newNode.id)
+    // Use flushSync to prevent the auto-sync useEffect from interfering
+    flushSync(() => {
+      setSelectedIds([])
+      setSelectedId(newNode.id)
+    })
     setTool('select')  // Switch to select tool after creating node for immediate interaction
 
   }, [tool, nodes, connections, saveToHistory, editingField, onSave, visibleNodeIds])
@@ -2622,8 +2625,11 @@ export default function HTMLCanvas({
     saveToHistory(newNodes, connections)
 
     // Clear any multi-selection and select only the new duplicated node
-    setSelectedIds([])
-    setSelectedId(newNode.id)
+    // Use flushSync to prevent the auto-sync useEffect from interfering
+    flushSync(() => {
+      setSelectedIds([])
+      setSelectedId(newNode.id)
+    })
 
     // Save immediately to database
     if (onSave) {
