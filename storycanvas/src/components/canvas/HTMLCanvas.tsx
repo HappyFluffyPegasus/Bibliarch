@@ -786,14 +786,12 @@ export default function HTMLCanvas({
     if (!hasInitializedHistory.current && history.length === 0 && nodes.length >= 0) {
       console.log('[History] Saving initial state')
       hasInitializedHistory.current = true
-      // Use flushSync to ensure immediate state updates
-      flushSync(() => {
-        setHistory([{
-          nodes: JSON.parse(JSON.stringify(nodes)),
-          connections: JSON.parse(JSON.stringify(connections))
-        }])
-        setHistoryIndex(0)
-      })
+      // Set initial history state (flushSync not needed in useEffect)
+      setHistory([{
+        nodes: JSON.parse(JSON.stringify(nodes)),
+        connections: JSON.parse(JSON.stringify(connections))
+      }])
+      setHistoryIndex(0)
     }
   }, []) // Run only on mount
 
@@ -7413,11 +7411,11 @@ export default function HTMLCanvas({
 
                   <div>
                     <label className="text-sm font-medium mb-2 block">Selected Characters:</label>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                    <div className="space-y-2 max-h-96 overflow-y-auto border border-border rounded-md p-2 bg-background">
                       {(relationshipCanvasModal.node.relationshipData?.selectedCharacters || []).map(character => (
-                        <div key={character.id} className="flex items-center justify-between p-2 bg-muted rounded">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full overflow-hidden bg-sky-100 dark:bg-blue-900/20 border border-border flex items-center justify-center">
+                        <div key={character.id} className="flex items-center justify-between p-2 bg-muted rounded flex-shrink-0">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-sky-100 dark:bg-blue-900/20 border border-border flex items-center justify-center flex-shrink-0">
                               {character.profileImageUrl ? (
                                 <img
                                   src={character.profileImageUrl}
@@ -7428,7 +7426,7 @@ export default function HTMLCanvas({
                                 <User className="w-4 h-4 text-sky-600 dark:text-blue-400" />
                               )}
                             </div>
-                            <span className="text-sm font-medium text-foreground">{character.name}</span>
+                            <span className="text-sm font-medium text-foreground truncate">{character.name}</span>
                           </div>
                           <Button
                             variant="ghost"
