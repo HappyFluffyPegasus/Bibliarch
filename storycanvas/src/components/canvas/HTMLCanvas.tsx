@@ -131,6 +131,16 @@ interface HTMLCanvasProps {
 }
 
 // Updated with smaller sidebar and trackpad support
+// Generate a unique ID that's guaranteed to be unique even in rapid succession
+const generateUniqueId = (prefix: string = 'node'): string => {
+  // Use crypto.randomUUID for true uniqueness, fallback to timestamp + random for older browsers
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return `${prefix}-${crypto.randomUUID()}`
+  }
+  // Fallback: combine timestamp with random number
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+}
+
 export default function HTMLCanvas({
   storyId,
   currentCanvasId = 'main',
@@ -1093,7 +1103,7 @@ export default function HTMLCanvas({
     const y = (e.clientY - rect.top) / zoom
 
     const newNode: Node = {
-      id: `${tool}-${Date.now()}`,
+      id: generateUniqueId(tool),
       x: Math.max(0, x - 100),
       y: Math.max(0, y - 60),
       text: getDefaultText(tool),
@@ -2325,7 +2335,7 @@ export default function HTMLCanvas({
       } else {
         // Second click: create timeline connection between events
         const newConnection: Connection = {
-          id: `timeline-${Date.now()}`,
+          id: generateUniqueId('timeline'),
           from: connectingFrom,
           to: node.id,
           type: 'leads-to' // Timeline sequence connection
@@ -2354,7 +2364,7 @@ export default function HTMLCanvas({
       } else {
         // Second click: create connection
         const newConnection: Connection = {
-          id: `conn-${Date.now()}`,
+          id: generateUniqueId('conn'),
           from: connectingFrom,
           to: node.id,
           type: 'leads-to'
@@ -2595,7 +2605,7 @@ export default function HTMLCanvas({
 
     const newNode: Node = {
       ...nodeToDuplicate,
-      id: `${nodeToDuplicate.type}-${Date.now()}`,
+      id: generateUniqueId(nodeToDuplicate.type || 'node'),
       x: nodeToDuplicate.x + 20,
       y: nodeToDuplicate.y + 20,
       linkedCanvasId: undefined, // Don't copy canvas links
@@ -2821,7 +2831,7 @@ export default function HTMLCanvas({
       
       return {
         ...nodeWithoutColor,
-        id: `template-${Date.now()}-${node.id}`, // Ensure unique IDs
+        id: generateUniqueId(`template-${node.type || 'node'}`),
         x: node.x + deltaX,
         y: node.y + deltaY,
         color: newColor // Explicitly set to current palette color with fallback
@@ -2836,7 +2846,7 @@ export default function HTMLCanvas({
     
     const offsetTemplateConnections = templateConnections.map(conn => ({
       ...conn,
-      id: `template-conn-${Date.now()}-${conn.id}`,
+      id: generateUniqueId('template-conn'),
       from: nodeIdMap.get(conn.from) || conn.from,
       to: nodeIdMap.get(conn.to) || conn.to
     }))
@@ -8020,7 +8030,7 @@ export default function HTMLCanvas({
                     } else {
                       // Create new relationship
                       const newRelationship = {
-                        id: `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        id: generateUniqueId('rel'),
                         fromCharacterId: relationshipModal.fromCharacter.id,
                         toCharacterId: relationshipModal.toCharacter.id,
                         relationshipType: typeSelect.value as 'romantic' | 'family' | 'friends' | 'professional' | 'rivals' | 'other',
