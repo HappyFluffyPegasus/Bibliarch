@@ -1131,7 +1131,10 @@ export default function HTMLCanvas({
     setVisibleNodeIds([...visibleNodeIds, newNode.id])  // Add to visible nodes so it renders!
     saveToHistory(newNodes, connections)
     onSave(newNodes, connections)  // Save to database immediately
-    setSelectedId(newNode.id)  // Select the newly created node
+
+    // Clear any multi-selection and select only the newly created node
+    setSelectedIds([])
+    setSelectedId(newNode.id)
     setTool('select')  // Switch to select tool after creating node for immediate interaction
 
   }, [tool, nodes, connections, saveToHistory, editingField, onSave, visibleNodeIds])
@@ -2617,6 +2620,9 @@ export default function HTMLCanvas({
     setNodes(newNodes)
     setVisibleNodeIds([...visibleNodeIds, newNode.id])  // CRITICAL: Add to visible nodes so it renders!
     saveToHistory(newNodes, connections)
+
+    // Clear any multi-selection and select only the new duplicated node
+    setSelectedIds([])
     setSelectedId(newNode.id)
 
     // Save immediately to database
