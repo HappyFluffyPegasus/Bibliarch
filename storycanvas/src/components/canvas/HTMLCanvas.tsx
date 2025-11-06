@@ -807,17 +807,19 @@ export default function HTMLCanvas({
       if (prevState) {
         // Set flag to prevent saveToHistory from being called during state updates
         isUndoRedoRef.current = true
-        try {
+
+        // Use flushSync to ensure state updates complete synchronously
+        flushSync(() => {
           // Deep clone to avoid reference issues
           setNodes(JSON.parse(JSON.stringify(prevState.nodes)))
           setConnections(JSON.parse(JSON.stringify(prevState.connections)))
           setHistoryIndex(newIndex)
-        } finally {
-          // Clear flag after state updates (use setTimeout to ensure all effects have run)
-          setTimeout(() => {
-            isUndoRedoRef.current = false
-          }, 0)
-        }
+        })
+
+        // Clear flag after a longer delay to ensure all effects have completed
+        setTimeout(() => {
+          isUndoRedoRef.current = false
+        }, 100)
       }
     }
   }, [history, historyIndex])
@@ -831,17 +833,19 @@ export default function HTMLCanvas({
       if (nextState) {
         // Set flag to prevent saveToHistory from being called during state updates
         isUndoRedoRef.current = true
-        try {
+
+        // Use flushSync to ensure state updates complete synchronously
+        flushSync(() => {
           // Deep clone to avoid reference issues
           setNodes(JSON.parse(JSON.stringify(nextState.nodes)))
           setConnections(JSON.parse(JSON.stringify(nextState.connections)))
           setHistoryIndex(newIndex)
-        } finally {
-          // Clear flag after state updates (use setTimeout to ensure all effects have run)
-          setTimeout(() => {
-            isUndoRedoRef.current = false
-          }, 0)
-        }
+        })
+
+        // Clear flag after a longer delay to ensure all effects have completed
+        setTimeout(() => {
+          isUndoRedoRef.current = false
+        }, 100)
       }
     }
   }, [history, historyIndex])
