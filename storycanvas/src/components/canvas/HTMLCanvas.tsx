@@ -766,10 +766,32 @@ export default function HTMLCanvas({
     historyIndexRef.current = historyIndex
   }, [history, historyIndex])
 
+  // Compute can undo/redo flags for button states using useMemo to ensure proper re-renders
+  const canUndo = useMemo(() => historyIndex > 0, [historyIndex])
+  const canRedo = useMemo(() => historyIndex < history.length - 1, [historyIndex, history.length])
+
+  // Save initial state to history on mount
+  const hasInitializedHistory = useRef(false)
+  useEffect(() => {
+    if (!hasInitializedHistory.current && history.length === 0 && nodes.length >= 0) {
+      console.log('[History] Saving initial state')
+      hasInitializedHistory.current = true
+      // Use flushSync to ensure immediate state updates
+      flushSync(() => {
+        setHistory([{
+          nodes: JSON.parse(JSON.stringify(nodes)),
+          connections: JSON.parse(JSON.stringify(connections))
+        }])
+        setHistoryIndex(0)
+      })
+    }
+  }, []) // Run only on mount
+
   // Save state to history
   const saveToHistory = useCallback((newNodes: Node[], newConnections: Connection[]) => {
     // Skip saving to history during undo/redo operations
     if (isUndoRedoRef.current) {
+      console.log('[History] Skipped save during undo/redo')
       return
     }
 
@@ -793,18 +815,28 @@ export default function HTMLCanvas({
       newIndex = clearedHistory.length - 1
     }
 
-    // Update state (React will batch these automatically)
-    setHistory(clearedHistory)
-    setHistoryIndex(newIndex)
+    console.log('[History] Saved to history. Index:', currentIndex, '->', newIndex, 'Length:', clearedHistory.length)
+
+    // Update state synchronously with flushSync to ensure immediate re-renders
+    flushSync(() => {
+      setHistory(clearedHistory)
+      setHistoryIndex(newIndex)
+    })
   }, [maxHistorySize])
 
   // Undo function
   const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1
-      const prevState = history[newIndex]
+    // Read current values from refs instead of closure
+    const currentHistory = historyRef.current
+    const currentIndex = historyIndexRef.current
+
+    console.log('[History] Undo called. Index:', currentIndex, 'Length:', currentHistory.length)
+    if (currentIndex > 0) {
+      const newIndex = currentIndex - 1
+      const prevState = currentHistory[newIndex]
 
       if (prevState) {
+        console.log('[History] Undoing to index', newIndex)
         // Set flag to prevent saveToHistory from being called during state updates
         isUndoRedoRef.current = true
 
@@ -816,21 +848,33 @@ export default function HTMLCanvas({
           setHistoryIndex(newIndex)
         })
 
+        // Update ref immediately after state update (don't wait for useEffect)
+        historyIndexRef.current = newIndex
+
         // Clear flag after a longer delay to ensure all effects have completed
         setTimeout(() => {
+          console.log('[History] Clearing undo/redo flag')
           isUndoRedoRef.current = false
-        }, 100)
+        }, 500)
       }
+    } else {
+      console.log('[History] Cannot undo - at beginning of history')
     }
-  }, [history, historyIndex])
+  }, [])
 
   // Redo function
   const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1
-      const nextState = history[newIndex]
+    // Read current values from refs instead of closure
+    const currentHistory = historyRef.current
+    const currentIndex = historyIndexRef.current
+
+    console.log('[History] Redo called. Index:', currentIndex, 'Length:', currentHistory.length)
+    if (currentIndex < currentHistory.length - 1) {
+      const newIndex = currentIndex + 1
+      const nextState = currentHistory[newIndex]
 
       if (nextState) {
+        console.log('[History] Redoing to index', newIndex)
         // Set flag to prevent saveToHistory from being called during state updates
         isUndoRedoRef.current = true
 
@@ -842,13 +886,19 @@ export default function HTMLCanvas({
           setHistoryIndex(newIndex)
         })
 
+        // Update ref immediately after state update (don't wait for useEffect)
+        historyIndexRef.current = newIndex
+
         // Clear flag after a longer delay to ensure all effects have completed
         setTimeout(() => {
+          console.log('[History] Clearing undo/redo flag')
           isUndoRedoRef.current = false
-        }, 100)
+        }, 500)
       }
+    } else {
+      console.log('[History] Cannot redo - at end of history')
     }
-  }, [history, historyIndex])
+  }, [])
 
   // Node style preferences update function
   const updateNodeStylePreference = useCallback((key: keyof NodeStylePreferences, value: string) => {
@@ -1021,9 +1071,12 @@ export default function HTMLCanvas({
           activeElement.blur()
         }
       }
-      setSelectedId(null)
-      setEditingField(null)
-      setInteractionMode('moving')
+      // Use flushSync to ensure all deselection state updates happen synchronously
+      flushSync(() => {
+        setSelectedId(null)
+        setEditingField(null)
+        setInteractionMode('moving')
+      })
       return
     }
 
@@ -3127,20 +3180,28 @@ export default function HTMLCanvas({
         {/* Undo/Redo Controls */}
         <div className="flex flex-col gap-1">
           <Button
+            key={`undo-${historyIndex}-${history.length}`}
             size="sm"
             variant="outline"
-            onClick={undo}
-            disabled={historyIndex <= 0}
+            onClick={() => {
+              console.log('[History] Undo button clicked. State - Index:', historyIndex, 'Length:', history.length, 'canUndo:', canUndo)
+              undo()
+            }}
+            disabled={!canUndo}
             className="h-11 w-14 p-0"
             title="Undo (Ctrl+Z / Cmd+Z)"
           >
             <Undo className="w-7 h-7" />
           </Button>
           <Button
+            key={`redo-${historyIndex}-${history.length}`}
             size="sm"
             variant="outline"
-            onClick={redo}
-            disabled={historyIndex >= history.length - 1}
+            onClick={() => {
+              console.log('[History] Redo button clicked. State - Index:', historyIndex, 'Length:', history.length, 'canRedo:', canRedo)
+              redo()
+            }}
+            disabled={!canRedo}
             className="h-11 w-14 p-0"
             title="Redo (Ctrl+Y / Cmd+Shift+Z)"
           >
@@ -3806,7 +3867,10 @@ export default function HTMLCanvas({
                           }
                           return currentNodes // Don't modify nodes
                         })
-                        setEditingField(null)
+                        // Use flushSync to ensure editing mode exits AFTER history updates complete
+                        flushSync(() => {
+                          setEditingField(null)
+                        })
                       })
                     }}
                     onFocus={cancelDelayedBlur}
@@ -4759,7 +4823,10 @@ export default function HTMLCanvas({
                             }
                             return currentNodes // Don't modify nodes
                           })
-                          setEditingField(null)
+                          // Use flushSync to ensure editing mode exits AFTER history updates complete
+                          flushSync(() => {
+                            setEditingField(null)
+                          })
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -4840,7 +4907,10 @@ export default function HTMLCanvas({
                             }
                             return currentNodes // Don't modify nodes
                           })
-                          setEditingField(null)
+                          // Use flushSync to ensure editing mode exits AFTER history updates complete
+                          flushSync(() => {
+                            setEditingField(null)
+                          })
                         }}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -6716,7 +6786,10 @@ export default function HTMLCanvas({
                           }
                           return currentNodes // Don't modify nodes
                         })
-                        setEditingField(null)
+                        // Use flushSync to ensure editing mode exits AFTER history updates complete
+                        flushSync(() => {
+                          setEditingField(null)
+                        })
                       })
                     }}
                     onFocus={cancelDelayedBlur}
