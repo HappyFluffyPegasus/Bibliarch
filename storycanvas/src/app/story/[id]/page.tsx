@@ -489,13 +489,27 @@ export default function StoryPage({ params }: PageProps) {
   const handleSaveCanvas = useCallback(async (nodes: any[], connections: any[] = []) => {
     const saveToCanvasId = currentCanvasIdRef.current
 
-    // Update the ref with latest data
-    latestCanvasData.current = { nodes, connections }
-
     if (!user?.id) {
       console.warn('No user found, skipping save')
       return
     }
+
+    // CRITICAL: Safety check to prevent overwriting main canvas with folder data
+    // If we're about to save to main canvas but data looks suspiciously small, abort
+    if (saveToCanvasId === 'main') {
+      const existingMainData = latestCanvasData.current
+      // If existing main canvas has data but we're trying to save very little, this is likely wrong
+      if (existingMainData?.nodes?.length > 5 && nodes.length <= 2) {
+        console.error('⚠️ PREVENTED DATA LOSS: Attempting to overwrite main canvas with suspiciously small data')
+        console.error('Existing nodes:', existingMainData.nodes.length, 'New nodes:', nodes.length)
+        return // Abort the save
+      }
+    }
+
+    // Update the ref with latest data
+    latestCanvasData.current = { nodes, connections }
+
+    console.log(`💾 Saving to canvas: ${saveToCanvasId}, nodes: ${nodes.length}, connections: ${connections.length}`)
 
     // Use mutateAsync to actually wait for save to complete before navigation
     await saveCanvasMutation.mutateAsync({
