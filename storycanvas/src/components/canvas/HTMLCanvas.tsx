@@ -11,6 +11,7 @@ import { PerformanceOptimizer } from '@/lib/performance-utils'
 import { useColorContext } from '@/components/providers/color-provider'
 import { ColorPaletteManager } from '@/lib/color-palette'
 import { NodeContextMenu } from './NodeContextMenu'
+import { ConnectionContextMenu } from './ConnectionContextMenu'
 import { createClient } from '@/lib/supabase/client'
 
 interface Node {
@@ -251,6 +252,12 @@ export default function HTMLCanvas({
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{
     node: Node
+    position: { x: number; y: number }
+  } | null>(null)
+
+  // Connection context menu state (for timeline connections between events)
+  const [connectionContextMenu, setConnectionContextMenu] = useState<{
+    connection: Connection
     position: { x: number; y: number }
   } | null>(null)
 
@@ -2560,6 +2567,13 @@ export default function HTMLCanvas({
 
   }
 
+  const handleDeleteConnection = (connectionId: string) => {
+    const newConnections = connections.filter(conn => conn.id !== connectionId)
+    setConnections(newConnections)
+    saveToHistory(nodes, newConnections)
+    setConnectionContextMenu(null)
+  }
+
   const handleColorChange = (nodeId: string, color: string) => {
     const newNodes = nodes.map(node =>
       node.id === nodeId
@@ -3619,7 +3633,12 @@ export default function HTMLCanvas({
           onMouseLeave={() => handleCanvasMouseUp()}
           onTouchMove={handleCanvasMouseMove}
           onTouchEnd={(e) => handleCanvasMouseUp()}
-          onContextMenu={(e) => e.preventDefault()}
+          onContextMenu={(e) => {
+            // Only prevent default if the event wasn't handled by a child (like a connection)
+            if (!e.defaultPrevented) {
+              e.preventDefault()
+            }
+          }}
           style={{
             width: `${canvasWidth}px`,
             height: `${canvasHeight}px`,
@@ -3720,6 +3739,20 @@ export default function HTMLCanvas({
                       e.stopPropagation()
                       setSelectedId(node.id)
                       setSelectedIds([node.id])
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      // Select the line first if not already selected
+                      if (selectedId !== node.id && !selectedIds.includes(node.id)) {
+                        setSelectedId(node.id)
+                        setSelectedIds([node.id])
+                      }
+                      // Show context menu
+                      setContextMenu({
+                        node,
+                        position: { x: e.clientX, y: e.clientY }
+                      })
                     }}
                   />
 
@@ -6940,11 +6973,12 @@ export default function HTMLCanvas({
 
           {/* Connection Lines Overlay - Behind nodes */}
           <svg
-            className="absolute inset-0 pointer-events-none"
+            className="absolute inset-0"
             style={{
               width: `${canvasWidth}px`,
               height: `${canvasHeight}px`,
-              zIndex: 1
+              zIndex: 1,
+              pointerEvents: 'none'
             }}
           >
             {connections.map(connection => {
@@ -7018,7 +7052,7 @@ export default function HTMLCanvas({
 
               return (
                 <g key={connection.id}>
-                  {/* Connection line */}
+                  {/* Visible connection line */}
                   <line
                     x1={fromPoint.x}
                     y1={fromPoint.y}
@@ -7026,6 +7060,33 @@ export default function HTMLCanvas({
                     y2={toPoint.y}
                     stroke={strokeColor}
                     strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                  {/* Invisible thicker line for easier clicking */}
+                  <line
+                    x1={fromPoint.x}
+                    y1={fromPoint.y}
+                    x2={toPoint.x}
+                    y2={toPoint.y}
+                    stroke="rgba(0,0,0,0.01)"
+                    strokeWidth={30}
+                    strokeLinecap="round"
+                    style={{
+                      cursor: 'pointer',
+                      pointerEvents: 'all'
+                    }}
+                    onContextMenu={(e) => {
+                      e.stopPropagation()
+                      e.preventDefault()
+                      setConnectionContextMenu({
+                        connection,
+                        position: { x: e.clientX, y: e.clientY }
+                      })
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                    }}
                   />
                 </g>
               )
@@ -7382,6 +7443,9 @@ export default function HTMLCanvas({
                             )
                             setNodes(updatedNodes)
                             saveToHistory(updatedNodes, connections)
+                            if (onSave) {
+                              onSave(updatedNodes, connections)
+                            }
 
                             // Update modal state
                             const updatedNode = updatedNodes.find(n => n.id === currentNode.id)
@@ -7448,6 +7512,9 @@ export default function HTMLCanvas({
                               )
                               setNodes(updatedNodes)
                               saveToHistory(updatedNodes, connections)
+                              if (onSave) {
+                                onSave(updatedNodes, connections)
+                              }
 
                               // Update modal state
                               const updatedNode = updatedNodes.find(n => n.id === currentNode.id)
@@ -7515,8 +7582,13 @@ export default function HTMLCanvas({
                       // Use requestAnimationFrame to wait for React to flush state updates
                       requestAnimationFrame(() => {
                         setNodes(currentNodes => {
-                          // Call saveToHistory in next tick to avoid state update conflicts
-                          setTimeout(() => saveToHistory(currentNodes, connections), 0)
+                          // Call saveToHistory and onSave in next tick to avoid state update conflicts
+                          setTimeout(() => {
+                            saveToHistory(currentNodes, connections)
+                            if (onSave) {
+                              onSave(currentNodes, connections)
+                            }
+                          }, 0)
                           return currentNodes // Don't modify nodes
                         })
                       })
@@ -8109,6 +8181,16 @@ export default function HTMLCanvas({
           onDelete={handleDeleteNode}
           onBringToFront={handleBringToFront}
           onSendToBack={handleSendToBack}
+        />
+      )}
+
+      {/* Connection context menu (for timeline connections between events) */}
+      {connectionContextMenu && (
+        <ConnectionContextMenu
+          connection={connectionContextMenu.connection}
+          position={connectionContextMenu.position}
+          onClose={() => setConnectionContextMenu(null)}
+          onDelete={handleDeleteConnection}
         />
       )}
 
