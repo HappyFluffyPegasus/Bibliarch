@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Sparkles, ChevronRight, Settings, LogOut, Home as HomeIcon, ChevronLeft, Plus, Minus, RotateCcw } from 'lucide-react'
+import { Sparkles, ChevronRight, Settings, LogOut, Home as HomeIcon, ChevronLeft, Plus, Minus, RotateCcw, Bitcoin } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
@@ -872,6 +872,20 @@ export default function StoryPage({ params }: PageProps) {
           <div className="flex items-center gap-4">
             <ThemeToggle />
             <FeedbackButton />
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              title="Support Bibliarch"
+            >
+              <a
+                href="https://pay.zaprite.com/pl_mTYYPoOo2S"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <Bitcoin className="w-4 h-4" />
+              </a>
+            </Button>
             <Button
               variant="ghost"
               size="sm"

@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, LogOut, Sparkles, FileText, Clock, Settings, Trash2, Copy } from 'lucide-react'
+import { Plus, LogOut, Sparkles, FileText, Clock, Settings, Trash2, Copy, Bitcoin } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { storyTemplates } from '@/lib/templates'
@@ -278,6 +278,21 @@ export default function DashboardPage() {
             </span>
             <div className="md:block"><ThemeToggle /></div>
             <div className="md:block"><FeedbackButton /></div>
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="h-8 w-8 md:h-9 md:w-9 p-0"
+              title="Support Bibliarch"
+            >
+              <a
+                href="https://pay.zaprite.com/pl_mTYYPoOo2S"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <Bitcoin className="w-4 h-4" />
+              </a>
+            </Button>
             <Link href="/settings">
               <Button variant="ghost" size="sm" className="h-8 w-8 md:h-9 md:w-9 p-0">
                 <Settings className="w-4 h-4" />
