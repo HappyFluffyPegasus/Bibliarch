@@ -870,22 +870,8 @@ export default function StoryPage({ params }: PageProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            <ThemeToggle />
             <FeedbackButton />
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              title="Support Bibliarch"
-            >
-              <a
-                href="https://pay.zaprite.com/pl_mTYYPoOo2S"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                <Bitcoin className="w-4 h-4" />
-              </a>
-            </Button>
+            <ThemeToggle />
             <Button
               variant="ghost"
               size="sm"
@@ -899,6 +885,20 @@ export default function StoryPage({ params }: PageProps) {
                 <LogOut className="w-4 h-4" />
               </Button>
             </form>
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              title="Support Bibliarch"
+            >
+              <a
+                href="https://pay.zaprite.com/pl_mTYYPoOo2S"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <Bitcoin className="w-4 h-4" style={{ transform: 'rotate(0deg)' }} />
+              </a>
+            </Button>
           </div>
         </div>
       </header>

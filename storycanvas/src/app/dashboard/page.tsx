@@ -276,8 +276,18 @@ export default function DashboardPage() {
             <span className="hidden md:block text-sm text-muted-foreground">
               Welcome back, <span className="font-medium">{username}</span>
             </span>
-            <div className="md:block"><ThemeToggle /></div>
             <div className="md:block"><FeedbackButton /></div>
+            <div className="md:block"><ThemeToggle /></div>
+            <Link href="/settings">
+              <Button variant="ghost" size="sm" className="h-8 w-8 md:h-9 md:w-9 p-0">
+                <Settings className="w-4 h-4" />
+              </Button>
+            </Link>
+            <form action={signOut}>
+              <Button variant="ghost" size="sm" type="submit" className="h-8 w-8 md:h-9 md:w-9 p-0">
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </form>
             <Button
               variant="ghost"
               size="sm"
@@ -290,19 +300,9 @@ export default function DashboardPage() {
                 target="_blank"
                 rel="noreferrer noopener"
               >
-                <Bitcoin className="w-4 h-4" />
+                <Bitcoin className="w-4 h-4" style={{ transform: 'rotate(0deg)' }} />
               </a>
             </Button>
-            <Link href="/settings">
-              <Button variant="ghost" size="sm" className="h-8 w-8 md:h-9 md:w-9 p-0">
-                <Settings className="w-4 h-4" />
-              </Button>
-            </Link>
-            <form action={signOut}>
-              <Button variant="ghost" size="sm" type="submit" className="h-8 w-8 md:h-9 md:w-9 p-0">
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </form>
           </div>
         </div>
       </header>
