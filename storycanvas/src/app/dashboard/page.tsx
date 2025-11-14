@@ -288,7 +288,7 @@ export default function DashboardPage() {
                 target="_blank"
                 rel="noreferrer noopener"
               >
-                <Bitcoin className="w-4 h-4" style={{ transform: 'rotate(0deg)' }} />
+                <Bitcoin className="w-5 h-5" style={{ transform: 'rotate(0deg)' }} />
               </a>
             </Button>
             <div className="md:block"><FeedbackButton /></div>
