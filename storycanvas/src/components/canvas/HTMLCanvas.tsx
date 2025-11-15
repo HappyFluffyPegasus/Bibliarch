@@ -3904,9 +3904,9 @@ export default function HTMLCanvas({
                       whiteSpace: 'pre-wrap'
                     }}
                     onBlur={(e) => {
+                      // Capture content before event is nullified
+                      const newContent = e.currentTarget.innerHTML || ''
                       handleDelayedBlur(() => {
-                        // Get the current content from the element
-                        const newContent = e.currentTarget.innerHTML || ''
                         // Update nodes with the new content
                         const updatedNodes = nodes.map(n =>
                           n.id === node.id ? { ...n, content: newContent } : n
@@ -6814,9 +6814,9 @@ export default function HTMLCanvas({
                       }
                     }}
                     onBlur={(e) => {
+                      // Capture content before event is nullified
+                      const newContent = e.currentTarget.innerHTML || ''
                       handleDelayedBlur(() => {
-                        // Get the current content from the element
-                        const newContent = e.currentTarget.innerHTML || ''
                         // Update nodes with the new content
                         const updatedNodes = nodes.map(n =>
                           n.id === node.id ? { ...n, content: newContent } : n
