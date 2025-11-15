@@ -3903,23 +3903,19 @@ export default function HTMLCanvas({
                       overflowWrap: 'break-word',
                       whiteSpace: 'pre-wrap'
                     }}
-                    onInput={(e) => {
-                      const newContent = e.currentTarget.innerHTML || ''
-                      const updatedNodes = nodes.map(n =>
-                        n.id === node.id ? { ...n, content: newContent } : n
-                      )
-                      setNodes(updatedNodes)
-                    }}
-                    onBlur={() => {
+                    onBlur={(e) => {
                       handleDelayedBlur(() => {
-                        // Use setNodes callback to get current state for history
-                        setNodes(currentNodes => {
-                          saveToHistory(currentNodes, connections)
-                          if (onSave) {
-                            onSave(currentNodes, connections)
-                          }
-                          return currentNodes // Don't modify nodes
-                        })
+                        // Get the current content from the element
+                        const newContent = e.currentTarget.innerHTML || ''
+                        // Update nodes with the new content
+                        const updatedNodes = nodes.map(n =>
+                          n.id === node.id ? { ...n, content: newContent } : n
+                        )
+                        setNodes(updatedNodes)
+                        saveToHistory(updatedNodes, connections)
+                        if (onSave) {
+                          onSave(updatedNodes, connections)
+                        }
                         // Use flushSync to ensure editing mode exits AFTER history updates complete
                         flushSync(() => {
                           setEditingField(null)
@@ -4855,27 +4851,24 @@ export default function HTMLCanvas({
                           }
                         }}
                         onInput={(e) => {
-                          const newTitle = e.currentTarget.textContent || ''
-                          const updatedNodes = nodes.map(n =>
-                            n.id === node.id ? { ...n, title: newTitle } : n
-                          )
-                          setNodes(updatedNodes)
-
-                          // Auto-resize
+                          // Auto-resize only, don't update state on every keystroke
                           const target = e.currentTarget as HTMLElement
                           if (target) {
                             debouncedAutoResize(node.id, target, true)
                           }
                         }}
-                        onBlur={() => {
-                          // Use setNodes callback to get current state for history
-                          setNodes(currentNodes => {
-                            saveToHistory(currentNodes, connections)
-                            if (onSave) {
-                              onSave(currentNodes, connections)
-                            }
-                            return currentNodes // Don't modify nodes
-                          })
+                        onBlur={(e) => {
+                          // Get the current title from the element
+                          const newTitle = e.currentTarget.textContent || ''
+                          // Update nodes with the new title
+                          const updatedNodes = nodes.map(n =>
+                            n.id === node.id ? { ...n, title: newTitle } : n
+                          )
+                          setNodes(updatedNodes)
+                          saveToHistory(updatedNodes, connections)
+                          if (onSave) {
+                            onSave(updatedNodes, connections)
+                          }
                           // Use flushSync to ensure editing mode exits AFTER history updates complete
                           flushSync(() => {
                             setEditingField(null)
@@ -4939,27 +4932,24 @@ export default function HTMLCanvas({
                           }
                         }}
                         onInput={(e) => {
-                          const newSummary = e.currentTarget.textContent || ''
-                          const updatedNodes = nodes.map(n =>
-                            n.id === node.id ? { ...n, summary: newSummary } : n
-                          )
-                          setNodes(updatedNodes)
-
-                          // Auto-resize
+                          // Auto-resize only, don't update state on every keystroke
                           const target = e.currentTarget as HTMLElement
                           if (target) {
                             debouncedAutoResize(node.id, target, false)
                           }
                         }}
-                        onBlur={() => {
-                          // Use setNodes callback to get current state for history
-                          setNodes(currentNodes => {
-                            saveToHistory(currentNodes, connections)
-                            if (onSave) {
-                              onSave(currentNodes, connections)
-                            }
-                            return currentNodes // Don't modify nodes
-                          })
+                        onBlur={(e) => {
+                          // Get the current summary from the element
+                          const newSummary = e.currentTarget.textContent || ''
+                          // Update nodes with the new summary
+                          const updatedNodes = nodes.map(n =>
+                            n.id === node.id ? { ...n, summary: newSummary } : n
+                          )
+                          setNodes(updatedNodes)
+                          saveToHistory(updatedNodes, connections)
+                          if (onSave) {
+                            onSave(updatedNodes, connections)
+                          }
                           // Use flushSync to ensure editing mode exits AFTER history updates complete
                           flushSync(() => {
                             setEditingField(null)
@@ -6804,13 +6794,7 @@ export default function HTMLCanvas({
                         return
                       }
 
-                      const newContent = e.currentTarget.innerHTML || ''
-                      const updatedNodes = nodes.map(n =>
-                        n.id === node.id ? { ...n, content: newContent } : n
-                      )
-                      setNodes(updatedNodes)
-
-                      // Real-time auto-resize for text/content nodes
+                      // Auto-resize only, don't update state on every keystroke
                       if (node.type === 'text' || !node.type) {
                         const target = e.currentTarget as HTMLElement
                         if (target) {
@@ -6829,16 +6813,19 @@ export default function HTMLCanvas({
                         }
                       }
                     }}
-                    onBlur={() => {
+                    onBlur={(e) => {
                       handleDelayedBlur(() => {
-                        // Use setNodes callback to get current state for history
-                        setNodes(currentNodes => {
-                          saveToHistory(currentNodes, connections)
-                          if (onSave) {
-                            onSave(currentNodes, connections)
-                          }
-                          return currentNodes // Don't modify nodes
-                        })
+                        // Get the current content from the element
+                        const newContent = e.currentTarget.innerHTML || ''
+                        // Update nodes with the new content
+                        const updatedNodes = nodes.map(n =>
+                          n.id === node.id ? { ...n, content: newContent } : n
+                        )
+                        setNodes(updatedNodes)
+                        saveToHistory(updatedNodes, connections)
+                        if (onSave) {
+                          onSave(updatedNodes, connections)
+                        }
                         // Use flushSync to ensure editing mode exits AFTER history updates complete
                         flushSync(() => {
                           setEditingField(null)
