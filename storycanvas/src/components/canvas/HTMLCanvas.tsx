@@ -333,8 +333,14 @@ export default function HTMLCanvas({
   // Undo/Redo system - completely rebuilt
   const [history, setHistory] = useState<{ nodes: Node[], connections: Connection[] }[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
-  const maxHistorySize = 50
+  const maxHistorySize = 100
   const isPerformingUndoRedo = useRef(false)
+  const currentHistoryIndexRef = useRef(-1)
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    currentHistoryIndexRef.current = historyIndex
+  }, [historyIndex])
 
   // Delayed blur handler to allow Grammarly and other extensions to apply changes
   const handleDelayedBlur = useCallback((callback: () => void) => {
@@ -782,6 +788,7 @@ export default function HTMLCanvas({
       hasInitializedHistory.current = true
       setHistory([{ nodes: JSON.parse(JSON.stringify(nodes)), connections: JSON.parse(JSON.stringify(connections)) }])
       setHistoryIndex(0)
+      currentHistoryIndexRef.current = 0
     }
   }, [])
 
@@ -792,9 +799,10 @@ export default function HTMLCanvas({
       return
     }
 
-    setHistory(prev => {
-      const currentIndex = historyIndex
+    // Use ref to get current index (not stale closure value)
+    const currentIndex = currentHistoryIndexRef.current
 
+    setHistory(prev => {
       // Check if state actually changed
       if (currentIndex >= 0 && prev[currentIndex]) {
         const current = prev[currentIndex]
@@ -806,7 +814,7 @@ export default function HTMLCanvas({
       }
 
       // Clear future history if not at end
-      const newHistory = prev.slice(0, currentIndex + 1)
+      let newHistory = prev.slice(0, currentIndex + 1)
 
       // Add new state
       newHistory.push({
@@ -816,15 +824,17 @@ export default function HTMLCanvas({
 
       // Limit size
       if (newHistory.length > maxHistorySize) {
-        newHistory.shift()
-        setHistoryIndex(newHistory.length - 1)
-      } else {
-        setHistoryIndex(newHistory.length - 1)
+        newHistory = newHistory.slice(1) // Remove oldest
       }
+
+      // Update index immediately
+      const newIndex = newHistory.length - 1
+      setHistoryIndex(newIndex)
+      currentHistoryIndexRef.current = newIndex
 
       return newHistory
     })
-  }, [historyIndex, maxHistorySize])
+  }, [maxHistorySize])
 
   // Undo - CLEAN IMPLEMENTATION
   const undo = useCallback(() => {
@@ -840,6 +850,9 @@ export default function HTMLCanvas({
           setConnections(JSON.parse(JSON.stringify(prevState.connections)))
           setHistoryIndex(newIndex)
         })
+
+        // Update ref to keep in sync
+        currentHistoryIndexRef.current = newIndex
 
         // Clear flag immediately after state update completes
         isPerformingUndoRedo.current = false
@@ -861,6 +874,9 @@ export default function HTMLCanvas({
           setConnections(JSON.parse(JSON.stringify(nextState.connections)))
           setHistoryIndex(newIndex)
         })
+
+        // Update ref to keep in sync
+        currentHistoryIndexRef.current = newIndex
 
         // Clear flag immediately after state update completes
         isPerformingUndoRedo.current = false
