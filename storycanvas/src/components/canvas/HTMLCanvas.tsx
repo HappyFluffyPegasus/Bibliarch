@@ -814,6 +814,17 @@ export default function HTMLCanvas({
     const currentHistory = historyRef.current
     const currentIndex = historyIndexRef.current
 
+    // Check if state actually changed from current history entry
+    if (currentIndex >= 0 && currentHistory[currentIndex]) {
+      const currentState = currentHistory[currentIndex]
+      const isSame = JSON.stringify(currentState.nodes) === JSON.stringify(newNodes) &&
+                     JSON.stringify(currentState.connections) === JSON.stringify(newConnections)
+      if (isSame) {
+        console.log('[History] Skipped save - state unchanged')
+        return
+      }
+    }
+
     // Clear any future history if we're not at the end
     const clearedHistory = currentHistory.slice(0, currentIndex + 1)
 
@@ -837,6 +848,10 @@ export default function HTMLCanvas({
       setHistory(clearedHistory)
       setHistoryIndex(newIndex)
     })
+
+    // Update refs immediately to keep them in sync
+    historyRef.current = clearedHistory
+    historyIndexRef.current = newIndex
   }, [maxHistorySize])
 
   // Undo function
@@ -866,11 +881,11 @@ export default function HTMLCanvas({
         // Update ref immediately after state update (don't wait for useEffect)
         historyIndexRef.current = newIndex
 
-        // Clear flag after a longer delay to ensure all effects have completed
+        // Clear flag after a short delay to ensure state updates have propagated
         setTimeout(() => {
           console.log('[History] Clearing undo/redo flag')
           isUndoRedoRef.current = false
-        }, 500)
+        }, 100)
       }
     } else {
       console.log('[History] Cannot undo - at beginning of history')
@@ -904,11 +919,11 @@ export default function HTMLCanvas({
         // Update ref immediately after state update (don't wait for useEffect)
         historyIndexRef.current = newIndex
 
-        // Clear flag after a longer delay to ensure all effects have completed
+        // Clear flag after a short delay to ensure state updates have propagated
         setTimeout(() => {
           console.log('[History] Clearing undo/redo flag')
           isUndoRedoRef.current = false
-        }, 500)
+        }, 100)
       }
     } else {
       console.log('[History] Cannot redo - at end of history')
