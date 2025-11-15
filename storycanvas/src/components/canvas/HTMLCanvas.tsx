@@ -330,13 +330,11 @@ export default function HTMLCanvas({
     localStorage.setItem('canvas-show-grid', JSON.stringify(showGrid))
   }, [showGrid])
 
-  // Undo/Redo system
+  // Undo/Redo system - completely rebuilt
   const [history, setHistory] = useState<{ nodes: Node[], connections: Connection[] }[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const maxHistorySize = 50
-  const isUndoRedoRef = useRef(false) // Flag to prevent saveToHistory during undo/redo
-  const historyRef = useRef<{ nodes: Node[], connections: Connection[] }[]>([])
-  const historyIndexRef = useRef(-1)
+  const isPerformingUndoRedo = useRef(false)
 
   // Delayed blur handler to allow Grammarly and other extensions to apply changes
   const handleDelayedBlur = useCallback((callback: () => void) => {
@@ -777,158 +775,102 @@ export default function HTMLCanvas({
     setViewportNodes(nodes.filter(node => visibleNodeIds.includes(node.id)))
   }, [nodes, visibleNodeIds])
 
-  // Keep refs in sync with state
-  useEffect(() => {
-    historyRef.current = history
-    historyIndexRef.current = historyIndex
-  }, [history, historyIndex])
-
-  // Compute can undo/redo flags for button states using useMemo to ensure proper re-renders
-  const canUndo = useMemo(() => historyIndex > 0, [historyIndex])
-  const canRedo = useMemo(() => historyIndex < history.length - 1, [historyIndex, history.length])
-
-  // Save initial state to history on mount
+  // Initialize history with current state on mount
   const hasInitializedHistory = useRef(false)
   useEffect(() => {
-    if (!hasInitializedHistory.current && history.length === 0 && nodes.length >= 0) {
-      console.log('[History] Saving initial state')
+    if (!hasInitializedHistory.current && history.length === 0) {
       hasInitializedHistory.current = true
-      // Set initial history state (flushSync not needed in useEffect)
-      setHistory([{
-        nodes: JSON.parse(JSON.stringify(nodes)),
-        connections: JSON.parse(JSON.stringify(connections))
-      }])
+      setHistory([{ nodes: JSON.parse(JSON.stringify(nodes)), connections: JSON.parse(JSON.stringify(connections)) }])
       setHistoryIndex(0)
     }
-  }, []) // Run only on mount
+  }, [])
 
-  // Save state to history
+  // Save to history - CLEAN IMPLEMENTATION
   const saveToHistory = useCallback((newNodes: Node[], newConnections: Connection[]) => {
-    // Skip saving to history during undo/redo operations
-    if (isUndoRedoRef.current) {
-      console.log('[History] Skipped save during undo/redo')
+    // NEVER save during undo/redo
+    if (isPerformingUndoRedo.current) {
       return
     }
 
-    // Use refs to get the most current values
-    const currentHistory = historyRef.current
-    const currentIndex = historyIndexRef.current
+    setHistory(prev => {
+      const currentIndex = historyIndex
 
-    // Check if state actually changed from current history entry
-    if (currentIndex >= 0 && currentHistory[currentIndex]) {
-      const currentState = currentHistory[currentIndex]
-      const isSame = JSON.stringify(currentState.nodes) === JSON.stringify(newNodes) &&
-                     JSON.stringify(currentState.connections) === JSON.stringify(newConnections)
-      if (isSame) {
-        console.log('[History] Skipped save - state unchanged')
-        return
+      // Check if state actually changed
+      if (currentIndex >= 0 && prev[currentIndex]) {
+        const current = prev[currentIndex]
+        const unchanged = JSON.stringify(current.nodes) === JSON.stringify(newNodes) &&
+                         JSON.stringify(current.connections) === JSON.stringify(newConnections)
+        if (unchanged) {
+          return prev
+        }
       }
-    }
 
-    // Clear any future history if we're not at the end
-    const clearedHistory = currentHistory.slice(0, currentIndex + 1)
+      // Clear future history if not at end
+      const newHistory = prev.slice(0, currentIndex + 1)
 
-    // Add the new state (deep clone to prevent mutations)
-    clearedHistory.push({
-      nodes: JSON.parse(JSON.stringify(newNodes)),
-      connections: JSON.parse(JSON.stringify(newConnections))
+      // Add new state
+      newHistory.push({
+        nodes: JSON.parse(JSON.stringify(newNodes)),
+        connections: JSON.parse(JSON.stringify(newConnections))
+      })
+
+      // Limit size
+      if (newHistory.length > maxHistorySize) {
+        newHistory.shift()
+        setHistoryIndex(newHistory.length - 1)
+      } else {
+        setHistoryIndex(newHistory.length - 1)
+      }
+
+      return newHistory
     })
+  }, [historyIndex, maxHistorySize])
 
-    // Limit history size
-    let newIndex = clearedHistory.length - 1
-    if (clearedHistory.length > maxHistorySize) {
-      clearedHistory.shift()
-      newIndex = clearedHistory.length - 1
-    }
-
-    console.log('[History] Saved to history. Index:', currentIndex, '->', newIndex, 'Length:', clearedHistory.length)
-
-    // Update state synchronously with flushSync to ensure immediate re-renders
-    flushSync(() => {
-      setHistory(clearedHistory)
-      setHistoryIndex(newIndex)
-    })
-
-    // Update refs immediately to keep them in sync
-    historyRef.current = clearedHistory
-    historyIndexRef.current = newIndex
-  }, [maxHistorySize])
-
-  // Undo function
+  // Undo - CLEAN IMPLEMENTATION
   const undo = useCallback(() => {
-    // Read current values from refs instead of closure
-    const currentHistory = historyRef.current
-    const currentIndex = historyIndexRef.current
-
-    console.log('[History] Undo called. Index:', currentIndex, 'Length:', currentHistory.length)
-    if (currentIndex > 0) {
-      const newIndex = currentIndex - 1
-      const prevState = currentHistory[newIndex]
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1
+      const prevState = history[newIndex]
 
       if (prevState) {
-        console.log('[History] Undoing to index', newIndex)
-        // Set flag to prevent saveToHistory from being called during state updates
-        isUndoRedoRef.current = true
+        isPerformingUndoRedo.current = true
 
-        // Use flushSync to ensure state updates complete synchronously
         flushSync(() => {
-          // Deep clone to avoid reference issues
           setNodes(JSON.parse(JSON.stringify(prevState.nodes)))
           setConnections(JSON.parse(JSON.stringify(prevState.connections)))
           setHistoryIndex(newIndex)
         })
 
-        // Update ref immediately after state update (don't wait for useEffect)
-        historyIndexRef.current = newIndex
-
-        // Clear flag after a short delay to ensure state updates have propagated
-        setTimeout(() => {
-          console.log('[History] Clearing undo/redo flag')
-          isUndoRedoRef.current = false
-        }, 100)
+        // Clear flag immediately after state update completes
+        isPerformingUndoRedo.current = false
       }
-    } else {
-      console.log('[History] Cannot undo - at beginning of history')
     }
-  }, [])
+  }, [history, historyIndex])
 
-  // Redo function
+  // Redo - CLEAN IMPLEMENTATION
   const redo = useCallback(() => {
-    // Read current values from refs instead of closure
-    const currentHistory = historyRef.current
-    const currentIndex = historyIndexRef.current
-
-    console.log('[History] Redo called. Index:', currentIndex, 'Length:', currentHistory.length)
-    if (currentIndex < currentHistory.length - 1) {
-      const newIndex = currentIndex + 1
-      const nextState = currentHistory[newIndex]
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1
+      const nextState = history[newIndex]
 
       if (nextState) {
-        console.log('[History] Redoing to index', newIndex)
-        // Set flag to prevent saveToHistory from being called during state updates
-        isUndoRedoRef.current = true
+        isPerformingUndoRedo.current = true
 
-        // Use flushSync to ensure state updates complete synchronously
         flushSync(() => {
-          // Deep clone to avoid reference issues
           setNodes(JSON.parse(JSON.stringify(nextState.nodes)))
           setConnections(JSON.parse(JSON.stringify(nextState.connections)))
           setHistoryIndex(newIndex)
         })
 
-        // Update ref immediately after state update (don't wait for useEffect)
-        historyIndexRef.current = newIndex
-
-        // Clear flag after a short delay to ensure state updates have propagated
-        setTimeout(() => {
-          console.log('[History] Clearing undo/redo flag')
-          isUndoRedoRef.current = false
-        }, 100)
+        // Clear flag immediately after state update completes
+        isPerformingUndoRedo.current = false
       }
-    } else {
-      console.log('[History] Cannot redo - at end of history')
     }
-  }, [])
+  }, [history, historyIndex])
+
+  // Can undo/redo flags
+  const canUndo = useMemo(() => historyIndex > 0, [historyIndex])
+  const canRedo = useMemo(() => historyIndex < history.length - 1, [historyIndex, history.length])
 
   // Node style preferences update function
   const updateNodeStylePreference = useCallback((key: keyof NodeStylePreferences, value: string) => {
