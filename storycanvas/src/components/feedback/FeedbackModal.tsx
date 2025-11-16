@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X, CheckCircle2, AlertCircle } from 'lucide-react'
 import { feedbackSchema, type FeedbackType } from '@/lib/feedback/types'
 
@@ -22,6 +23,11 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -101,11 +107,11 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
     }
   }
 
-  if (!isOpen) return null
+  if (!isOpen || !mounted) return null
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 relative">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto my-auto relative">
         {isSuccess ? (
           // Success State
           <div className="p-8 text-center">
@@ -206,6 +212,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
