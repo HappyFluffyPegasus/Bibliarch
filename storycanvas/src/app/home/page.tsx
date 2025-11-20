@@ -1,10 +1,17 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Sparkles, Bitcoin } from 'lucide-react'
+import { Sparkles, Bitcoin, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import FeedbackButton from '@/components/feedback/FeedbackButton'
+import dynamic from 'next/dynamic'
+
+// Load canvas dynamically (client-only)
+const HTMLCanvas = dynamic(
+  () => import('@/components/canvas/HTMLCanvas'),
+  { ssr: false }
+)
 
 export default function HomePage() {
   return (
@@ -116,6 +123,100 @@ export default function HomePage() {
                 Folders, sub-canvases, and nested structures for complex story worlds
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Demo Section */}
+        <div className="mt-24 max-w-6xl mx-auto">
+          <div className="text-center space-y-4 mb-8">
+            <h3 className="text-3xl font-bold">Try Bibliarch Now</h3>
+            <div className="flex items-center justify-center gap-2 text-amber-600 dark:text-amber-400">
+              <AlertCircle className="w-5 h-5" />
+              <p className="text-sm font-medium">
+                Demo Mode: Changes made here will not be saved
+              </p>
+            </div>
+          </div>
+
+          {/* Canvas Demo Container */}
+          <div className="border rounded-lg overflow-hidden shadow-2xl bg-white dark:bg-gray-900" style={{ height: '600px' }}>
+            <HTMLCanvas
+              storyId="demo"
+              currentCanvasId="main"
+              canvasPath={[]}
+              currentFolderId={null}
+              currentFolderTitle={null}
+              initialNodes={[
+                {
+                  id: 'char-1',
+                  type: 'character',
+                  x: 100,
+                  y: 150,
+                  width: 320,
+                  height: 72,
+                  text: 'Sarah Chen',
+                  content: 'Protagonist • Detective with a past'
+                },
+                {
+                  id: 'char-2',
+                  type: 'character',
+                  x: 500,
+                  y: 150,
+                  width: 320,
+                  height: 72,
+                  text: 'Marcus Vale',
+                  content: 'Antagonist • Mysterious crime lord'
+                },
+                {
+                  id: 'event-1',
+                  type: 'event',
+                  x: 100,
+                  y: 300,
+                  width: 220,
+                  height: 280,
+                  text: 'Opening Scene',
+                  title: 'Opening Scene',
+                  summary: 'Sarah discovers the first clue that will change everything...',
+                  durationText: 'Day 1'
+                },
+                {
+                  id: 'event-2',
+                  type: 'event',
+                  x: 370,
+                  y: 300,
+                  width: 220,
+                  height: 280,
+                  text: 'First Encounter',
+                  title: 'First Encounter',
+                  summary: 'Sarah and Marcus meet under tense circumstances',
+                  durationText: 'Day 3'
+                },
+                {
+                  id: 'text-1',
+                  type: 'text',
+                  x: 900,
+                  y: 200,
+                  width: 300,
+                  height: 139,
+                  text: 'Story Notes',
+                  content: 'Click and drag nodes around. Double-click to edit. Try the tools in the sidebar!'
+                }
+              ]}
+              initialConnections={[
+                {
+                  id: 'conn-1',
+                  from: 'event-1',
+                  to: 'event-2',
+                  type: 'timeline'
+                }
+              ]}
+              onSave={() => {}} // No-op for demo
+              onNavigateToCanvas={() => {}} // No-op for demo
+              onStateChange={() => {}} // No-op for demo
+              canvasWidth={3000}
+              canvasHeight={2000}
+              initialShowHelp={false}
+            />
           </div>
         </div>
 
