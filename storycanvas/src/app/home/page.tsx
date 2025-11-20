@@ -139,84 +139,97 @@ export default function HomePage() {
           </div>
 
           {/* Canvas Demo Container */}
-          <div className="border rounded-lg overflow-hidden shadow-2xl bg-white dark:bg-gray-900" style={{ height: '600px' }}>
-            <HTMLCanvas
-              storyId="demo"
-              currentCanvasId="main"
-              canvasPath={[]}
-              currentFolderId={null}
-              currentFolderTitle={null}
-              initialNodes={[
-                {
-                  id: 'char-1',
-                  type: 'character',
-                  x: 100,
-                  y: 150,
-                  width: 320,
-                  height: 72,
-                  text: 'Sarah Chen',
-                  content: 'Protagonist • Detective with a past'
-                },
-                {
-                  id: 'char-2',
-                  type: 'character',
-                  x: 500,
-                  y: 150,
-                  width: 320,
-                  height: 72,
-                  text: 'Marcus Vale',
-                  content: 'Antagonist • Mysterious crime lord'
-                },
-                {
-                  id: 'event-1',
-                  type: 'event',
-                  x: 100,
-                  y: 300,
-                  width: 220,
-                  height: 280,
-                  text: 'Opening Scene',
-                  title: 'Opening Scene',
-                  summary: 'Sarah discovers the first clue that will change everything...',
-                  durationText: 'Day 1'
-                },
-                {
-                  id: 'event-2',
-                  type: 'event',
-                  x: 370,
-                  y: 300,
-                  width: 220,
-                  height: 280,
-                  text: 'First Encounter',
-                  title: 'First Encounter',
-                  summary: 'Sarah and Marcus meet under tense circumstances',
-                  durationText: 'Day 3'
-                },
-                {
-                  id: 'text-1',
-                  type: 'text',
-                  x: 900,
-                  y: 200,
-                  width: 300,
-                  height: 139,
-                  text: 'Story Notes',
-                  content: 'Click and drag nodes around. Double-click to edit. Try the tools in the sidebar!'
-                }
-              ]}
-              initialConnections={[
-                {
-                  id: 'conn-1',
-                  from: 'event-1',
-                  to: 'event-2',
-                  type: 'timeline'
-                }
-              ]}
-              onSave={() => {}} // No-op for demo
-              onNavigateToCanvas={() => {}} // No-op for demo
-              onStateChange={() => {}} // No-op for demo
-              canvasWidth={3000}
-              canvasHeight={2000}
-              initialShowHelp={false}
-            />
+          <style dangerouslySetInnerHTML={{__html: `
+            .demo-canvas-container .fixed {
+              position: absolute !important;
+            }
+            .demo-canvas-container {
+              position: relative;
+            }
+          `}} />
+          <div
+            className="border-4 border-sky-500 rounded-lg overflow-hidden shadow-2xl bg-white demo-canvas-container relative"
+            style={{ height: '600px' }}
+          >
+            <div className="w-full h-full bg-white">
+              <HTMLCanvas
+                storyId="demo"
+                currentCanvasId="main"
+                canvasPath={[]}
+                currentFolderId={null}
+                currentFolderTitle={null}
+                zoom={0.7}
+                initialNodes={[
+                  {
+                    id: 'char-1',
+                    type: 'character',
+                    x: 150,
+                    y: 100,
+                    width: 320,
+                    height: 72,
+                    text: 'Sarah Chen',
+                    content: ''
+                  },
+                  {
+                    id: 'char-2',
+                    type: 'character',
+                    x: 650,
+                    y: 100,
+                    width: 320,
+                    height: 72,
+                    text: 'Marcus Vale',
+                    content: ''
+                  },
+                  {
+                    id: 'event-1',
+                    type: 'event',
+                    x: 150,
+                    y: 250,
+                    width: 220,
+                    height: 280,
+                    text: 'Opening Scene',
+                    title: 'Opening Scene',
+                    summary: 'Sarah discovers the first clue that will change everything...',
+                    durationText: 'Day 1'
+                  },
+                  {
+                    id: 'event-2',
+                    type: 'event',
+                    x: 450,
+                    y: 250,
+                    width: 220,
+                    height: 280,
+                    text: 'First Encounter',
+                    title: 'First Encounter',
+                    summary: 'Sarah and Marcus meet under tense circumstances',
+                    durationText: 'Day 3'
+                  },
+                  {
+                    id: 'text-1',
+                    type: 'text',
+                    x: 1050,
+                    y: 200,
+                    width: 300,
+                    height: 180,
+                    text: 'Story Notes',
+                    content: 'Click and drag nodes around. Double-click to edit. Try the tools in the sidebar!'
+                  }
+                ]}
+                initialConnections={[
+                  {
+                    id: 'conn-1',
+                    from: 'event-1',
+                    to: 'event-2'
+                  }
+                ]}
+                onSave={() => {}} // No-op for demo
+                onNavigateToCanvas={() => {}} // No-op for demo
+                onStateChange={() => {}} // No-op for demo
+                canvasWidth={3000}
+                canvasHeight={2000}
+                initialShowHelp={false}
+              />
+            </div>
           </div>
         </div>
 
