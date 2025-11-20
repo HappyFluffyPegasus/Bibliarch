@@ -159,6 +159,8 @@ export default function HomePage() {
                 top: 1rem !important;
                 right: 1rem !important;
                 left: auto !important;
+                transform: none !important;
+                z-index: 1000 !important;
               }
             `}} />
             <div className="w-full h-full" style={{ colorScheme: 'light', backgroundColor: '#f5f5f5' }}>
