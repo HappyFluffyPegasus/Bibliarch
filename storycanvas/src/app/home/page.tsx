@@ -127,28 +127,26 @@ export default function HomePage() {
         </div>
 
         {/* Demo Section */}
-        <div className="mt-24 -mx-4 px-4 py-12" style={{ backgroundColor: '#1e40af' }}>
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center space-y-4 mb-8">
-              <h3 className="text-3xl font-bold text-white">Try Bibliarch Now</h3>
-              <div className="flex items-center justify-center gap-2 text-amber-300">
-                <AlertCircle className="w-5 h-5" />
-                <p className="text-sm font-medium">
-                  Demo Mode: Changes made here will not be saved
-                </p>
-              </div>
+        <div className="mt-24 max-w-6xl mx-auto">
+          <div className="text-center space-y-4 mb-8">
+            <h3 className="text-3xl font-bold">Try Bibliarch Now</h3>
+            <div className="flex items-center justify-center gap-2 text-amber-600 dark:text-amber-400">
+              <AlertCircle className="w-5 h-5" />
+              <p className="text-sm font-medium">
+                Demo Mode: Changes made here will not be saved
+              </p>
             </div>
+          </div>
 
-            {/* Canvas Demo Container */}
-            <div
-              className="border-4 rounded-xl shadow-2xl relative"
-              style={{
-                height: '600px',
-                backgroundColor: '#f5f5f5',
-                border: '4px solid #0ea5e9',
-                boxShadow: 'inset 0 0 0 4px #000000'
-              }}
-            >
+          {/* Canvas Demo Container */}
+          <div
+            className="border-2 rounded-xl shadow-2xl relative"
+            style={{
+              height: '600px',
+              backgroundColor: '#f5f5f5',
+              borderColor: '#e5e7eb'
+            }}
+          >
             <div className="w-full h-full" style={{ colorScheme: 'light', position: 'relative', backgroundColor: '#f5f5f5' }}>
               <style dangerouslySetInnerHTML={{__html: `
                 .demo-canvas * {
@@ -239,7 +237,6 @@ export default function HomePage() {
               />
               </div>
             </div>
-          </div>
           </div>
         </div>
 
