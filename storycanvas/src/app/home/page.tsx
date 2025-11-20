@@ -144,7 +144,7 @@ export default function HomePage() {
             style={{
               height: '600px',
               backgroundColor: '#f5f5f5',
-              border: '1px solid #d1d5db'
+              border: '2px solid #d1d5db'
             }}
           >
             <div className="w-full h-full" style={{ colorScheme: 'light', position: 'relative', backgroundColor: '#f5f5f5' }}>
