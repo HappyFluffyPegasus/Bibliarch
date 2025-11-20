@@ -153,10 +153,9 @@ export default function HomePage() {
                   --background: 0 0% 100% !important;
                   --color-canvas-bg: #ffffff !important;
                 }
-                .demo-canvas .fixed,
-                .demo-canvas [style*="position: fixed"],
-                .demo-canvas [style*="position:fixed"] {
+                .demo-canvas .fixed {
                   position: absolute !important;
+                  top: 1rem !important;
                 }
               `}} />
               <div className="demo-canvas w-full h-full" style={{ position: 'relative' }}>
