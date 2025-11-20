@@ -139,26 +139,28 @@ export default function HomePage() {
           </div>
 
           {/* Canvas Demo Container */}
-          <style dangerouslySetInnerHTML={{__html: `
-            .demo-canvas-container .fixed {
-              position: absolute !important;
-            }
-            .demo-canvas-container {
-              position: relative;
-            }
-          `}} />
           <div
-            className="border-4 border-sky-500 rounded-lg overflow-hidden shadow-2xl bg-white demo-canvas-container relative"
-            style={{ height: '600px' }}
+            className="border-2 rounded-xl overflow-hidden shadow-2xl relative"
+            style={{
+              height: '600px',
+              borderColor: '#0ea5e9', // sky-500
+              backgroundColor: '#ffffff'
+            }}
           >
-            <div className="w-full h-full bg-white">
-              <HTMLCanvas
+            <div className="w-full h-full" style={{ colorScheme: 'light' }}>
+              <style dangerouslySetInnerHTML={{__html: `
+                .demo-canvas * {
+                  --background: 0 0% 100% !important;
+                  --color-canvas-bg: #ffffff !important;
+                }
+              `}} />
+              <div className="demo-canvas w-full h-full">
+                <HTMLCanvas
                 storyId="demo"
                 currentCanvasId="main"
                 canvasPath={[]}
                 currentFolderId={null}
                 currentFolderTitle={null}
-                zoom={0.7}
                 initialNodes={[
                   {
                     id: 'char-1',
@@ -229,6 +231,7 @@ export default function HomePage() {
                 canvasHeight={2000}
                 initialShowHelp={false}
               />
+              </div>
             </div>
           </div>
         </div>
