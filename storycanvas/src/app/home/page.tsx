@@ -127,31 +127,31 @@ export default function HomePage() {
         </div>
 
         {/* Demo Section */}
-        <div className="mt-24 max-w-6xl mx-auto">
-          <div className="text-center space-y-4 mb-8">
-            <h3 className="text-3xl font-bold">Try Bibliarch Now</h3>
-            <div className="flex items-center justify-center gap-2 text-amber-600 dark:text-amber-400">
-              <AlertCircle className="w-5 h-5" />
-              <p className="text-sm font-medium">
-                Demo Mode: Changes made here will not be saved
-              </p>
+        <div className="mt-24 -mx-4 px-4 py-12" style={{ backgroundColor: '#1e40af' }}>
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center space-y-4 mb-8">
+              <h3 className="text-3xl font-bold text-white">Try Bibliarch Now</h3>
+              <div className="flex items-center justify-center gap-2 text-amber-300">
+                <AlertCircle className="w-5 h-5" />
+                <p className="text-sm font-medium">
+                  Demo Mode: Changes made here will not be saved
+                </p>
+              </div>
             </div>
-          </div>
 
-          {/* Canvas Demo Container */}
-          <div
-            className="border-2 rounded-xl overflow-hidden shadow-2xl relative"
-            style={{
-              height: '600px',
-              borderColor: '#0ea5e9', // sky-500
-              backgroundColor: '#ffffff'
-            }}
-          >
-            <div className="w-full h-full" style={{ colorScheme: 'light', position: 'relative' }}>
+            {/* Canvas Demo Container */}
+            <div
+              className="border-4 border-black rounded-xl overflow-hidden shadow-2xl relative"
+              style={{
+                height: '600px',
+                backgroundColor: '#f5f5f5'
+              }}
+            >
+            <div className="w-full h-full" style={{ colorScheme: 'light', position: 'relative', backgroundColor: '#f5f5f5' }}>
               <style dangerouslySetInnerHTML={{__html: `
                 .demo-canvas * {
-                  --background: 0 0% 100% !important;
-                  --color-canvas-bg: #ffffff !important;
+                  --background: 0 0% 96% !important;
+                  --color-canvas-bg: #f5f5f5 !important;
                 }
                 .demo-canvas .fixed {
                   position: absolute !important;
@@ -237,6 +237,7 @@ export default function HomePage() {
               />
               </div>
             </div>
+          </div>
           </div>
         </div>
 
