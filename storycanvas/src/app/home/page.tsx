@@ -147,14 +147,19 @@ export default function HomePage() {
               backgroundColor: '#ffffff'
             }}
           >
-            <div className="w-full h-full" style={{ colorScheme: 'light' }}>
+            <div className="w-full h-full" style={{ colorScheme: 'light', position: 'relative' }}>
               <style dangerouslySetInnerHTML={{__html: `
                 .demo-canvas * {
                   --background: 0 0% 100% !important;
                   --color-canvas-bg: #ffffff !important;
                 }
+                .demo-canvas .fixed,
+                .demo-canvas [style*="position: fixed"],
+                .demo-canvas [style*="position:fixed"] {
+                  position: absolute !important;
+                }
               `}} />
-              <div className="demo-canvas w-full h-full">
+              <div className="demo-canvas w-full h-full" style={{ position: 'relative' }}>
                 <HTMLCanvas
                 storyId="demo"
                 currentCanvasId="main"
