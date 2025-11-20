@@ -156,6 +156,8 @@ export default function HomePage() {
                 .demo-canvas .fixed {
                   position: absolute !important;
                   top: 1rem !important;
+                  right: 1rem !important;
+                  left: auto !important;
                 }
               `}} />
               <div className="demo-canvas w-full h-full" style={{ position: 'relative' }}>
