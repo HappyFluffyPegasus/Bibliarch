@@ -141,10 +141,12 @@ export default function HomePage() {
 
             {/* Canvas Demo Container */}
             <div
-              className="border-4 border-black rounded-xl overflow-hidden shadow-2xl relative"
+              className="border-4 rounded-xl shadow-2xl relative"
               style={{
                 height: '600px',
-                backgroundColor: '#f5f5f5'
+                backgroundColor: '#f5f5f5',
+                border: '4px solid #0ea5e9',
+                boxShadow: 'inset 0 0 0 4px #000000'
               }}
             >
             <div className="w-full h-full" style={{ colorScheme: 'light', position: 'relative', backgroundColor: '#f5f5f5' }}>
