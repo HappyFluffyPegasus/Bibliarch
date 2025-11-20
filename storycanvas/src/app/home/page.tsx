@@ -154,17 +154,15 @@ export default function HomePage() {
                 --background: 0 0% 96% !important;
                 --color-canvas-bg: #f5f5f5 !important;
               }
-              .demo-container-outer > div > div .fixed {
-                position: fixed !important;
-              }
               .demo-container-outer .fixed {
                 position: absolute !important;
                 top: 1rem !important;
                 right: 1rem !important;
+                left: auto !important;
               }
             `}} />
-            <div className="w-full h-full" style={{ colorScheme: 'light', position: 'relative', backgroundColor: '#f5f5f5' }}>
-              <div className="demo-canvas w-full h-full" style={{ position: 'static' }}>
+            <div className="w-full h-full" style={{ colorScheme: 'light', backgroundColor: '#f5f5f5' }}>
+              <div className="demo-canvas w-full h-full">
                 <HTMLCanvas
                 storyId="demo"
                 currentCanvasId="main"
