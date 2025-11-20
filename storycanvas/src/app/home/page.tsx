@@ -140,27 +140,31 @@ export default function HomePage() {
 
           {/* Canvas Demo Container */}
           <div
-            className="rounded-xl shadow-2xl relative overflow-hidden"
+            className="rounded-xl shadow-2xl demo-container-outer"
             style={{
               height: '600px',
               backgroundColor: '#f5f5f5',
-              border: '2px solid #d1d5db'
+              border: '2px solid #d1d5db',
+              position: 'relative',
+              overflow: 'hidden'
             }}
           >
+            <style dangerouslySetInnerHTML={{__html: `
+              .demo-canvas * {
+                --background: 0 0% 96% !important;
+                --color-canvas-bg: #f5f5f5 !important;
+              }
+              .demo-container-outer > div > div .fixed {
+                position: fixed !important;
+              }
+              .demo-container-outer .fixed {
+                position: absolute !important;
+                top: 1rem !important;
+                right: 1rem !important;
+              }
+            `}} />
             <div className="w-full h-full" style={{ colorScheme: 'light', position: 'relative', backgroundColor: '#f5f5f5' }}>
-              <style dangerouslySetInnerHTML={{__html: `
-                .demo-canvas * {
-                  --background: 0 0% 96% !important;
-                  --color-canvas-bg: #f5f5f5 !important;
-                }
-                .demo-canvas .fixed {
-                  position: absolute !important;
-                  top: 1rem !important;
-                  right: 1rem !important;
-                  left: auto !important;
-                }
-              `}} />
-              <div className="demo-canvas w-full h-full" style={{ position: 'relative' }}>
+              <div className="demo-canvas w-full h-full" style={{ position: 'static' }}>
                 <HTMLCanvas
                 storyId="demo"
                 currentCanvasId="main"
