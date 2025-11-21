@@ -50,7 +50,7 @@ export default function HomePage() {
 
       {/* Hero Section */}
       <main className="container mx-auto px-4 py-16 md:py-24">
-        <div className="max-w-4xl mx-auto text-center space-y-8">
+        <div className="max-w-4xl mx-auto text-center space-y-8 min-h-[calc(100vh-200px)] flex flex-col justify-center">
           {/* Main Heading - What is this for */}
           <h2 className="text-4xl md:text-6xl font-bold tracking-tight">
             Visual Story Planning
@@ -76,25 +76,21 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {/* Secondary text */}
-          <p className="text-sm text-muted-foreground">
-            Free to start • No credit card required
-          </p>
         </div>
 
         {/* Feature Preview Section */}
-        <div className="mt-24 max-w-5xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-8">
+        <div className="mt-32 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8 opacity-100">
             {/* Feature 1 */}
             <div className="text-center space-y-4 p-6 rounded-lg border bg-card">
               <div className="w-12 h-12 mx-auto rounded-full bg-sky-100 dark:bg-sky-900/20 flex items-center justify-center">
                 <svg className="w-6 h-6 text-sky-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold">Character Mapping</h3>
+              <h3 className="text-lg font-semibold">Visual Editing</h3>
               <p className="text-sm text-muted-foreground">
-                Visualize character relationships, personalities, and arcs all in one place
+                Drag, connect, and arrange your story elements on an infinite visual canvas
               </p>
             </div>
 
@@ -102,12 +98,12 @@ export default function HomePage() {
             <div className="text-center space-y-4 p-6 rounded-lg border bg-card">
               <div className="w-12 h-12 mx-auto rounded-full bg-sky-100 dark:bg-sky-900/20 flex items-center justify-center">
                 <svg className="w-6 h-6 text-sky-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold">Timeline Planning</h3>
+              <h3 className="text-lg font-semibold">Creative Freedom</h3>
               <p className="text-sm text-muted-foreground">
-                Connect events, track plot threads, and see your story's structure at a glance
+                Write whatever you want. No restrictions, no judgment—just pure creative expression
               </p>
             </div>
 
@@ -130,7 +126,7 @@ export default function HomePage() {
         <div className="mt-24 max-w-6xl mx-auto">
           <div className="text-center space-y-4 mb-8">
             <h3 className="text-3xl font-bold">Try Bibliarch Now</h3>
-            <div className="flex items-center justify-center gap-2 text-amber-600 dark:text-amber-400">
+            <div className="flex items-center justify-center gap-2 text-sky-600 dark:text-sky-400">
               <AlertCircle className="w-5 h-5" />
               <p className="text-sm font-medium">
                 Demo Mode: Changes made here will not be saved
@@ -140,12 +136,12 @@ export default function HomePage() {
 
           {/* Canvas Demo Container */}
           <div
-            className="rounded-xl shadow-2xl demo-container-outer"
+            className="shadow-2xl demo-container-outer"
             style={{
               height: '600px',
               backgroundColor: '#f5f5f5',
-              border: '2px solid #d1d5db',
-              position: 'relative',
+              border: '2px solid #333',
+              borderRadius: '12px',
               overflow: 'hidden'
             }}
           >
@@ -154,17 +150,19 @@ export default function HomePage() {
                 --background: 0 0% 96% !important;
                 --color-canvas-bg: #f5f5f5 !important;
               }
+              .demo-container-outer > div:first-of-type {
+                overflow: hidden;
+                position: relative;
+                width: 100%;
+                height: 100%;
+              }
+              /* Hide floating UI elements in demo */
               .demo-container-outer .fixed {
-                position: absolute !important;
-                top: 1rem !important;
-                right: 1rem !important;
-                left: auto !important;
-                transform: none !important;
-                z-index: 1000 !important;
+                display: none !important;
               }
             `}} />
-            <div className="w-full h-full" style={{ colorScheme: 'light', backgroundColor: '#f5f5f5' }}>
-              <div className="demo-canvas w-full h-full">
+            <div style={{ width: '100%', height: '100%', colorScheme: 'light', backgroundColor: '#f5f5f5' }}>
+              <div className="demo-canvas" style={{ width: '100%', height: '100%' }}>
                 <HTMLCanvas
                 storyId="demo"
                 currentCanvasId="main"
@@ -172,66 +170,127 @@ export default function HomePage() {
                 currentFolderId={null}
                 currentFolderTitle={null}
                 initialNodes={[
+                  // Story Development list container
                   {
-                    id: 'char-1',
-                    type: 'character',
-                    x: 150,
-                    y: 100,
-                    width: 320,
+                    id: 'story-development',
+                    x: 20,
+                    y: 20,
+                    text: 'Story Development',
+                    width: 350,
+                    height: 430,
+                    type: 'list',
+                    childIds: ['character-node', 'character-node-2', 'location-node', 'folder-node']
+                  },
+                  {
+                    id: 'character-node',
+                    x: 40,
+                    y: 60,
+                    text: 'Character',
+                    content: '',
+                    width: 310,
                     height: 72,
-                    text: 'Sarah Chen',
-                    content: ''
-                  },
-                  {
-                    id: 'char-2',
                     type: 'character',
-                    x: 650,
-                    y: 100,
-                    width: 320,
+                    parentId: 'story-development'
+                  },
+                  {
+                    id: 'character-node-2',
+                    x: 40,
+                    y: 142,
+                    text: 'Character',
+                    content: '',
+                    width: 310,
                     height: 72,
-                    text: 'Marcus Vale',
-                    content: ''
+                    type: 'character',
+                    parentId: 'story-development'
                   },
                   {
-                    id: 'event-1',
+                    id: 'location-node',
+                    x: 40,
+                    y: 224,
+                    text: 'Location',
+                    content: '',
+                    width: 310,
+                    height: 90,
+                    type: 'location',
+                    parentId: 'story-development'
+                  },
+                  {
+                    id: 'folder-node',
+                    x: 40,
+                    y: 324,
+                    text: 'Folder',
+                    content: 'Create sub-canvases for complex projects',
+                    width: 310,
+                    height: 100,
+                    type: 'folder',
+                    parentId: 'story-development'
+                  },
+                  // Image node
+                  {
+                    id: 'cover-image',
+                    x: 380,
+                    y: 20,
+                    text: '',
+                    width: 390,
+                    height: 300,
+                    type: 'image'
+                  },
+                  // Text Note
+                  {
+                    id: 'text-note',
+                    x: 780,
+                    y: 20,
+                    text: 'Text Note',
+                    content: 'Free-form notes and ideas',
+                    width: 320,
+                    height: 300,
+                    type: 'text'
+                  },
+                  // Event node
+                  {
+                    id: 'event-node',
+                    x: 380,
+                    y: 330,
+                    text: 'Event',
+                    title: 'Event',
+                    summary: 'Plot story moments and timelines',
+                    width: 280,
+                    height: 340,
                     type: 'event',
-                    x: 150,
-                    y: 250,
-                    width: 220,
-                    height: 280,
-                    text: 'Opening Scene',
-                    title: 'Opening Scene',
-                    summary: 'Sarah discovers the first clue that will change everything...',
-                    durationText: 'Day 1'
+                    durationText: ''
                   },
+                  // Table node
                   {
-                    id: 'event-2',
-                    type: 'event',
-                    x: 450,
-                    y: 250,
-                    width: 220,
-                    height: 280,
-                    text: 'First Encounter',
-                    title: 'First Encounter',
-                    summary: 'Sarah and Marcus meet under tense circumstances',
-                    durationText: 'Day 3'
+                    id: 'table-node',
+                    x: 670,
+                    y: 330,
+                    text: '',
+                    width: 440,
+                    height: 150,
+                    type: 'table',
+                    tableData: [
+                      { col1: 'Type', col2: 'Purpose' },
+                      { col1: 'Table', col2: 'Structured data' },
+                      { col1: 'Rows', col2: 'Track details' }
+                    ]
                   },
+                  // Quick note
                   {
-                    id: 'text-1',
-                    type: 'text',
-                    x: 1050,
-                    y: 200,
-                    width: 300,
-                    height: 180,
-                    text: 'Story Notes',
-                    content: 'Click and drag nodes around. Double-click to edit. Try the tools in the sidebar!'
+                    id: 'quick-note',
+                    x: 670,
+                    y: 490,
+                    text: 'Quick note...',
+                    content: '',
+                    width: 260,
+                    height: 80,
+                    type: 'note'
                   }
                 ]}
                 initialConnections={[
                   {
                     id: 'conn-1',
-                    from: 'event-1',
-                    to: 'event-2'
+                    from: 'folder-node',
+                    to: 'event-node'
                   }
                 ]}
                 onSave={() => {}} // No-op for demo
@@ -246,18 +305,28 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Final CTA */}
-        <div className="mt-24 text-center space-y-6">
-          <h3 className="text-3xl font-bold">Ready to plan your story?</h3>
-          <Link href="/dashboard">
-            <Button
-              size="lg"
-              className="text-lg px-8 py-6 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-lg"
+        {/* Donation Section */}
+        <div className="mt-24 max-w-4xl mx-auto">
+          <div className="bg-sky-50 dark:bg-sky-950/20 border-2 border-sky-200 dark:border-sky-800 rounded-2xl p-8 md:p-12 text-center shadow-xl">
+            <h3 className="text-2xl md:text-3xl font-bold mb-4">Support Bibliarch's Development</h3>
+            <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
+              Bibliarch is free and open for all writers. If you find it valuable, consider supporting its continued development.
+            </p>
+            <a
+              href="https://pay.zaprite.com/pl_mTYYPoOo2S"
+              target="_blank"
+              rel="noreferrer noopener"
             >
-              Go to Dashboard
-            </Button>
-          </Link>
+              <Button
+                size="lg"
+                className="text-lg px-8 py-6 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-lg"
+              >
+                Donate
+              </Button>
+            </a>
+          </div>
         </div>
+
       </main>
 
       {/* Footer */}
