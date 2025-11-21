@@ -177,36 +177,14 @@ export default function HomePage() {
                     y: 20,
                     text: 'Story Development',
                     width: 350,
-                    height: 430,
+                    height: 290,
                     type: 'list',
-                    childIds: ['character-node', 'character-node-2', 'location-node', 'folder-node']
-                  },
-                  {
-                    id: 'character-node',
-                    x: 40,
-                    y: 60,
-                    text: 'Character',
-                    content: '',
-                    width: 310,
-                    height: 72,
-                    type: 'character',
-                    parentId: 'story-development'
-                  },
-                  {
-                    id: 'character-node-2',
-                    x: 40,
-                    y: 142,
-                    text: 'Character',
-                    content: '',
-                    width: 310,
-                    height: 72,
-                    type: 'character',
-                    parentId: 'story-development'
+                    childIds: ['location-node', 'folder-node']
                   },
                   {
                     id: 'location-node',
                     x: 40,
-                    y: 224,
+                    y: 60,
                     text: 'Location',
                     content: '',
                     width: 310,
@@ -217,7 +195,7 @@ export default function HomePage() {
                   {
                     id: 'folder-node',
                     x: 40,
-                    y: 324,
+                    y: 160,
                     text: 'Folder',
                     content: 'Create sub-canvases for complex projects',
                     width: 310,
@@ -225,48 +203,81 @@ export default function HomePage() {
                     type: 'folder',
                     parentId: 'story-development'
                   },
+                  // Characters list container
+                  {
+                    id: 'characters-list',
+                    x: 20,
+                    y: 320,
+                    text: 'Characters',
+                    width: 350,
+                    height: 220,
+                    type: 'list',
+                    childIds: ['character-node', 'character-node-2']
+                  },
+                  {
+                    id: 'character-node',
+                    x: 40,
+                    y: 360,
+                    text: 'Character',
+                    content: '',
+                    width: 310,
+                    height: 72,
+                    type: 'character',
+                    parentId: 'characters-list'
+                  },
+                  {
+                    id: 'character-node-2',
+                    x: 40,
+                    y: 442,
+                    text: 'Character',
+                    content: '',
+                    width: 310,
+                    height: 72,
+                    type: 'character',
+                    parentId: 'characters-list'
+                  },
                   // Image node
                   {
                     id: 'cover-image',
                     x: 380,
                     y: 20,
                     text: '',
-                    width: 390,
-                    height: 300,
+                    width: 380,
+                    height: 290,
                     type: 'image'
-                  },
-                  // Text Note
-                  {
-                    id: 'text-note',
-                    x: 780,
-                    y: 20,
-                    text: 'Text Note',
-                    content: 'Free-form notes and ideas',
-                    width: 320,
-                    height: 300,
-                    type: 'text'
                   },
                   // Event node
                   {
                     id: 'event-node',
-                    x: 380,
-                    y: 330,
+                    x: 770,
+                    y: 20,
                     text: 'Event',
                     title: 'Event',
                     summary: 'Plot story moments and timelines',
                     width: 280,
-                    height: 340,
+                    height: 290,
                     type: 'event',
                     durationText: ''
+                  },
+                  // Text Note
+                  {
+                    id: 'text-note',
+                    x: 380,
+                    y: 320,
+                    text: 'Text Note',
+                    content: 'Free-form notes and ideas',
+                    width: 280,
+                    height: 220,
+                    type: 'text'
                   },
                   // Table node
                   {
                     id: 'table-node',
                     x: 670,
-                    y: 330,
+                    y: 320,
                     text: '',
-                    width: 440,
-                    height: 150,
+                    width: 380,
+                    height: 120,
                     type: 'table',
                     tableData: [
                       { col1: 'Type', col2: 'Purpose' },
@@ -278,11 +289,11 @@ export default function HomePage() {
                   {
                     id: 'quick-note',
                     x: 670,
-                    y: 490,
+                    y: 450,
                     text: 'Quick note...',
                     content: '',
                     width: 260,
-                    height: 80,
+                    height: 90,
                     type: 'note'
                   }
                 ]}
