@@ -17,7 +17,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-white dark:bg-gradient-to-br dark:from-gray-950 dark:to-gray-900">
       {/* Header - Same as dashboard */}
-      <header className="border-b bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
+      <header className="sticky top-0 z-50 border-b bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm">
         <div className="container mx-auto px-2 md:px-4 py-3 md:py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-6 h-6 text-sky-600 dark:text-blue-400" />
@@ -49,8 +49,8 @@ export default function HomePage() {
       </header>
 
       {/* Hero Section */}
-      <main className="container mx-auto px-4 py-16 md:py-24">
-        <div className="max-w-4xl mx-auto text-center space-y-8 min-h-[calc(100vh-200px)] flex flex-col justify-center">
+      <main className="container mx-auto px-4 py-14 md:py-20">
+        <div className="max-w-4xl mx-auto text-center space-y-7 min-h-[calc(100vh-250px)] flex flex-col justify-center">
           {/* Main Heading - What is this for */}
           <h2 className="text-4xl md:text-6xl font-bold tracking-tight">
             Visual Story Planning
@@ -61,7 +61,7 @@ export default function HomePage() {
 
           {/* Subtext - How it helps */}
           <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-            Plan characters, map relationships, organize timelines, and build your story world on an infinite canvas. No more scattered notes or confusing spreadsheets.
+            Plan characters, map relationships, organize timelines, and build your story world on an infinite canvas.
           </p>
 
           {/* CTA Button */}
@@ -103,7 +103,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-lg font-semibold">Creative Freedom</h3>
               <p className="text-sm text-muted-foreground">
-                Write whatever you want. No restrictions, no judgment—just pure creative expression
+                Write whatever you want with zero restrictions
               </p>
             </div>
 
@@ -116,7 +116,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-lg font-semibold">Infinite Organization</h3>
               <p className="text-sm text-muted-foreground">
-                Folders, sub-canvases, and nested structures for complex story worlds
+                Folders, sub-canvases, and nested structures for complex stories
               </p>
             </div>
           </div>
@@ -129,7 +129,7 @@ export default function HomePage() {
             <div className="flex items-center justify-center gap-2 text-sky-600 dark:text-sky-400">
               <AlertCircle className="w-5 h-5" />
               <p className="text-sm font-medium">
-                Demo Mode: Changes made here will not be saved
+                Demo Mode: Limited functionality - changes will not be saved and full navigation is disabled
               </p>
             </div>
           </div>
@@ -175,7 +175,7 @@ export default function HomePage() {
                     id: 'story-development',
                     x: 20,
                     y: 20,
-                    text: 'Story Development',
+                    text: 'List node',
                     width: 350,
                     height: 290,
                     type: 'list',
@@ -218,7 +218,7 @@ export default function HomePage() {
                     id: 'character-node',
                     x: 40,
                     y: 360,
-                    text: 'Character',
+                    text: 'Character 1',
                     content: '',
                     width: 310,
                     height: 72,
@@ -229,7 +229,7 @@ export default function HomePage() {
                     id: 'character-node-2',
                     x: 40,
                     y: 442,
-                    text: 'Character',
+                    text: 'Character 2',
                     content: '',
                     width: 310,
                     height: 72,
@@ -289,12 +289,12 @@ export default function HomePage() {
                   {
                     id: 'quick-note',
                     x: 670,
-                    y: 450,
-                    text: 'Quick note...',
-                    content: '',
-                    width: 260,
+                    y: 433,
+                    text: '',
+                    content: 'Quick note',
+                    width: 180,
                     height: 90,
-                    type: 'note'
+                    type: 'compact-text'
                   }
                 ]}
                 initialConnections={[
@@ -318,7 +318,7 @@ export default function HomePage() {
 
         {/* Donation Section */}
         <div className="mt-24 max-w-4xl mx-auto">
-          <div className="bg-sky-50 dark:bg-sky-950/20 border-2 border-sky-200 dark:border-sky-800 rounded-2xl p-8 md:p-12 text-center shadow-xl">
+          <div className="bg-blue-100 dark:bg-sky-950/20 border-2 border-blue-300 dark:border-sky-800 rounded-2xl p-8 md:p-12 text-center shadow-xl">
             <h3 className="text-2xl md:text-3xl font-bold mb-4">Support Bibliarch's Development</h3>
             <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
               Bibliarch is free and open for all writers. If you find it valuable, consider supporting its continued development.
@@ -342,19 +342,18 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="border-t mt-24 py-8">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground space-y-4">
+        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
           <div className="flex justify-center gap-6">
-            <a href="https://pay.zaprite.com/pl_mTYYPoOo2S" target="_blank" rel="noreferrer noopener" className="hover:text-foreground">
-              Support
-            </a>
             <Link href="/dashboard" className="hover:text-foreground">
               Dashboard
             </Link>
-            <a href="mailto:support@bibliarch.com" className="hover:text-foreground">
+            <a href="https://www.tiktok.com/@somewhatstella" target="_blank" rel="noreferrer noopener" className="hover:text-foreground">
               Contact
             </a>
+            <a href="https://pay.zaprite.com/pl_mTYYPoOo2S" target="_blank" rel="noreferrer noopener" className="hover:text-foreground">
+              Donate
+            </a>
           </div>
-          <p>&copy; 2025 Bibliarch. All rights reserved.</p>
         </div>
       </footer>
     </div>
