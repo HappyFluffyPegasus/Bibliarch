@@ -282,7 +282,7 @@ export function PaletteSelector({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Palette className="w-5 h-5" />
@@ -290,23 +290,23 @@ export function PaletteSelector({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col h-[600px]">
+        <div className="flex flex-col h-[60vh] sm:h-[600px]">
           {/* Custom Color Picker Mode Toggle */}
-          <div className="flex items-center justify-center gap-4 p-4 border-b">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 p-3 sm:p-4 border-b">
             <Button
               variant={selectedTheme === 'light' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleThemeToggle('light')}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 w-full sm:w-auto text-xs sm:text-sm"
             >
               <Sun className="w-4 h-4" />
               Complementary Palette
             </Button>
             <Button
-              variant="outline"
+              variant={selectedTheme === 'custom' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setSelectedTheme('custom')}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 w-full sm:w-auto text-xs sm:text-sm"
             >
               <Sliders className="w-4 h-4" />
               Custom Colors
@@ -314,11 +314,11 @@ export function PaletteSelector({
           </div>
 
           {/* Color Designer */}
-          <div className="flex-1 overflow-auto p-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="flex-1 overflow-auto p-3 sm:p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
               {selectedTheme === 'custom' ? (
                 /* Custom Color Picker */
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <div>
                     <div className="space-y-4">
                       {Object.entries(customColors).map(([key, value]) => (
@@ -456,7 +456,7 @@ export function PaletteSelector({
                 </div>
               ) : (
                 /* Single Main Color Slider */
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <div>
                     <Label htmlFor="hue-adjustment" className="text-base font-semibold">Main Color Slider</Label>
                     <p className="text-sm text-gray-500 mb-3">Slide to change the overall color theme while keeping perfect harmony</p>
@@ -590,7 +590,7 @@ export function PaletteSelector({
           </div>
         </div>
 
-        <DialogFooter className="border-t pt-4">
+        <DialogFooter className="border-t pt-3 sm:pt-4">
           <Button variant="outline" onClick={() => setIsOpen(false)} className="ml-auto">
             Close
           </Button>
