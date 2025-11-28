@@ -3341,77 +3341,62 @@ export default function HTMLCanvas({
             {/* Top-right buttons when help is shown */}
         {showHelp && (
           <div className="flex fixed top-[72px] right-4 z-50 gap-2 items-start">
-            <div
-              style={{
-                transform: `translateX(-${
-                  (showStylePanel ? 220 : 0) + (showGridPanel ? 220 : 0)
-                }px)`
-              }}
+            <PaletteSelector
+              mode="advanced"
+              scope="project"
+              contextId={storyId}
+              currentPalette={colorContext.getCurrentPalette() || undefined}
+              currentFolderId={currentFolderId}
+              currentFolderTitle={currentFolderTitle}
+              onColorSelect={(color) => {
+                if (selectedId) {
+                  handleColorChange(selectedId, color)
+                } else {
 
-            >
-              <PaletteSelector
-                mode="advanced"
-                scope="project"
-                contextId={storyId}
-                currentPalette={colorContext.getCurrentPalette() || undefined}
-                currentFolderId={currentFolderId}
-                currentFolderTitle={currentFolderTitle}
-                onColorSelect={(color) => {
-                  if (selectedId) {
-                    handleColorChange(selectedId, color)
-                  } else {
-
-                  }
-                }}
-                onPaletteChange={(palette, selectedScope) => {
-                  if (selectedScope === 'reset') {
-                    // Reset all sections to use this palette (one-time action - clears all section palettes)
-                    colorContext.resetAllPalettes(storyId, palette)
-                  } else if (selectedScope === 'folder' && currentFolderId) {
-                    // Apply to folder only
-                    colorContext.setFolderPalette(currentFolderId, palette)
-                    // Apply the palette immediately
-                    colorContext.applyPalette(palette)
-                  } else {
-                    // Apply to entire project (default - can be overridden by sections)
-                    colorContext.setProjectPalette(storyId, palette)
-                    // Apply the palette immediately
-                    colorContext.applyPalette(palette)
-                  }
-
-                  // Reset all nodes to use the new theme colors
-                  resetAllNodesToThemeColors()
-
-                  // Force re-render to update node colors
-                  setPaletteRefresh(prev => prev + 1)
-                }}
-                trigger={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
-                    title="Color Palette"
-                  >
-                    <Palette className="w-4 h-4" />
-                  </Button>
                 }
-              />
-            </div>
-            <div
-              style={{
-                transform: `translateX(-${showGridPanel ? 220 : 0}px)`
               }}
+              onPaletteChange={(palette, selectedScope) => {
+                if (selectedScope === 'reset') {
+                  // Reset all sections to use this palette (one-time action - clears all section palettes)
+                  colorContext.resetAllPalettes(storyId, palette)
+                } else if (selectedScope === 'folder' && currentFolderId) {
+                  // Apply to folder only
+                  colorContext.setFolderPalette(currentFolderId, palette)
+                  // Apply the palette immediately
+                  colorContext.applyPalette(palette)
+                } else {
+                  // Apply to entire project (default - can be overridden by sections)
+                  colorContext.setProjectPalette(storyId, palette)
+                  // Apply the palette immediately
+                  colorContext.applyPalette(palette)
+                }
+
+                // Reset all nodes to use the new theme colors
+                resetAllNodesToThemeColors()
+
+                // Force re-render to update node colors
+                setPaletteRefresh(prev => prev + 1)
+              }}
+              trigger={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
+                  title="Color Palette"
+                >
+                  <Palette className="w-4 h-4" />
+                </Button>
+              }
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowStylePanel(!showStylePanel)}
+              className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
+              title="Node Style Settings"
             >
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowStylePanel(!showStylePanel)}
-                className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
-                title="Node Style Settings"
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-              </Button>
-            </div>
+              <SlidersHorizontal className="w-4 h-4" />
+            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -3460,77 +3445,62 @@ export default function HTMLCanvas({
         {/* Top-right buttons when help is hidden */}
         {!showHelp && (
           <div className="flex fixed top-[72px] right-4 z-50 gap-2">
-            <div
-              style={{
-                transform: `translateX(-${
-                  (showStylePanel ? 220 : 0) + (showGridPanel ? 220 : 0)
-                }px)`
-              }}
+            <PaletteSelector
+              mode="advanced"
+              scope="project"
+              contextId={storyId}
+              currentPalette={colorContext.getCurrentPalette() || undefined}
+              currentFolderId={currentFolderId}
+              currentFolderTitle={currentFolderTitle}
+              onColorSelect={(color) => {
+                if (selectedId) {
+                  handleColorChange(selectedId, color)
+                } else {
 
-            >
-              <PaletteSelector
-                mode="advanced"
-                scope="project"
-                contextId={storyId}
-                currentPalette={colorContext.getCurrentPalette() || undefined}
-                currentFolderId={currentFolderId}
-                currentFolderTitle={currentFolderTitle}
-                onColorSelect={(color) => {
-                  if (selectedId) {
-                    handleColorChange(selectedId, color)
-                  } else {
-
-                  }
-                }}
-                onPaletteChange={(palette, selectedScope) => {
-                  if (selectedScope === 'reset') {
-                    // Reset all sections to use this palette (one-time action - clears all section palettes)
-                    colorContext.resetAllPalettes(storyId, palette)
-                  } else if (selectedScope === 'folder' && currentFolderId) {
-                    // Apply to folder only
-                    colorContext.setFolderPalette(currentFolderId, palette)
-                    // Apply the palette immediately
-                    colorContext.applyPalette(palette)
-                  } else {
-                    // Apply to entire project (default - can be overridden by sections)
-                    colorContext.setProjectPalette(storyId, palette)
-                    // Apply the palette immediately
-                    colorContext.applyPalette(palette)
-                  }
-
-                  // Reset all nodes to use the new theme colors
-                  resetAllNodesToThemeColors()
-
-                  // Force re-render to update node colors
-                  setPaletteRefresh(prev => prev + 1)
-                }}
-                trigger={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 w-8 p-0 text-xs shadow-lg"
-                    title="Color Palette"
-                  >
-                    <Palette className="w-4 h-4" />
-                  </Button>
                 }
-              />
-            </div>
-            <div
-              style={{
-                transform: `translateX(-${showGridPanel ? 220 : 0}px)`
               }}
+              onPaletteChange={(palette, selectedScope) => {
+                if (selectedScope === 'reset') {
+                  // Reset all sections to use this palette (one-time action - clears all section palettes)
+                  colorContext.resetAllPalettes(storyId, palette)
+                } else if (selectedScope === 'folder' && currentFolderId) {
+                  // Apply to folder only
+                  colorContext.setFolderPalette(currentFolderId, palette)
+                  // Apply the palette immediately
+                  colorContext.applyPalette(palette)
+                } else {
+                  // Apply to entire project (default - can be overridden by sections)
+                  colorContext.setProjectPalette(storyId, palette)
+                  // Apply the palette immediately
+                  colorContext.applyPalette(palette)
+                }
+
+                // Reset all nodes to use the new theme colors
+                resetAllNodesToThemeColors()
+
+                // Force re-render to update node colors
+                setPaletteRefresh(prev => prev + 1)
+              }}
+              trigger={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-8 p-0 text-xs shadow-lg"
+                  title="Color Palette"
+                >
+                  <Palette className="w-4 h-4" />
+                </Button>
+              }
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowStylePanel(!showStylePanel)}
+              className="h-8 w-8 p-0 text-xs shadow-lg"
+              title="Node Style Settings"
             >
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowStylePanel(!showStylePanel)}
-                className="h-8 w-8 p-0 text-xs shadow-lg"
-                title="Node Style Settings"
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-              </Button>
-            </div>
+              <SlidersHorizontal className="w-4 h-4" />
+            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -3555,13 +3525,7 @@ export default function HTMLCanvas({
         {/* Style Panel Popup */}
         {showStylePanel && (
           <div
-            className="block fixed top-[72px] z-50 w-64"
-            style={{
-              right: `${
-                96 + // aligned with Style button itself: 16px + 32px + 8px + 32px + 8px
-                (showGridPanel ? 220 : 0) // if grid panel is open, shift left
-              }px`
-            }}
+            className="block fixed top-[72px] z-50 w-64 max-w-[calc(100vw-2rem)] right-4"
           >
             <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg">
               <div className="flex items-center justify-between mb-3">
@@ -3588,10 +3552,7 @@ export default function HTMLCanvas({
         {/* Grid Controls Panel */}
         {showGridPanel && (
           <div
-            className="block fixed top-[72px] z-50 w-64"
-            style={{
-              right: '56px' // aligned with Grid button itself: 16px + 32px + 8px
-            }}
+            className="block fixed top-[72px] z-50 w-64 max-w-[calc(100vw-2rem)] right-4"
           >
             <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg">
               <div className="flex items-center justify-between mb-3">
