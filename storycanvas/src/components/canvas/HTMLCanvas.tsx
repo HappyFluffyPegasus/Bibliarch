@@ -219,6 +219,7 @@ export default function HTMLCanvas({
 
   const [zoomCenter, setZoomCenter] = useState({ x: 0, y: 0 })
   const canvasRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Multi-select state
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -329,6 +330,26 @@ export default function HTMLCanvas({
   useEffect(() => {
     localStorage.setItem('canvas-show-grid', JSON.stringify(showGrid))
   }, [showGrid])
+
+  // Non-passive touch event handler to prevent scrolling when dragging nodes
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    const handleTouchMove = (e: TouchEvent) => {
+      // If dragging a node, prevent container scrolling
+      if (isDragReady || draggingNode) {
+        e.preventDefault()
+      }
+    }
+
+    // Add non-passive listener so preventDefault works
+    container.addEventListener('touchmove', handleTouchMove, { passive: false })
+
+    return () => {
+      container.removeEventListener('touchmove', handleTouchMove)
+    }
+  }, [isDragReady, draggingNode])
 
   // Undo/Redo system - completely rebuilt
   const [history, setHistory] = useState<{ nodes: Node[], connections: Connection[] }[]>([])
@@ -1157,6 +1178,45 @@ export default function HTMLCanvas({
     }
   }, [tool, isDraggingCharacter, zoom, zoomCenter])
 
+  // Helper function to handle node drag start for both mouse and touch events
+  const handleNodeDragStart = useCallback((node: Node, clientX: number, clientY: number, isTouch: boolean = false) => {
+    if (tool !== 'select') return false
+
+    // CRITICAL: Cancel any panning state when starting to drag a node
+    setIsPanning(false)
+    setIsSelecting(false)
+
+    setDragStartPos({ x: clientX, y: clientY })
+    setIsDragReady(node.id)
+
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (rect) {
+      const posX = (clientX - rect.left) / zoom
+      const posY = (clientY - rect.top) / zoom
+      setDragOffset({
+        x: posX - node.x,
+        y: posY - node.y
+      })
+    }
+    return true
+  }, [tool, zoom])
+
+  // Touch start handler for canvas - only start panning if not touching a node
+  const handleCanvasTouchStart = useCallback((e: React.TouchEvent) => {
+    // If we're already in drag ready state (a node touch started), don't pan
+    if (isDragReady || draggingNode) {
+      return
+    }
+
+    // Check if the touch target is the canvas itself (not a node)
+    if (e.target === canvasRef.current && e.touches.length === 1) {
+      const touch = e.touches[0]
+      setIsPanning(true)
+      setIsMoving(true)
+      setLastPanPoint({ x: touch.clientX, y: touch.clientY })
+    }
+  }, [isDragReady, draggingNode])
+
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     // Get coordinates from either mouse or touch event
     const clientX = 'touches' in e ? (e.touches.length > 0 ? e.touches[0].clientX : 0) : e.clientX
@@ -1234,7 +1294,7 @@ export default function HTMLCanvas({
       }
     }
 
-    if (isPanning && !isDraggingCharacter && !isSelecting) {
+    if (isPanning && !isDraggingCharacter && !isSelecting && !isDragReady && !draggingNode) {
       const deltaX = clientX - lastPanPoint.x
       const deltaY = clientY - lastPanPoint.y
 
@@ -3265,7 +3325,13 @@ export default function HTMLCanvas({
       </div>
 
       {/* Canvas Area */}
-      <div className="flex-1 relative mac-style-scrollbar overflow-auto" style={{ backgroundColor: 'var(--color-canvas-bg, hsl(var(--background)))' }}>
+      <div
+        ref={scrollContainerRef}
+        className={`flex-1 relative mac-style-scrollbar ${(isDragReady || draggingNode) ? 'overflow-hidden' : 'overflow-auto'}`}
+        style={{
+          backgroundColor: 'var(--color-canvas-bg, hsl(var(--background)))'
+        }}
+      >
         <div style={{
           width: `${canvasWidth * zoom}px`,
           height: `${canvasHeight * zoom}px`,
@@ -3604,6 +3670,7 @@ export default function HTMLCanvas({
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={(e) => handleCanvasMouseUp(e)}
           onMouseLeave={() => handleCanvasMouseUp()}
+          onTouchStart={handleCanvasTouchStart}
           onTouchMove={handleCanvasMouseMove}
           onTouchEnd={(e) => handleCanvasMouseUp()}
           onContextMenu={(e) => {
@@ -3619,7 +3686,8 @@ export default function HTMLCanvas({
             minHeight: `${canvasHeight}px`,
             transform: `scale(${zoom})`,
             transformOrigin: 'top left',
-            transition: 'transform 0.1s ease-out'
+            transition: 'transform 0.1s ease-out',
+            touchAction: (isDragReady || draggingNode) ? 'none' : 'auto'
           }}
         >
           {/* Grid overlay - extended to cover much larger area */}
@@ -3811,7 +3879,8 @@ export default function HTMLCanvas({
                     outlineOffset: '-3px',
                     opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
                     padding: '8px',
-                    transition: draggingNode ? 'none' : 'opacity 0.1s ease'
+                    transition: draggingNode ? 'none' : 'opacity 0.1s ease',
+                    touchAction: 'none'
                   }}
                   onMouseDown={(e) => {
                     // Right click on selected node opens context menu
@@ -3859,6 +3928,19 @@ export default function HTMLCanvas({
                           y: mouseY - node.y
                         })
                       }
+                    }
+                  }}
+                  onTouchStart={(e) => {
+                    if (e.touches.length === 1) {
+                      const touch = e.touches[0]
+                      // Check if touching contentEditable text
+                      const target = e.target as HTMLElement
+                      const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+                      if (isContentEditable) return
+
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                     }
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
@@ -3956,7 +4038,8 @@ export default function HTMLCanvas({
                     outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'image')}` : 'none',
                     outlineOffset: '-1px',
                     opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
-                    transition: draggingNode ? 'none' : 'opacity 0.1s ease'
+                    transition: draggingNode ? 'none' : 'opacity 0.1s ease',
+                    touchAction: 'none'
                   }}
                   onMouseDown={(e) => {
                     // Right click on selected node opens context menu
@@ -4004,6 +4087,18 @@ export default function HTMLCanvas({
                           y: mouseY - node.y
                         })
                       }
+                    }
+                  }}
+                  onTouchStart={(e) => {
+                    if (e.touches.length === 1) {
+                      const touch = e.touches[0]
+                      const target = e.target as HTMLElement
+                      const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+                      if (isContentEditable) return
+
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                     }
                   }}
                 >
@@ -4339,7 +4434,8 @@ export default function HTMLCanvas({
                     outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
                     outlineOffset: '-1px',
                     opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
-                    transition: draggingNode ? 'none' : 'opacity 0.1s ease'
+                    transition: draggingNode ? 'none' : 'opacity 0.1s ease',
+                    touchAction: 'none'
                   }}
                   onMouseDown={(e) => {
                     // Right click on selected node opens context menu
@@ -4387,6 +4483,18 @@ export default function HTMLCanvas({
                           y: mouseY - node.y
                         })
                       }
+                    }
+                  }}
+                  onTouchStart={(e) => {
+                    if (e.touches.length === 1) {
+                      const touch = e.touches[0]
+                      const target = e.target as HTMLElement
+                      const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]') || target.tagName === 'TEXTAREA'
+                      if (isContentEditable) return
+
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                     }
                   }}
                 >
@@ -4528,7 +4636,8 @@ export default function HTMLCanvas({
                     outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
                     outlineOffset: '-3px',
                     opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
-                    transition: draggingNode ? 'none' : 'opacity 0.1s ease'
+                    transition: draggingNode ? 'none' : 'opacity 0.1s ease',
+                    touchAction: 'none'
                   }}
                   onDoubleClick={(e) => {
                     e.preventDefault()
@@ -4584,6 +4693,18 @@ export default function HTMLCanvas({
                           y: mouseY - node.y
                         })
                       }
+                    }
+                  }}
+                  onTouchStart={(e) => {
+                    if (e.touches.length === 1) {
+                      const touch = e.touches[0]
+                      const target = e.target as HTMLElement
+                      const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+                      if (isContentEditable) return
+
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                     }
                   }}
                 >
@@ -4739,7 +4860,8 @@ export default function HTMLCanvas({
                     outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
                     outlineOffset: '-3px',
                     opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
-                    transition: draggingNode ? 'none' : 'opacity 0.1s ease'
+                    transition: draggingNode ? 'none' : 'opacity 0.1s ease',
+                    touchAction: 'none'
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onDoubleClick={(e) => {
@@ -4793,6 +4915,18 @@ export default function HTMLCanvas({
                           y: mouseY - node.y
                         })
                       }
+                    }
+                  }}
+                  onTouchStart={(e) => {
+                    if (e.touches.length === 1) {
+                      const touch = e.touches[0]
+                      const target = e.target as HTMLElement
+                      const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+                      if (isContentEditable) return
+
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                     }
                   }}
                 >
@@ -5073,7 +5207,8 @@ export default function HTMLCanvas({
                     outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
                     outlineOffset: '-3px',
                     opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
-                    transition: draggingNode ? 'none' : 'opacity 0.1s ease'
+                    transition: draggingNode ? 'none' : 'opacity 0.1s ease',
+                    touchAction: 'none'
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
                   onMouseDown={(e) => {
@@ -5542,7 +5677,8 @@ export default function HTMLCanvas({
                     outline: (selectedId === node.id || selectedIds.includes(node.id)) ? `3px solid ${getResizeHandleColor(node.type || 'text')}` : 'none',
                     outlineOffset: '-3px',
                     opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
-                    transition: draggingNode ? 'none' : 'opacity 0.1s ease'
+                    transition: draggingNode ? 'none' : 'opacity 0.1s ease',
+                    touchAction: 'none'
                   }}
                   onDoubleClick={(e) => {
                     e.preventDefault()
@@ -5595,6 +5731,18 @@ export default function HTMLCanvas({
                           y: mouseY - node.y
                         })
                       }
+                    }
+                  }}
+                  onTouchStart={(e) => {
+                    if (e.touches.length === 1) {
+                      const touch = e.touches[0]
+                      const target = e.target as HTMLElement
+                      const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+                      if (isContentEditable) return
+
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                     }
                   }}
                 >
@@ -5804,7 +5952,8 @@ export default function HTMLCanvas({
                 outlineOffset: '-3px',
                 opacity: (draggingNode === node.id || (draggingNode && selectedIds.includes(node.id))) ? 0.7 : 1,
                 overflow: 'hidden',
-                transition: draggingNode ? 'none' : 'opacity 0.1s ease'
+                transition: draggingNode ? 'none' : 'opacity 0.1s ease',
+                touchAction: 'none'
               }}
               onDoubleClick={(e) => {
                 e.preventDefault()
@@ -5869,6 +6018,18 @@ export default function HTMLCanvas({
                   }
                 }
               }}
+              onTouchStart={(e) => {
+                if (e.touches.length === 1) {
+                  const touch = e.touches[0]
+                  const target = e.target as HTMLElement
+                  const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+                  if (isContentEditable) return
+
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleNodeDragStart(node, touch.clientX, touch.clientY, true)
+                }
+              }}
             >
               {/* Extended draggable border strips for easier grabbing - only around edges */}
               {/* Top border strip */}
@@ -5882,6 +6043,15 @@ export default function HTMLCanvas({
                   const rect = canvasRef.current?.getBoundingClientRect()
                   if (rect) {
                     setDragOffset({ x: (e.clientX - rect.left) / zoom - node.x, y: (e.clientY - rect.top) / zoom - node.y })
+                  }
+                }}
+                onTouchStart={(e) => {
+                  if (e.touches.length === 1) {
+                    const touch = e.touches[0]
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setInteractionMode('moving')
+                    handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                   }
                 }}
               />
@@ -5898,6 +6068,15 @@ export default function HTMLCanvas({
                     setDragOffset({ x: (e.clientX - rect.left) / zoom - node.x, y: (e.clientY - rect.top) / zoom - node.y })
                   }
                 }}
+                onTouchStart={(e) => {
+                  if (e.touches.length === 1) {
+                    const touch = e.touches[0]
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setInteractionMode('moving')
+                    handleNodeDragStart(node, touch.clientX, touch.clientY, true)
+                  }
+                }}
               />
               {/* Bottom border strip */}
               <div className="absolute left-0 right-0 cursor-move" style={{ bottom: '-8px', height: '14px', pointerEvents: 'auto' }}
@@ -5912,6 +6091,15 @@ export default function HTMLCanvas({
                     setDragOffset({ x: (e.clientX - rect.left) / zoom - node.x, y: (e.clientY - rect.top) / zoom - node.y })
                   }
                 }}
+                onTouchStart={(e) => {
+                  if (e.touches.length === 1) {
+                    const touch = e.touches[0]
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setInteractionMode('moving')
+                    handleNodeDragStart(node, touch.clientX, touch.clientY, true)
+                  }
+                }}
               />
               {/* Left border strip */}
               <div className="absolute top-0 bottom-0 cursor-move" style={{ left: '-8px', width: '14px', pointerEvents: 'auto' }}
@@ -5924,6 +6112,15 @@ export default function HTMLCanvas({
                   const rect = canvasRef.current?.getBoundingClientRect()
                   if (rect) {
                     setDragOffset({ x: (e.clientX - rect.left) / zoom - node.x, y: (e.clientY - rect.top) / zoom - node.y })
+                  }
+                }}
+                onTouchStart={(e) => {
+                  if (e.touches.length === 1) {
+                    const touch = e.touches[0]
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setInteractionMode('moving')
+                    handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                   }
                 }}
               />
@@ -6089,6 +6286,19 @@ export default function HTMLCanvas({
                                       y: mouseY - node.y
                                     })
                                   }
+                                }
+                              }}
+                              onTouchStart={(e) => {
+                                if (e.touches.length === 1) {
+                                  const touch = e.touches[0]
+                                  const target = e.target as HTMLElement
+                                  const isContentEditable = target.contentEditable === 'true' || target.closest('[contentEditable="true"]')
+                                  if (isContentEditable) return
+
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  // In select mode, drag the parent list node instead of child
+                                  handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                                 }
                               }}
                             >
