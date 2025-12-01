@@ -3481,9 +3481,106 @@ export default function HTMLCanvas({
           </Button>
         </div>
 
-        {/* Mobile help panel - same style as Style/Grid panels */}
+        {/* Mobile Style panel */}
+        {showStylePanel && (
+          <div className="sm:hidden fixed top-[116px] z-50 w-64 max-w-[calc(100vw-2rem)] right-4">
+            <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-medium text-foreground flex items-center gap-2">
+                  🎨 Node Style
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowStylePanel(false)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <NodeStylePanel
+                preferences={nodeStylePreferences}
+                onUpdate={updateNodeStylePreference}
+              />
+            </Card>
+          </div>
+        )}
+
+        {/* Mobile Grid panel */}
+        {showGridPanel && (
+          <div className="sm:hidden fixed top-[116px] z-50 w-64 max-w-[calc(100vw-2rem)] right-4">
+            <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-medium text-foreground flex items-center gap-2">
+                  <Grid3x3 className="w-4 h-4" />
+                  Grid Controls
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowGridPanel(false)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between py-2">
+                  <label htmlFor="mobile-grid-size" className="text-xs font-medium text-muted-foreground">
+                    Size
+                  </label>
+                  <select
+                    id="mobile-grid-size"
+                    value={gridSize}
+                    onChange={(e) => setGridSize(Number(e.target.value))}
+                    className="text-xs rounded px-2 py-1 bg-background border border-border focus:outline-none focus:ring-2 focus:ring-sky-500 w-20"
+                  >
+                    <option value={10}>10px</option>
+                    <option value={20}>20px</option>
+                    <option value={40}>40px</option>
+                  </select>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-xs font-medium text-muted-foreground">Show Grid</span>
+                  <Button
+                    size="sm"
+                    variant={showGrid ? "default" : "outline"}
+                    onClick={() => setShowGrid(!showGrid)}
+                    className="h-6 w-6 p-0"
+                  >
+                    {showGrid ? '✓' : ''}
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-xs font-medium text-muted-foreground">Snap to Grid</span>
+                  <Button
+                    size="sm"
+                    variant={snapToGrid ? "default" : "outline"}
+                    onClick={() => setSnapToGrid(!snapToGrid)}
+                    className="h-6 w-6 p-0"
+                  >
+                    {snapToGrid ? '✓' : ''}
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-xs font-medium text-muted-foreground">Snap Resize</span>
+                  <Button
+                    size="sm"
+                    variant={snapResizeToGrid ? "default" : "outline"}
+                    onClick={() => setSnapResizeToGrid(!snapResizeToGrid)}
+                    className="h-6 w-6 p-0"
+                  >
+                    {snapResizeToGrid ? '✓' : ''}
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Mobile help panel */}
         {showHelp && (
-          <div className="sm:hidden fixed top-[72px] z-50 w-64 max-w-[calc(100vw-2rem)] right-4">
+          <div className="sm:hidden fixed top-[116px] z-50 w-64 max-w-[calc(100vw-2rem)] right-4">
             <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg">
               <div className="flex items-center justify-between mb-1">
                 <h4 className="font-medium text-xs text-card-foreground">How to use:</h4>
@@ -3514,178 +3611,49 @@ export default function HTMLCanvas({
           </div>
         )}
 
-        {/* Desktop buttons when help is shown - includes help card inline */}
-        {showHelp && (
-          <div className="hidden sm:flex fixed top-[72px] right-4 z-50 gap-2 items-start">
-            <PaletteSelector
-              mode="advanced"
-              scope="project"
-              contextId={storyId}
-              currentPalette={colorContext.getCurrentPalette() || undefined}
-              currentFolderId={currentFolderId}
-              currentFolderTitle={currentFolderTitle}
-              onColorSelect={(color) => {
-                if (selectedId) {
-                  handleColorChange(selectedId, color)
-                } else {
-
-                }
-              }}
-              onPaletteChange={(palette, selectedScope) => {
-                if (selectedScope === 'reset') {
-                  colorContext.resetAllPalettes(storyId, palette)
-                } else if (selectedScope === 'folder' && currentFolderId) {
-                  colorContext.setFolderPalette(currentFolderId, palette)
-                  colorContext.applyPalette(palette)
-                } else {
-                  colorContext.setProjectPalette(storyId, palette)
-                  colorContext.applyPalette(palette)
-                }
-                resetAllNodesToThemeColors()
-                setPaletteRefresh(prev => prev + 1)
-              }}
-              trigger={
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
-                  title="Color Palette"
-                >
-                  <Palette className="w-4 h-4" />
-                </Button>
+        {/* Desktop floating buttons and panels */}
+        <div className="hidden sm:flex fixed top-[72px] right-4 z-50 gap-2 items-start">
+          {/* Palette button - always visible */}
+          <PaletteSelector
+            mode="advanced"
+            scope="project"
+            contextId={storyId}
+            currentPalette={colorContext.getCurrentPalette() || undefined}
+            currentFolderId={currentFolderId}
+            currentFolderTitle={currentFolderTitle}
+            onColorSelect={(color) => {
+              if (selectedId) {
+                handleColorChange(selectedId, color)
               }
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowStylePanel(!showStylePanel)}
-              className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
-              title="Node Style Settings"
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowGridPanel(!showGridPanel)}
-              className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
-              title="Grid Controls"
-            >
-              <Grid3x3 className="w-4 h-4" />
-            </Button>
-            <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs sm:text-sm shadow-lg max-w-xs sm:max-w-sm">
-              <div className="flex items-center justify-between mb-1">
-                <h4 className="font-medium text-xs sm:text-sm text-card-foreground">How to use:</h4>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setShowHelp(false)}
-                  className="h-6 w-6 p-0"
-                >
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
-              <div className="text-xs text-muted-foreground space-y-1">
-                <div><strong>Pan:</strong> Click & drag, or use trackpad/scroll</div>
-                <div><strong>Zoom:</strong> Ctrl + scroll wheel</div>
-                <div><strong>Select:</strong> Only tool for editing text - click nodes to select and edit</div>
-                <div><strong>Move:</strong> Drag selected nodes to reposition them</div>
-                <div><strong>Create:</strong> Select a tool then click on canvas</div>
-                {tool === 'event' && (
-                  <div><strong>Timeline:</strong> Click events to connect them in sequence</div>
-                )}
-                <div><strong>Navigate:</strong> Click arrow on folder/character nodes to enter</div>
-                <div><strong>Organize:</strong> Drag nodes into list containers</div>
-                <div><strong>Delete:</strong> Select node and press Delete or Backspace</div>
-                <div><strong>Undo/Redo:</strong> Ctrl+Z / Ctrl+Y</div>
-                <div><strong>Cancel:</strong> Press Escape to deselect</div>
-              </div>
-              <div className="mt-2 pt-2 border-t border-border">
-                <div className="text-xs text-muted-foreground">
-                  Current tool: <span className="font-medium text-primary">{tool}</span>
-                </div>
-              </div>
-            </Card>
-          </div>
-        )}
-
-        {/* Desktop buttons when help is hidden */}
-        {!showHelp && (
-          <div className="hidden sm:flex fixed top-[72px] right-4 z-50 gap-2">
-            <PaletteSelector
-              mode="advanced"
-              scope="project"
-              contextId={storyId}
-              currentPalette={colorContext.getCurrentPalette() || undefined}
-              currentFolderId={currentFolderId}
-              currentFolderTitle={currentFolderTitle}
-              onColorSelect={(color) => {
-                if (selectedId) {
-                  handleColorChange(selectedId, color)
-                } else {
-
-                }
-              }}
-              onPaletteChange={(palette, selectedScope) => {
-                if (selectedScope === 'reset') {
-                  colorContext.resetAllPalettes(storyId, palette)
-                } else if (selectedScope === 'folder' && currentFolderId) {
-                  colorContext.setFolderPalette(currentFolderId, palette)
-                  colorContext.applyPalette(palette)
-                } else {
-                  colorContext.setProjectPalette(storyId, palette)
-                  colorContext.applyPalette(palette)
-                }
-                resetAllNodesToThemeColors()
-                setPaletteRefresh(prev => prev + 1)
-              }}
-              trigger={
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 w-8 p-0 text-xs shadow-lg"
-                  title="Color Palette"
-                >
-                  <Palette className="w-4 h-4" />
-                </Button>
+            }}
+            onPaletteChange={(palette, selectedScope) => {
+              if (selectedScope === 'reset') {
+                colorContext.resetAllPalettes(storyId, palette)
+              } else if (selectedScope === 'folder' && currentFolderId) {
+                colorContext.setFolderPalette(currentFolderId, palette)
+                colorContext.applyPalette(palette)
+              } else {
+                colorContext.setProjectPalette(storyId, palette)
+                colorContext.applyPalette(palette)
               }
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowStylePanel(!showStylePanel)}
-              className="h-8 w-8 p-0 text-xs shadow-lg"
-              title="Node Style Settings"
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowGridPanel(!showGridPanel)}
-              className="h-8 w-8 p-0 text-xs shadow-lg"
-              title="Grid Controls"
-            >
-              <Grid3x3 className="w-4 h-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowHelp(true)}
-              className="h-8 w-8 p-0 text-xs shadow-lg"
-              title="Show help"
-            >
-              ?
-            </Button>
-          </div>
-        )}
+              resetAllNodesToThemeColors()
+              setPaletteRefresh(prev => prev + 1)
+            }}
+            trigger={
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
+                title="Color Palette"
+              >
+                <Palette className="w-4 h-4" />
+              </Button>
+            }
+          />
 
-        {/* Style Panel Popup */}
-        {showStylePanel && (
-          <div
-            className="block fixed top-[72px] z-50 w-64 max-w-[calc(100vw-2rem)] right-4"
-          >
-            <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg">
+          {/* Style button or Style panel */}
+          {showStylePanel ? (
+            <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg w-64 flex-shrink-0">
               <div className="flex items-center justify-between mb-3">
                 <span className="font-medium text-foreground flex items-center gap-2">
                   🎨 Node Style
@@ -3704,15 +3672,21 @@ export default function HTMLCanvas({
                 onUpdate={updateNodeStylePreference}
               />
             </Card>
-          </div>
-        )}
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowStylePanel(true)}
+              className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
+              title="Node Style Settings"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+            </Button>
+          )}
 
-        {/* Grid Controls Panel */}
-        {showGridPanel && (
-          <div
-            className="block fixed top-[72px] z-50 w-64 max-w-[calc(100vw-2rem)] right-4"
-          >
-            <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg">
+          {/* Grid button or Grid panel */}
+          {showGridPanel ? (
+            <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg w-64 flex-shrink-0">
               <div className="flex items-center justify-between mb-3">
                 <span className="font-medium text-foreground flex items-center gap-2">
                   <Grid3x3 className="w-4 h-4" />
@@ -3787,8 +3761,65 @@ export default function HTMLCanvas({
                 </div>
               </div>
             </Card>
-          </div>
-        )}
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowGridPanel(true)}
+              className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
+              title="Grid Controls"
+            >
+              <Grid3x3 className="w-4 h-4" />
+            </Button>
+          )}
+
+          {/* Help button or Help panel */}
+          {showHelp ? (
+            <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs sm:text-sm shadow-lg max-w-xs sm:max-w-sm flex-shrink-0">
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="font-medium text-xs sm:text-sm text-card-foreground">How to use:</h4>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowHelp(false)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div><strong>Pan:</strong> Click & drag, or use trackpad/scroll</div>
+                <div><strong>Zoom:</strong> Ctrl + scroll wheel</div>
+                <div><strong>Select:</strong> Only tool for editing text - click nodes to select and edit</div>
+                <div><strong>Move:</strong> Drag selected nodes to reposition them</div>
+                <div><strong>Create:</strong> Select a tool then click on canvas</div>
+                {tool === 'event' && (
+                  <div><strong>Timeline:</strong> Click events to connect them in sequence</div>
+                )}
+                <div><strong>Navigate:</strong> Click arrow on folder/character nodes to enter</div>
+                <div><strong>Organize:</strong> Drag nodes into list containers</div>
+                <div><strong>Delete:</strong> Select node and press Delete or Backspace</div>
+                <div><strong>Undo/Redo:</strong> Ctrl+Z / Ctrl+Y</div>
+                <div><strong>Cancel:</strong> Press Escape to deselect</div>
+              </div>
+              <div className="mt-2 pt-2 border-t border-border">
+                <div className="text-xs text-muted-foreground">
+                  Current tool: <span className="font-medium text-primary">{tool}</span>
+                </div>
+              </div>
+            </Card>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowHelp(true)}
+              className="h-8 w-8 p-0 text-xs shadow-lg flex-shrink-0"
+              title="Show help"
+            >
+              ?
+            </Button>
+          )}
+        </div>
 
         <div
           ref={canvasRef}
@@ -4092,7 +4123,11 @@ export default function HTMLCanvas({
                     }}
                     onBlur={(e) => {
                       // Capture content before event is nullified
-                      const newContent = e.currentTarget.innerHTML || ''
+                      let newContent = e.currentTarget.innerHTML || ''
+                      // Sanitize: if content is just <br> or whitespace, treat as empty
+                      if (newContent.replace(/<br\s*\/?>/gi, '').trim() === '') {
+                        newContent = ''
+                      }
                       handleDelayedBlur(() => {
                         // Update nodes with the new content
                         const updatedNodes = nodes.map(n =>
@@ -7130,7 +7165,11 @@ export default function HTMLCanvas({
                     }}
                     onBlur={(e) => {
                       // Capture content before event is nullified
-                      const newContent = e.currentTarget.innerHTML || ''
+                      let newContent = e.currentTarget.innerHTML || ''
+                      // Sanitize: if content is just <br> or whitespace, treat as empty
+                      if (newContent.replace(/<br\s*\/?>/gi, '').trim() === '') {
+                        newContent = ''
+                      }
                       handleDelayedBlur(() => {
                         // Update nodes with the new content
                         const updatedNodes = nodes.map(n =>
