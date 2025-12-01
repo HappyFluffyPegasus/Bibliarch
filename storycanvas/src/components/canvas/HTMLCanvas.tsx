@@ -28,7 +28,8 @@ interface Node {
   imageUrl?: string
   profileImageUrl?: string // For character nodes profile pictures
   attributes?: any
-  tableData?: { col1: string; col2: string; col3: string }[] // For table nodes
+  tableData?: Record<string, string>[] // For table nodes - dynamic column keys
+  columnWidths?: Record<string, number> // For table nodes - column width percentages
   // Event node properties
   title?: string // Event title (for event nodes)
   summary?: string // Event summary/description (for event nodes)
@@ -204,6 +205,8 @@ export default function HTMLCanvas({
   const [resizeStartSize, setResizeStartSize] = useState({ width: 0, height: 0 })
   const [resizeStartPos, setResizeStartPos] = useState({ x: 0, y: 0 })
   const [draggingLineVertex, setDraggingLineVertex] = useState<{ nodeId: string; vertex: 'start' | 'middle' | 'end' } | null>(null)
+  // Table column resize state
+  const [resizingColumn, setResizingColumn] = useState<{ nodeId: string; colIndex: number; startX: number; startWidths: Record<string, number>; tableWidth: number; colKeys: string[] } | null>(null)
 
   // Use controlled zoom if provided, otherwise use internal state
   const [internalZoom, setInternalZoom] = useState(1)
@@ -369,6 +372,106 @@ export default function HTMLCanvas({
       container.removeEventListener('touchmove', handleTouchMove)
     }
   }, [isDragReady, draggingNode])
+
+  // Column resize handler - uses document-level events for smooth dragging
+  // Use ref to store current widths during drag to avoid stale closure issues
+  const columnWidthsRef = useRef<Record<string, number> | null>(null)
+  const lastClientXRef = useRef<number>(0)
+
+  const nodesRef = useRef(nodes)
+  nodesRef.current = nodes
+
+  const connectionsRef = useRef(connections)
+  connectionsRef.current = connections
+
+  useEffect(() => {
+    if (!resizingColumn) return
+
+    // Initialize refs at start of drag
+    columnWidthsRef.current = { ...resizingColumn.startWidths }
+    lastClientXRef.current = resizingColumn.startX
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizingColumn || !columnWidthsRef.current) return
+
+      const { tableWidth, colKeys, colIndex, nodeId } = resizingColumn
+      const colCount = colKeys.length
+
+      // Calculate delta from LAST position, not start position
+      const deltaX = e.clientX - lastClientXRef.current
+      lastClientXRef.current = e.clientX
+
+      // Calculate percentage change based on delta
+      const percentChange = (deltaX / tableWidth) * 100
+
+      // Get the column being resized and the next column
+      const currentColKey = colKeys[colIndex]
+      const nextColKey = colKeys[colIndex + 1]
+
+      if (currentColKey && nextColKey) {
+        const currentWidth = columnWidthsRef.current[currentColKey] || (100 / colCount)
+        const nextWidth = columnWidthsRef.current[nextColKey] || (100 / colCount)
+
+        // Calculate desired new widths
+        let newCurrentWidth = currentWidth + percentChange
+        let newNextWidth = nextWidth - percentChange
+
+        // Apply min constraint (10% minimum per column)
+        const minWidth = 10
+        if (newCurrentWidth < minWidth) {
+          newNextWidth = newNextWidth + (newCurrentWidth - minWidth)
+          newCurrentWidth = minWidth
+        } else if (newNextWidth < minWidth) {
+          newCurrentWidth = newCurrentWidth + (newNextWidth - minWidth)
+          newNextWidth = minWidth
+        }
+
+        // Clamp to valid range
+        newCurrentWidth = Math.max(minWidth, newCurrentWidth)
+        newNextWidth = Math.max(minWidth, newNextWidth)
+
+        // Update the ref with new widths
+        columnWidthsRef.current[currentColKey] = newCurrentWidth
+        columnWidthsRef.current[nextColKey] = newNextWidth
+
+        const newWidths = { ...columnWidthsRef.current }
+
+        setNodes(prevNodes =>
+          prevNodes.map(node =>
+            node.id === nodeId
+              ? { ...node, columnWidths: newWidths }
+              : node
+          )
+        )
+      }
+    }
+
+    const handleMouseUp = () => {
+      saveToHistory(nodesRef.current, connectionsRef.current)
+      if (onSave) onSave(nodesRef.current, connectionsRef.current)
+      columnWidthsRef.current = null
+      setResizingColumn(null)
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        const touch = e.touches[0]
+        handleMouseMove({ clientX: touch.clientX } as MouseEvent)
+      }
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    document.addEventListener('touchmove', handleTouchMove)
+    document.addEventListener('touchend', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.removeEventListener('touchmove', handleTouchMove)
+      document.removeEventListener('touchend', handleMouseUp)
+    }
+  }, [resizingColumn, onSave])
 
   // Undo/Redo system - completely rebuilt
   const [history, setHistory] = useState<{ nodes: Node[], connections: Connection[] }[]>([])
@@ -1509,63 +1612,24 @@ export default function HTMLCanvas({
           newHeight = Math.max(200, newHeight)
         }
       } else if (resizingNodeObj.type === 'table') {
-        // Table nodes: resize rows/columns based on direction
-        const rowHeight = 40 // Approximate height per row
-        const colWidth = 100 // Approximate width per column
+        // Table nodes: only resize width, don't change rows/columns
+        // Rows/columns are managed via + Row / + Col buttons
+        const colCount = resizingNodeObj.tableData?.[0] ? Object.keys(resizingNodeObj.tableData[0]).length : 2
+        const minWidth = Math.max(150, colCount * 60) // Minimum 60px per column
 
-        const currentRows = resizingNodeObj.tableData?.length || 3
-        const currentCols = resizingNodeObj.tableData?.[0] ? Object.keys(resizingNodeObj.tableData[0]).length : 3
-
-        // Calculate new row and column counts based on resize
-        const newRowCount = Math.max(1, Math.round(newHeight / rowHeight))
-        const newColCount = Math.max(1, Math.round(newWidth / colWidth))
-
-        // Update table data if row/column count changed
-        let updatedTableData = [...(resizingNodeObj.tableData || [])]
-
-        // Adjust rows
-        if (newRowCount > currentRows) {
-          // Add rows
-          for (let i = currentRows; i < newRowCount; i++) {
-            const newRow: any = {}
-            for (let j = 1; j <= currentCols; j++) {
-              newRow[`col${j}`] = ''
-            }
-            updatedTableData.push(newRow)
-          }
-        } else if (newRowCount < currentRows) {
-          // Remove rows
-          updatedTableData = updatedTableData.slice(0, newRowCount)
-        }
-
-        // Adjust columns
-        if (newColCount !== currentCols) {
-          updatedTableData = updatedTableData.map(row => {
-            const newRow: any = {}
-            for (let i = 1; i <= newColCount; i++) {
-              newRow[`col${i}`] = (row as any)[`col${i}`] || ''
-            }
-            return newRow
-          })
-        }
-
-        // Set minimum sizes based on content
-        newWidth = Math.max(150, newColCount * colWidth)
-        newHeight = Math.max(60, newRowCount * rowHeight)
+        newWidth = Math.max(minWidth, newWidth)
 
         // Apply snap to grid for table nodes if enabled
         if (snapResizeToGrid) {
           newWidth = snapResizeToGridFn(newWidth)
-          newHeight = snapResizeToGridFn(newHeight)
-          newWidth = Math.max(150, newWidth)
-          newHeight = Math.max(60, newHeight)
+          newWidth = Math.max(minWidth, newWidth)
         }
 
-        // Update the node with new tableData
+        // Update only the width (height is auto based on content)
         setNodes(prevNodes =>
           prevNodes.map(node =>
             node.id === resizingNode
-              ? { ...node, width: newWidth, height: newHeight, tableData: updatedTableData }
+              ? { ...node, width: newWidth }
               : node
           )
         )
@@ -1659,6 +1723,7 @@ export default function HTMLCanvas({
         )
       }
     }
+
   }, [isPanning, lastPanPoint, draggingNode, isDragReady, dragOffset, dragStartPos, resizingNode, resizeStartPos, resizeStartSize, isDraggingCharacter, isSelecting, tool, selectionStart, nodes, draggingLineVertex])
 
   const handleCanvasMouseUp = useCallback((e?: React.MouseEvent) => {
@@ -2904,6 +2969,106 @@ export default function HTMLCanvas({
 
     setNodes(newNodes)
     saveToHistory(newNodes, connections)
+  }
+
+  // Table helper functions
+  const addTableRow = (nodeId: string) => {
+    const tableNode = nodes.find(n => n.id === nodeId)
+    if (!tableNode?.tableData || tableNode.tableData.length === 0) return
+
+    const colCount = Object.keys(tableNode.tableData[0]).length
+    const newRow: Record<string, string> = {}
+    for (let i = 1; i <= colCount; i++) {
+      newRow[`col${i}`] = ''
+    }
+
+    const updatedTableData = [...tableNode.tableData, newRow]
+    const updatedNodes = nodes.map(n =>
+      n.id === nodeId ? { ...n, tableData: updatedTableData } : n
+    )
+    setNodes(updatedNodes)
+    saveToHistory(updatedNodes, connections)
+    if (onSave) onSave(updatedNodes, connections)
+  }
+
+  const addTableColumn = (nodeId: string) => {
+    const tableNode = nodes.find(n => n.id === nodeId)
+    if (!tableNode?.tableData || tableNode.tableData.length === 0) return
+
+    const colCount = Object.keys(tableNode.tableData[0]).length
+    const newColKey = `col${colCount + 1}`
+
+    const updatedTableData = tableNode.tableData.map(row => ({
+      ...row,
+      [newColKey]: ''
+    }))
+
+    // Increase width to accommodate new column
+    const newWidth = (tableNode.width || 240) + 100
+
+    const updatedNodes = nodes.map(n =>
+      n.id === nodeId ? { ...n, tableData: updatedTableData, width: newWidth } : n
+    )
+    setNodes(updatedNodes)
+    saveToHistory(updatedNodes, connections)
+    if (onSave) onSave(updatedNodes, connections)
+  }
+
+  const deleteTableRow = (nodeId: string, rowIndex: number) => {
+    const tableNode = nodes.find(n => n.id === nodeId)
+    if (!tableNode?.tableData || tableNode.tableData.length <= 1) return // Keep at least 1 row
+
+    const updatedTableData = tableNode.tableData.filter((_, idx) => idx !== rowIndex)
+    const updatedNodes = nodes.map(n =>
+      n.id === nodeId ? { ...n, tableData: updatedTableData } : n
+    )
+    setNodes(updatedNodes)
+    saveToHistory(updatedNodes, connections)
+    if (onSave) onSave(updatedNodes, connections)
+  }
+
+  const deleteTableColumn = (nodeId: string, colKey: string) => {
+    const tableNode = nodes.find(n => n.id === nodeId)
+    if (!tableNode?.tableData || tableNode.tableData.length === 0) return
+
+    const colKeys = Object.keys(tableNode.tableData[0])
+    if (colKeys.length <= 1) return // Keep at least 1 column
+
+    // Remove the column from all rows
+    const updatedTableData = tableNode.tableData.map(row => {
+      const newRow = { ...row }
+      delete newRow[colKey]
+      return newRow
+    })
+
+    // Get remaining column keys
+    const remainingColKeys = colKeys.filter(k => k !== colKey)
+
+    // Recalculate column widths - normalize remaining columns to 100%
+    const updatedColumnWidths: Record<string, number> = {}
+    const oldWidths = tableNode.columnWidths || {}
+
+    // Calculate total width of remaining columns
+    let totalRemainingWidth = 0
+    remainingColKeys.forEach(key => {
+      totalRemainingWidth += oldWidths[key] ?? (100 / colKeys.length)
+    })
+
+    // Normalize to 100%
+    remainingColKeys.forEach(key => {
+      const oldWidth = oldWidths[key] ?? (100 / colKeys.length)
+      updatedColumnWidths[key] = (oldWidth / totalRemainingWidth) * 100
+    })
+
+    // Reduce width
+    const newWidth = Math.max(120, (tableNode.width || 240) - 80)
+
+    const updatedNodes = nodes.map(n =>
+      n.id === nodeId ? { ...n, tableData: updatedTableData, columnWidths: updatedColumnWidths, width: newWidth } : n
+    )
+    setNodes(updatedNodes)
+    saveToHistory(updatedNodes, connections)
+    if (onSave) onSave(updatedNodes, connections)
   }
 
   const handleApplyTemplate = (templateNodes: Node[], templateConnections: Connection[]) => {
@@ -4665,16 +4830,27 @@ export default function HTMLCanvas({
                     }
                   }}
                 >
-                  <div className="w-full h-auto">
-                    <table className="w-full border-collapse">
+                  <div className="w-full h-auto relative">
+                    <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                       {(node.settings?.show_header_row ?? true) && node.tableData && node.tableData.length > 0 && (
                         <thead>
                           <tr style={{ backgroundColor: 'rgba(0,0,0,0.05)' }}>
                             {Object.keys(node.tableData[0]).map((colKey, colIndex) => {
                               const colCount = Object.keys(node.tableData![0]).length
-                              const colWidth = `${100 / colCount}%`
+                              const defaultWidth = 100 / colCount
+                              const colWidth = node.columnWidths?.[colKey] ?? defaultWidth
+                              const isLastCol = colIndex === colCount - 1
                               return (
-                                <th key={colIndex} className="p-0.5 font-semibold text-left" style={{ borderColor: getNodeBorderColor(node.type || 'text'), borderWidth: '1px', borderStyle: 'solid', width: colWidth }}>
+                                <th
+                                  key={colIndex}
+                                  className="p-0.5 font-semibold text-left relative"
+                                  style={{
+                                    borderColor: getNodeBorderColor(node.type || 'text'),
+                                    borderWidth: '1px',
+                                    borderStyle: 'solid',
+                                    width: `${colWidth}%`
+                                  }}
+                                >
                                   <textarea
                                     value={(node.tableData![0] as any)[colKey]}
                                     onChange={(e) => {
@@ -4717,43 +4893,46 @@ export default function HTMLCanvas({
                           }
 
                           const colCount = Object.keys(row).length
-                          const colWidth = `${100 / colCount}%`
                           const isAlternateRow = (node.settings?.alternate_row_colors ?? false) && rowIndex % 2 === 1
 
                           return (
                             <tr key={rowIndex} style={isAlternateRow ? { backgroundColor: 'rgba(0,0,0,0.03)' } : {}}>
-                              {Object.keys(row).map((colKey, colIndex) => (
-                                <td key={colIndex} className="p-0.5" style={{ borderColor: getNodeBorderColor(node.type || 'text'), borderWidth: '1px', borderStyle: 'solid', width: colWidth }}>
-                                  <textarea
-                                    value={(row as any)[colKey]}
-                                    onChange={(e) => {
-                                      const updatedTableData = [...(node.tableData || [])]
-                                      updatedTableData[rowIndex] = { ...updatedTableData[rowIndex], [colKey]: e.target.value }
-                                      const updatedNodes = nodes.map(n =>
-                                        n.id === node.id ? { ...n, tableData: updatedTableData } : n
-                                      )
-                                      setNodes(updatedNodes)
-                                      saveToHistory(updatedNodes, connections)
-                                    }}
-                                    className="w-full bg-transparent outline-none resize-none overflow-hidden"
-                                    style={{
-                                      color: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
-                                      minHeight: '20px',
-                                      height: 'auto',
-                                      userSelect: tool === 'textedit' ? 'text' : 'none'
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    onFocus={(e) => e.stopPropagation()}
-                                    onInput={(e) => {
-                                      const target = e.target as HTMLTextAreaElement
-                                      target.style.height = 'auto'
-                                      target.style.height = target.scrollHeight + 'px'
-                                    }}
-                                    rows={1}
-                                  />
-                                </td>
-                              ))}
+                              {Object.keys(row).map((colKey, colIndex) => {
+                                const defaultWidth = 100 / colCount
+                                const colWidth = node.columnWidths?.[colKey] ?? defaultWidth
+                                return (
+                                  <td key={colIndex} className="p-0.5" style={{ borderColor: getNodeBorderColor(node.type || 'text'), borderWidth: '1px', borderStyle: 'solid', width: `${colWidth}%` }}>
+                                    <textarea
+                                      value={(row as any)[colKey]}
+                                      onChange={(e) => {
+                                        const updatedTableData = [...(node.tableData || [])]
+                                        updatedTableData[rowIndex] = { ...updatedTableData[rowIndex], [colKey]: e.target.value }
+                                        const updatedNodes = nodes.map(n =>
+                                          n.id === node.id ? { ...n, tableData: updatedTableData } : n
+                                        )
+                                        setNodes(updatedNodes)
+                                        saveToHistory(updatedNodes, connections)
+                                      }}
+                                      className="w-full bg-transparent outline-none resize-none overflow-hidden"
+                                      style={{
+                                        color: getTextColor(getNodeColor(node.type || 'text', node.color, node.id)),
+                                        minHeight: '20px',
+                                        height: 'auto',
+                                        userSelect: tool === 'textedit' ? 'text' : 'none'
+                                      }}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                      onFocus={(e) => e.stopPropagation()}
+                                      onInput={(e) => {
+                                        const target = e.target as HTMLTextAreaElement
+                                        target.style.height = 'auto'
+                                        target.style.height = target.scrollHeight + 'px'
+                                      }}
+                                      rows={1}
+                                    />
+                                  </td>
+                                )
+                              })}
                             </tr>
                           )
                         })}
@@ -4761,16 +4940,171 @@ export default function HTMLCanvas({
                     </table>
                   </div>
 
-                  {/* Resize handles for table nodes */}
+                  {/* Table controls when selected */}
                   {selectedId === node.id && (
                     <>
+                      {/* Row controls - below table */}
                       <div
-                        className="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-sm cursor-se-resize hover:bg-white/80 border border-black"
+                        className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex items-center gap-1"
+                      >
+                        <button
+                          className="px-2 py-0.5 text-xs bg-background text-foreground rounded-l hover:bg-background/90 shadow-sm border border-border"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            addTableRow(node.id)
+                          }}
+                          onTouchEnd={(e) => {
+                            e.stopPropagation()
+                            e.preventDefault()
+                            addTableRow(node.id)
+                          }}
+                          title="Add Row"
+                        >
+                          + Row
+                        </button>
+                        {node.tableData && node.tableData.length > 1 && (
+                          <button
+                            className="px-2 py-0.5 text-xs bg-background text-foreground rounded-r hover:bg-background/90 shadow-sm border border-border"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              // Delete the last row
+                              deleteTableRow(node.id, node.tableData!.length - 1)
+                            }}
+                            onTouchEnd={(e) => {
+                              e.stopPropagation()
+                              e.preventDefault()
+                              deleteTableRow(node.id, node.tableData!.length - 1)
+                            }}
+                            title="Delete Last Row"
+                          >
+                            − Row
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Column controls - right of table */}
+                      <div
+                        className="absolute top-1/2 -right-16 -translate-y-1/2 flex flex-col items-center gap-1"
+                      >
+                        <button
+                          className="px-2 py-0.5 text-xs bg-background text-foreground rounded-t hover:bg-background/90 shadow-sm border border-border"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            addTableColumn(node.id)
+                          }}
+                          onTouchEnd={(e) => {
+                            e.stopPropagation()
+                            e.preventDefault()
+                            addTableColumn(node.id)
+                          }}
+                          title="Add Column"
+                        >
+                          + Col
+                        </button>
+                        {node.tableData && node.tableData.length > 0 && Object.keys(node.tableData[0]).length > 1 && (
+                          <button
+                            className="px-2 py-0.5 text-xs bg-background text-foreground rounded-b hover:bg-background/90 shadow-sm border border-border"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              // Delete the last column
+                              const colKeys = Object.keys(node.tableData![0])
+                              deleteTableColumn(node.id, colKeys[colKeys.length - 1])
+                            }}
+                            onTouchEnd={(e) => {
+                              e.stopPropagation()
+                              e.preventDefault()
+                              const colKeys = Object.keys(node.tableData![0])
+                              deleteTableColumn(node.id, colKeys[colKeys.length - 1])
+                            }}
+                            title="Delete Last Column"
+                          >
+                            − Col
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Column resize handles - small dot handles between columns */}
+                      {node.tableData && node.tableData.length > 0 && (() => {
+                        const colKeys = Object.keys(node.tableData![0])
+                        const tableWidth = node.width || 240
+                        let accumulatedWidth = 0
+
+                        return colKeys.slice(0, -1).map((colKey, colIndex) => {
+                          const colWidth = node.columnWidths?.[colKey] ?? (100 / colKeys.length)
+                          accumulatedWidth += colWidth
+                          const leftPos = (accumulatedWidth / 100) * tableWidth
+
+                          return (
+                            <div
+                              key={`col-resize-${colIndex}`}
+                              className="absolute top-0 h-full w-[12px] cursor-col-resize z-20 flex items-center justify-center"
+                              style={{
+                                left: `${leftPos - 6}px`,
+                                touchAction: 'none',
+                                color: getNodeBorderColor(node.type || 'text')
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation()
+                                e.preventDefault()
+                                const defaultWidths: Record<string, number> = {}
+                                colKeys.forEach(key => {
+                                  defaultWidths[key] = node.columnWidths?.[key] ?? (100 / colKeys.length)
+                                })
+                                setResizingColumn({
+                                  nodeId: node.id,
+                                  colIndex,
+                                  startX: e.clientX,
+                                  startWidths: defaultWidths,
+                                  tableWidth,
+                                  colKeys: [...colKeys]
+                                })
+                              }}
+                              onTouchStart={(e) => {
+                                e.stopPropagation()
+                                e.preventDefault()
+                                const touch = e.touches[0]
+                                const defaultWidths: Record<string, number> = {}
+                                colKeys.forEach(key => {
+                                  defaultWidths[key] = node.columnWidths?.[key] ?? (100 / colKeys.length)
+                                })
+                                setResizingColumn({
+                                  nodeId: node.id,
+                                  colIndex,
+                                  startX: touch.clientX,
+                                  startWidths: defaultWidths,
+                                  tableWidth,
+                                  colKeys: [...colKeys]
+                                })
+                              }}
+                            >
+                              {/* Two-way horizontal arrow */}
+                              <svg className="hover:scale-110 transition-transform" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M18 8l4 4-4 4" />
+                                <path d="M6 8l-4 4 4 4" />
+                                <line x1="2" y1="12" x2="22" y2="12" />
+                              </svg>
+                            </div>
+                          )
+                        })
+                      })()}
+
+                      {/* Corner resize handle - for full scaling */}
+                      <div
+                        className="absolute -bottom-2 -right-2 w-4 h-4 cursor-se-resize z-20 rounded-sm"
+                        style={{ backgroundColor: getResizeHandleColor(node.type || 'text') }}
                         onMouseDown={(e) => {
                           e.stopPropagation()
                           setResizingNode(node.id)
-                          setResizeStartSize({ width: node.width || 240, height: node.height })
+                          setResizeStartSize({ width: node.width || 240, height: node.height || 100 })
                           setResizeStartPos({ x: e.clientX, y: e.clientY })
+                        }}
+                        onTouchStart={(e) => {
+                          e.stopPropagation()
+                          e.preventDefault()
+                          const touch = e.touches[0]
+                          setResizingNode(node.id)
+                          setResizeStartSize({ width: node.width || 240, height: node.height || 100 })
+                          setResizeStartPos({ x: touch.clientX, y: touch.clientY })
                         }}
                       />
                     </>
