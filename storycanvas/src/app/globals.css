@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Prevent pull-to-refresh on mobile - only applies overscroll behavior globally */
+html, body {
+  overscroll-behavior: none;
+}
+
 @layer base {
   :root {
     --background: 240 20% 97%;
@@ -257,6 +262,15 @@
   -ms-overflow-style: none; /* IE and Edge */
   overflow-y: hidden;
   transition: overflow-y 0.2s ease;
+  touch-action: pan-y; /* Allow vertical scrolling on touch but prevent page scroll */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* On mobile/touch devices, always allow scrolling */
+@media (pointer: coarse) {
+  .hover-scrollable {
+    overflow-y: auto;
+  }
 }
 
 .hover-scrollable::-webkit-scrollbar {

@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { flushSync } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette, ArrowRight, Menu, Grid3x3, Bold, Italic, Underline, ArrowUpRight, StickyNote } from 'lucide-react'
+import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette, ArrowRight, Menu, Grid3x3, Bold, Italic, Underline, ArrowUpRight, StickyNote, LayoutTemplate, Trash2, Copy, Edit3, Smile, Home, Castle, TreePine, Mountain, Building2, Landmark, Church, Store, Hospital, School, Factory, Waves, Palmtree, Tent, Map, Star, Bookmark, Flag, Compass, Globe, Sun, Moon, Cloud, Zap, Flame, Snowflake, Crown, Shield, Sword, Gem, Key, Lock, Gift, Music, Camera, Gamepad2, Trophy, Target, Lightbulb, Rocket, Anchor, Plane, Car, Ship, Train } from 'lucide-react'
 import { PaletteSelector } from '@/components/ui/palette-selector'
 import { NodeStylePanel } from '@/components/ui/node-style-panel'
 import { PerformanceOptimizer } from '@/lib/performance-utils'
@@ -27,6 +27,7 @@ interface Node {
   linkedCanvasId?: string
   imageUrl?: string
   profileImageUrl?: string // For character nodes profile pictures
+  locationIcon?: string // For location nodes - custom emoji icon
   attributes?: any
   tableData?: Record<string, string>[] // For table nodes - dynamic column keys
   columnWidths?: Record<string, number> // For table nodes - column width percentages
@@ -111,6 +112,20 @@ interface NodeStylePreferences {
   outlines: 'dark' | 'light' | 'mixed'
   textColor: 'dark' | 'mixed' | 'light'
   textAlign: 'left' | 'center' | 'right'
+}
+
+// Custom template interface
+interface CustomTemplate {
+  id: string
+  name: string
+  displayType: 'folder' | 'character' | 'location' | 'event'
+  customIcon?: string // For icon type - emoji or icon name
+  profileImageUrl?: string // For picture type
+  bio?: string // Subtext/description shown under the node title
+  nodes: Node[]
+  connections: Connection[]
+  createdAt: number
+  updatedAt: number
 }
 
 interface HTMLCanvasProps {
@@ -207,6 +222,43 @@ export default function HTMLCanvas({
   const [draggingLineVertex, setDraggingLineVertex] = useState<{ nodeId: string; vertex: 'start' | 'middle' | 'end' } | null>(null)
   // Table column resize state
   const [resizingColumn, setResizingColumn] = useState<{ nodeId: string; colIndex: number; startX: number; startWidths: Record<string, number>; tableWidth: number; colKeys: string[] } | null>(null)
+
+  // Template system state
+  const [showTemplatePanel, setShowTemplatePanel] = useState(false)
+  const [templates, setTemplates] = useState<CustomTemplate[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bibliarch-custom-templates')
+      return saved ? JSON.parse(saved) : []
+    }
+    return []
+  })
+  const [showCreateTemplateDialog, setShowCreateTemplateDialog] = useState(false)
+  const [showEditTemplateDialog, setShowEditTemplateDialog] = useState<CustomTemplate | null>(null)
+  const [templateContextMenu, setTemplateContextMenu] = useState<{ template: CustomTemplate; position: { x: number; y: number } } | null>(null)
+  const [newTemplateName, setNewTemplateName] = useState('')
+  const [newTemplateDisplayType, setNewTemplateDisplayType] = useState<'folder' | 'character' | 'location' | 'event'>('folder')
+  const [newTemplateContentSource, setNewTemplateContentSource] = useState<'scratch' | 'current'>('scratch')
+  const [newTemplateCustomIcon, setNewTemplateCustomIcon] = useState('')
+  const [newTemplateBio, setNewTemplateBio] = useState('')
+  // Template editor mode - when editing a template's interior layout
+  const [templateEditorMode, setTemplateEditorMode] = useState<{
+    template: CustomTemplate | null  // null = creating new, otherwise editing existing
+    isNew: boolean
+    originalNodes: Node[]  // Store original canvas nodes to restore on cancel
+    originalConnections: Connection[]
+  } | null>(null)
+
+  // Wrapper for onSave that skips saving when in template editor mode
+  // This prevents template edits from being saved to the actual canvas
+  const handleSave = useCallback((nodesToSave: Node[], connectionsToSave: Connection[]) => {
+    if (templateEditorMode) {
+      // Don't save to parent when editing a template
+      return
+    }
+    if (onSave) {
+      onSave(nodesToSave, connectionsToSave)
+    }
+  }, [templateEditorMode, onSave])
 
   // Use controlled zoom if provided, otherwise use internal state
   const [internalZoom, setInternalZoom] = useState(1)
@@ -448,7 +500,7 @@ export default function HTMLCanvas({
 
     const handleMouseUp = () => {
       saveToHistory(nodesRef.current, connectionsRef.current)
-      if (onSave) onSave(nodesRef.current, connectionsRef.current)
+      handleSave(nodesRef.current, connectionsRef.current)
       columnWidthsRef.current = null
       setResizingColumn(null)
     }
@@ -774,7 +826,7 @@ export default function HTMLCanvas({
   useEffect(() => {
     const timeoutId = setTimeout(async () => {
       if (onSave && (nodes.length > 0 || connections.length > 0)) {
-        await onSave(nodes, connections)
+        await handleSave(nodes, connections)
 
         // Check if any character nodes exist in current canvas
         const hasCharacters = nodes.some(node => node.type === 'character')
@@ -1251,7 +1303,7 @@ export default function HTMLCanvas({
     setNodes(newNodes)
     setVisibleNodeIds([...visibleNodeIds, newNode.id])  // Add to visible nodes so it renders!
     saveToHistory(newNodes, connections)
-    onSave(newNodes, connections)  // Save to database immediately
+    handleSave(newNodes, connections)  // Save to database immediately
 
     // Clear any multi-selection and select only the newly created node
     // Use flushSync to prevent the auto-sync useEffect from interfering
@@ -1914,7 +1966,7 @@ export default function HTMLCanvas({
       saveToHistory(nodes, connections)
       setDraggingLineVertex(null)
       if (onSave) {
-        onSave(nodes, connections)
+        handleSave(nodes, connections)
       }
     }
 
@@ -2489,6 +2541,24 @@ export default function HTMLCanvas({
     return getTextColor(backgroundColor, isChildInList)
   }
 
+  // Icon name to component mapping for location/icon type templates
+  const iconMap: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
+    MapPin, Home, Castle, TreePine, Mountain, Building2, Landmark, Church, Store, School, Factory,
+    Waves, Palmtree, Tent, Map, Star, Bookmark, Flag, Compass, Globe, Sun, Moon, Cloud, Zap, Flame,
+    Snowflake, Crown, Shield, Sword, Gem, Key, Lock, Gift, Music, Camera, Gamepad2, Trophy, Target,
+    Lightbulb, Rocket, Heart, User, Anchor, Plane, Car, Ship, Train, Folder
+  }
+
+  // Render a lucide icon by name
+  const renderLucideIcon = (iconName: string, className?: string, style?: React.CSSProperties) => {
+    const IconComponent = iconMap[iconName]
+    if (IconComponent) {
+      return <IconComponent className={className} style={style} />
+    }
+    // Fallback to MapPin if icon not found
+    return <MapPin className={className} style={style} />
+  }
+
   const handleNodeClick = (node: Node, e: React.MouseEvent) => {
     e.stopPropagation()
 
@@ -2758,7 +2828,7 @@ export default function HTMLCanvas({
 
     // Save color change to database
     if (onSave) {
-      onSave(newNodes, connections)
+      handleSave(newNodes, connections)
     }
   }
 
@@ -2786,7 +2856,7 @@ export default function HTMLCanvas({
 
     // Save setting change to database
     if (onSave) {
-      onSave(newNodes, connections)
+      handleSave(newNodes, connections)
     }
   }
 
@@ -2818,7 +2888,7 @@ export default function HTMLCanvas({
 
     // Save immediately to database
     if (onSave) {
-      onSave(newNodes, connections)
+      handleSave(newNodes, connections)
     }
 
   }
@@ -2988,7 +3058,7 @@ export default function HTMLCanvas({
     )
     setNodes(updatedNodes)
     saveToHistory(updatedNodes, connections)
-    if (onSave) onSave(updatedNodes, connections)
+    handleSave(updatedNodes, connections)
   }
 
   const addTableColumn = (nodeId: string) => {
@@ -3011,7 +3081,7 @@ export default function HTMLCanvas({
     )
     setNodes(updatedNodes)
     saveToHistory(updatedNodes, connections)
-    if (onSave) onSave(updatedNodes, connections)
+    handleSave(updatedNodes, connections)
   }
 
   const deleteTableRow = (nodeId: string, rowIndex: number) => {
@@ -3024,7 +3094,7 @@ export default function HTMLCanvas({
     )
     setNodes(updatedNodes)
     saveToHistory(updatedNodes, connections)
-    if (onSave) onSave(updatedNodes, connections)
+    handleSave(updatedNodes, connections)
   }
 
   const deleteTableColumn = (nodeId: string, colKey: string) => {
@@ -3068,7 +3138,201 @@ export default function HTMLCanvas({
     )
     setNodes(updatedNodes)
     saveToHistory(updatedNodes, connections)
-    if (onSave) onSave(updatedNodes, connections)
+    handleSave(updatedNodes, connections)
+  }
+
+  // Template system functions
+  const saveTemplates = (newTemplates: CustomTemplate[]) => {
+    setTemplates(newTemplates)
+    localStorage.setItem('bibliarch-custom-templates', JSON.stringify(newTemplates))
+  }
+
+  const createTemplate = (name: string, displayType: 'folder' | 'character' | 'location', templateNodes: Node[], templateConnections: Connection[], customIcon?: string, profileImageUrl?: string) => {
+    const newTemplate: CustomTemplate = {
+      id: `template-${Date.now()}`,
+      name,
+      displayType,
+      customIcon,
+      profileImageUrl,
+      nodes: templateNodes,
+      connections: templateConnections,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }
+    saveTemplates([...templates, newTemplate])
+    setShowCreateTemplateDialog(false)
+  }
+
+  const updateTemplate = (templateId: string, updates: Partial<CustomTemplate>) => {
+    const newTemplates = templates.map(t =>
+      t.id === templateId ? { ...t, ...updates, updatedAt: Date.now() } : t
+    )
+    saveTemplates(newTemplates)
+  }
+
+  const duplicateTemplate = (template: CustomTemplate) => {
+    const newTemplate: CustomTemplate = {
+      ...template,
+      id: `template-${Date.now()}`,
+      name: `${template.name} (Copy)`,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }
+    saveTemplates([...templates, newTemplate])
+  }
+
+  const deleteTemplate = (templateId: string) => {
+    saveTemplates(templates.filter(t => t.id !== templateId))
+  }
+
+  const placeTemplateOnCanvas = async (template: CustomTemplate) => {
+    // Find position for new folder node
+    const scrollContainer = scrollContainerRef.current
+    const viewportCenterX = scrollContainer ? (scrollContainer.scrollLeft + scrollContainer.clientWidth / 2) / zoom : 400
+    const viewportCenterY = scrollContainer ? (scrollContainer.scrollTop + scrollContainer.clientHeight / 2) / zoom : 300
+
+    // Create a new folder node with the template's interior
+    const folderId = `folder-${Date.now()}`
+    const linkedCanvasId = `canvas-${Date.now()}`
+
+    // Determine node type and properties based on display type
+    let newNode: Node
+    if (template.displayType === 'character') {
+      newNode = {
+        id: folderId,
+        x: viewportCenterX - 160,
+        y: viewportCenterY - 36,
+        text: template.name,
+        content: template.bio || '',
+        width: 320,
+        height: 72,
+        type: 'character',
+        linkedCanvasId,
+        profileImageUrl: template.profileImageUrl
+      }
+    } else if (template.displayType === 'location') {
+      newNode = {
+        id: folderId,
+        x: viewportCenterX - 160,
+        y: viewportCenterY - 36,
+        text: template.name,
+        content: template.bio || '',
+        locationIcon: template.customIcon || '',
+        width: 320,
+        height: 72,
+        type: 'location',
+        linkedCanvasId
+      }
+    } else if (template.displayType === 'event') {
+      newNode = {
+        id: folderId,
+        x: viewportCenterX - 140,
+        y: viewportCenterY - 100,
+        text: template.name,
+        title: template.name,
+        summary: template.bio || '',
+        width: 280,
+        height: 200,
+        type: 'event',
+        linkedCanvasId,
+        durationText: ''
+      }
+    } else {
+      // folder type (default)
+      newNode = {
+        id: folderId,
+        x: viewportCenterX - 150,
+        y: viewportCenterY - 70,
+        text: template.name,
+        content: template.bio || '',
+        width: 300,
+        height: 139,
+        type: 'folder',
+        linkedCanvasId
+      }
+    }
+
+    const updatedNodes = [...nodes, newNode]
+    setNodes(updatedNodes)
+    saveToHistory(updatedNodes, connections)
+    handleSave(updatedNodes, connections)
+
+    // Save template interior nodes to the linked canvas
+    // Always create the canvas record so it can be edited later
+    // IMPORTANT: We must wait for this to complete before allowing navigation
+    const saveTemplateInterior = async () => {
+      try {
+        const supabase = createClient()
+
+        // Calculate the offset to normalize positions to start near (50, 50)
+        let minX = 50, minY = 50
+        if (template.nodes.length > 0) {
+          minX = Math.min(...template.nodes.map(n => n.x))
+          minY = Math.min(...template.nodes.map(n => n.y))
+        }
+        const offsetX = minX - 50
+        const offsetY = minY - 50
+
+        // Generate new unique IDs for the template nodes to avoid conflicts
+        const idMapping: Record<string, string> = {}
+        const canvasIdMapping: Record<string, string> = {}
+        const newTemplateNodes = template.nodes.map(node => {
+          const newId = `${node.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          idMapping[node.id] = newId
+
+          // Also generate new linkedCanvasId for folder/character/location nodes
+          let newLinkedCanvasId = node.linkedCanvasId
+          if (node.linkedCanvasId && (node.type === 'folder' || node.type === 'character' || node.type === 'location' || node.type === 'event')) {
+            newLinkedCanvasId = `canvas-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+            canvasIdMapping[node.linkedCanvasId] = newLinkedCanvasId
+          }
+
+          // Normalize position to start near top-left
+          return {
+            ...node,
+            id: newId,
+            linkedCanvasId: newLinkedCanvasId,
+            x: node.x - offsetX,
+            y: node.y - offsetY
+          }
+        })
+        // Update connection references to use new node IDs
+        const newTemplateConnections = template.connections.map(conn => ({
+          ...conn,
+          id: `${conn.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          from: idMapping[conn.from] || conn.from,
+          to: idMapping[conn.to] || conn.to
+        }))
+
+        console.log('[Template] Saving interior canvas:', linkedCanvasId, 'with', newTemplateNodes.length, 'nodes')
+        console.log('[Template] Position offset applied:', { offsetX, offsetY })
+
+        const { error } = await supabase
+          .from('canvas_data')
+          .upsert({
+            story_id: storyId,
+            canvas_type: linkedCanvasId,
+            nodes: newTemplateNodes,
+            connections: newTemplateConnections,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'story_id,canvas_type'
+          })
+
+        if (error) {
+          console.error('[Template] Error saving interior:', error)
+        } else {
+          console.log('[Template] Interior saved successfully to canvas:', linkedCanvasId)
+        }
+      } catch (error) {
+        console.error('[Template] Error saving template interior:', error)
+      }
+    }
+
+    // Wait for the save to complete before closing panel
+    await saveTemplateInterior()
+
+    setShowTemplatePanel(false)
   }
 
   const handleApplyTemplate = (templateNodes: Node[], templateConnections: Connection[]) => {
@@ -3291,7 +3555,84 @@ export default function HTMLCanvas({
   }
 
   return (
-    <div className="w-full h-full overflow-hidden flex flex-row bg-background">
+    <div className="w-full h-full overflow-hidden flex flex-col bg-background">
+      {/* Template Editor Mode Header - in normal document flow */}
+      {templateEditorMode && (
+        <div className="w-full h-14 bg-sky-600 text-white flex items-center justify-between px-4 z-[100] shadow-lg flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <LayoutTemplate className="w-5 h-5" />
+            <span className="font-medium">
+              Editing Template: {templateEditorMode.template?.name}
+            </span>
+            <span className="text-sky-200 text-sm">
+              ({nodes.length} nodes)
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Cancel - restore original canvas
+                setNodes(templateEditorMode.originalNodes)
+                setConnections(templateEditorMode.originalConnections)
+                setTemplateEditorMode(null)
+              }}
+              className="bg-transparent border-white/50 text-white hover:bg-white/20"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                // Save the template - capture nodes BEFORE any state changes
+                // Use deep clone to ensure we capture the current state
+                const nodesToSave = JSON.parse(JSON.stringify(nodes))
+                const connectionsToSave = JSON.parse(JSON.stringify(connections))
+
+                console.log('[Template Editor] Current nodes state:', nodes.length, 'nodes')
+                console.log('[Template Editor] Nodes to save:', nodesToSave.length, 'nodes')
+                console.log('[Template Editor] Node details:', nodesToSave.map((n: Node) => ({ id: n.id, type: n.type, text: n.text })))
+
+                if (templateEditorMode.template) {
+                  if (templateEditorMode.isNew) {
+                    // Create new template with current canvas nodes
+                    const finalTemplate: CustomTemplate = {
+                      ...templateEditorMode.template,
+                      nodes: nodesToSave,
+                      connections: connectionsToSave,
+                      updatedAt: Date.now()
+                    }
+                    console.log('[Template Editor] Final template nodes count:', finalTemplate.nodes.length)
+                    console.log('[Template Editor] Saving to localStorage...')
+                    saveTemplates([...templates, finalTemplate])
+                    console.log('[Template Editor] Template saved!')
+                  } else {
+                    // Update existing template
+                    console.log('[Template Editor] Updating existing template with', nodesToSave.length, 'nodes')
+                    updateTemplate(templateEditorMode.template.id, {
+                      nodes: nodesToSave,
+                      connections: connectionsToSave
+                    })
+                    console.log('[Template Editor] Template updated!')
+                  }
+                }
+                // Restore original canvas AFTER saving
+                console.log('[Template Editor] Restoring original canvas with', templateEditorMode.originalNodes.length, 'nodes')
+                setNodes(templateEditorMode.originalNodes)
+                setConnections(templateEditorMode.originalConnections)
+                setTemplateEditorMode(null)
+              }}
+              className="bg-white text-sky-600 hover:bg-sky-50"
+            >
+              Save Template
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Main content area */}
+      <div className="flex-1 overflow-hidden flex flex-row">
       {/* Sidebar */}
       <div className="
         flex
@@ -3358,6 +3699,74 @@ export default function HTMLCanvas({
             <div className="text-xs text-center text-muted-foreground px-2 mt-4">
               Click outside to close
             </div>
+          </>
+        ) : showTemplatePanel ? (
+          /* Template Panel - replaces toolbar */
+          <>
+            <div className="text-xs text-center text-muted-foreground px-2 mb-2">
+              Templates
+            </div>
+
+            {/* Close button */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowTemplatePanel(false)}
+              className="h-10 w-14 p-0 mb-2"
+              title="Close Templates"
+            >
+              <X className="w-5 h-5" />
+            </Button>
+
+            <div className="w-8 h-px bg-border my-2" />
+
+            {/* Add New Template Button */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setNewTemplateName('')
+                setNewTemplateDisplayType('folder')
+                setNewTemplateContentSource('scratch')
+                setShowCreateTemplateDialog(true)
+              }}
+              className="h-12 w-14 p-0"
+              title="Create New Template"
+            >
+              <Plus className="w-7 h-7" />
+            </Button>
+
+            {/* Existing Templates */}
+            <div className="flex flex-col gap-1 max-h-[50vh] overflow-y-auto mt-2">
+              {templates.map(template => (
+                <button
+                  key={template.id}
+                  onClick={() => placeTemplateOnCanvas(template)}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    setTemplateContextMenu({ template, position: { x: e.clientX, y: e.clientY } })
+                  }}
+                  className="h-14 w-14 rounded-lg border border-border hover:border-primary hover:bg-accent/50 flex flex-col items-center justify-center gap-0.5 transition-colors"
+                  title={`Click to place "${template.name}"\nRight-click for options`}
+                >
+                  {template.displayType === 'folder' && <Folder className="w-5 h-5 text-amber-600" />}
+                  {template.displayType === 'character' && <ImageIcon className="w-5 h-5 text-sky-600" />}
+                  {template.displayType === 'location' && (
+                    template.customIcon && iconMap[template.customIcon]
+                      ? renderLucideIcon(template.customIcon, 'w-5 h-5 text-emerald-600')
+                      : <Smile className="w-5 h-5 text-emerald-600" />
+                  )}
+                  {template.displayType === 'event' && <Calendar className="w-5 h-5 text-purple-600" />}
+                  <span className="text-[8px] text-foreground truncate w-full px-0.5 text-center leading-tight">{template.name}</span>
+                </button>
+              ))}
+            </div>
+
+            {templates.length === 0 && (
+              <div className="text-[10px] text-center text-muted-foreground px-1 mt-2">
+                No templates yet
+              </div>
+            )}
           </>
         ) : (
           /* Normal Canvas Tools */
@@ -3478,6 +3887,22 @@ export default function HTMLCanvas({
             title="Add Curved Line - Click canvas to create"
           >
             <ArrowUpRight className="w-7 h-7" />
+          </Button>
+        </div>
+
+        {/* Divider */}
+        <div className="w-8 h-px bg-border my-2" />
+
+        {/* Template Button */}
+        <div className="flex flex-col gap-1">
+          <Button
+            size="sm"
+            variant={showTemplatePanel ? 'default' : 'outline'}
+            onClick={() => setShowTemplatePanel(!showTemplatePanel)}
+            className={`h-12 w-14 p-0 ${showTemplatePanel ? 'bg-sky-600 text-white' : ''}`}
+            title="Custom Templates"
+          >
+            <LayoutTemplate className="w-7 h-7" />
           </Button>
         </div>
 
@@ -3986,6 +4411,438 @@ export default function HTMLCanvas({
           )}
         </div>
 
+        {/* Template Context Menu */}
+        {templateContextMenu && (
+          <div
+            className="fixed z-[10000] bg-background rounded-md shadow-lg border border-border py-1 min-w-[140px]"
+            style={{ left: templateContextMenu.position.x, top: templateContextMenu.position.y }}
+          >
+            <button
+              className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center gap-2"
+              onClick={() => {
+                setShowEditTemplateDialog(templateContextMenu.template)
+                setTemplateContextMenu(null)
+              }}
+            >
+              <Edit3 className="w-4 h-4" />
+              Edit
+            </button>
+            <button
+              className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center gap-2"
+              onClick={() => {
+                duplicateTemplate(templateContextMenu.template)
+                setTemplateContextMenu(null)
+              }}
+            >
+              <Copy className="w-4 h-4" />
+              Duplicate
+            </button>
+            <div className="border-t border-border my-1" />
+            <button
+              className="w-full text-left px-3 py-2 text-sm hover:bg-accent text-red-600 flex items-center gap-2"
+              onClick={() => {
+                if (confirm(`Delete template "${templateContextMenu.template.name}"?`)) {
+                  deleteTemplate(templateContextMenu.template.id)
+                }
+                setTemplateContextMenu(null)
+              }}
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </button>
+          </div>
+        )}
+
+        {/* Click outside to close template context menu */}
+        {templateContextMenu && (
+          <div
+            className="fixed inset-0 z-[9999]"
+            onClick={() => setTemplateContextMenu(null)}
+          />
+        )}
+
+        {/* Create Template Dialog - Single scrollable dialog */}
+        {showCreateTemplateDialog && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50">
+            <Card className="p-6 bg-card border border-border shadow-xl w-[95vw] max-w-md max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <LayoutTemplate className="w-5 h-5" />
+                  Create New Template
+                </h3>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setShowCreateTemplateDialog(false)
+                    setNewTemplateName('')
+                    setNewTemplateCustomIcon('')
+                    setNewTemplateBio('')
+                  }}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-5">
+                {/* Template Name */}
+                <div>
+                  <label className="text-sm font-medium">Template Name</label>
+                  <input
+                    type="text"
+                    value={newTemplateName}
+                    onChange={(e) => setNewTemplateName(e.target.value)}
+                    placeholder="e.g., D&D Character Sheet"
+                    className="w-full mt-1.5 px-3 py-2 rounded-md border border-border bg-background text-sm"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Subtext/Bio field (available for all types) - directly below title */}
+                <div>
+                  <label className="text-sm font-medium">Subtext</label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {newTemplateDisplayType === 'event'
+                      ? 'Summary text shown in the event card'
+                      : 'Text shown below the title'}
+                  </p>
+                  <textarea
+                    value={newTemplateBio}
+                    onChange={(e) => setNewTemplateBio(e.target.value)}
+                    placeholder={
+                      newTemplateDisplayType === 'character' ? "e.g., A brave warrior seeking redemption..." :
+                      newTemplateDisplayType === 'event' ? "e.g., A pivotal moment in the story..." :
+                      newTemplateDisplayType === 'location' ? "e.g., A mysterious forest clearing..." :
+                      "e.g., Contains important story elements..."
+                    }
+                    className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm resize-none"
+                    rows={2}
+                  />
+                </div>
+
+                {/* Display Style */}
+                <div>
+                  <label className="text-sm font-medium">Display Style</label>
+                  <p className="text-xs text-muted-foreground mb-2">How the template appears on canvas</p>
+                  <div className="flex gap-2 justify-center flex-wrap">
+                    <button
+                      onClick={() => setNewTemplateDisplayType('folder')}
+                      className={`w-[72px] h-[72px] rounded-lg border-2 flex flex-col items-center justify-center gap-1.5 transition-colors ${newTemplateDisplayType === 'folder' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}
+                    >
+                      <Folder className="w-6 h-6 text-amber-600" />
+                      <span className="text-[10px]">Default</span>
+                    </button>
+                    <button
+                      onClick={() => setNewTemplateDisplayType('character')}
+                      className={`w-[72px] h-[72px] rounded-lg border-2 flex flex-col items-center justify-center gap-1.5 transition-colors ${newTemplateDisplayType === 'character' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}
+                    >
+                      <ImageIcon className="w-6 h-6 text-sky-600" />
+                      <span className="text-[10px]">Picture</span>
+                    </button>
+                    <button
+                      onClick={() => setNewTemplateDisplayType('location')}
+                      className={`w-[72px] h-[72px] rounded-lg border-2 flex flex-col items-center justify-center gap-1.5 transition-colors ${newTemplateDisplayType === 'location' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}
+                    >
+                      <Smile className="w-6 h-6 text-emerald-600" />
+                      <span className="text-[10px]">Icon</span>
+                    </button>
+                    <button
+                      onClick={() => setNewTemplateDisplayType('event')}
+                      className={`w-[72px] h-[72px] rounded-lg border-2 flex flex-col items-center justify-center gap-1.5 transition-colors ${newTemplateDisplayType === 'event' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}
+                    >
+                      <Calendar className="w-6 h-6 text-purple-600" />
+                      <span className="text-[10px]">Timeline</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Custom Icon Selector (only for location/icon type) */}
+                {newTemplateDisplayType === 'location' && (
+                  <div>
+                    <label className="text-sm font-medium">Custom Icon</label>
+                    <p className="text-xs text-muted-foreground mb-2">Choose an icon for this template</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { name: 'MapPin', Icon: MapPin },
+                        { name: 'Home', Icon: Home },
+                        { name: 'Castle', Icon: Castle },
+                        { name: 'TreePine', Icon: TreePine },
+                        { name: 'Mountain', Icon: Mountain },
+                        { name: 'Building2', Icon: Building2 },
+                        { name: 'Landmark', Icon: Landmark },
+                        { name: 'Church', Icon: Church },
+                        { name: 'Store', Icon: Store },
+                        { name: 'School', Icon: School },
+                        { name: 'Factory', Icon: Factory },
+                        { name: 'Waves', Icon: Waves },
+                        { name: 'Palmtree', Icon: Palmtree },
+                        { name: 'Tent', Icon: Tent },
+                        { name: 'Map', Icon: Map },
+                        { name: 'Star', Icon: Star },
+                        { name: 'Bookmark', Icon: Bookmark },
+                        { name: 'Flag', Icon: Flag },
+                        { name: 'Compass', Icon: Compass },
+                        { name: 'Globe', Icon: Globe },
+                        { name: 'Sun', Icon: Sun },
+                        { name: 'Moon', Icon: Moon },
+                        { name: 'Cloud', Icon: Cloud },
+                        { name: 'Zap', Icon: Zap },
+                        { name: 'Flame', Icon: Flame },
+                        { name: 'Snowflake', Icon: Snowflake },
+                        { name: 'Crown', Icon: Crown },
+                        { name: 'Shield', Icon: Shield },
+                        { name: 'Sword', Icon: Sword },
+                        { name: 'Gem', Icon: Gem },
+                        { name: 'Key', Icon: Key },
+                        { name: 'Lock', Icon: Lock },
+                        { name: 'Gift', Icon: Gift },
+                        { name: 'Music', Icon: Music },
+                        { name: 'Camera', Icon: Camera },
+                        { name: 'Gamepad2', Icon: Gamepad2 },
+                        { name: 'Trophy', Icon: Trophy },
+                        { name: 'Target', Icon: Target },
+                        { name: 'Lightbulb', Icon: Lightbulb },
+                        { name: 'Rocket', Icon: Rocket },
+                        { name: 'Heart', Icon: Heart },
+                        { name: 'User', Icon: User },
+                        { name: 'Anchor', Icon: Anchor },
+                        { name: 'Plane', Icon: Plane },
+                        { name: 'Car', Icon: Car },
+                        { name: 'Ship', Icon: Ship },
+                        { name: 'Train', Icon: Train },
+                        { name: 'Folder', Icon: Folder },
+                      ].map(({ name, Icon }) => (
+                        <button
+                          key={name}
+                          onClick={() => setNewTemplateCustomIcon(name)}
+                          className={`w-9 h-9 rounded-lg border-2 flex items-center justify-center transition-colors ${newTemplateCustomIcon === name ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}
+                          title={name}
+                        >
+                          <Icon className="w-5 h-5 text-foreground" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Content Source */}
+                <div>
+                  <label className="text-sm font-medium">Template Contents</label>
+                  <p className="text-xs text-muted-foreground mb-2">What's inside when you use this template</p>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setNewTemplateContentSource('scratch')}
+                      className={`w-full p-3 rounded-lg border-2 text-left transition-colors ${newTemplateContentSource === 'scratch' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Plus className="w-5 h-5 text-primary" />
+                        <div>
+                          <div className="font-medium text-sm">Start Empty</div>
+                          <div className="text-xs text-muted-foreground">Create with a blank canvas</div>
+                        </div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setNewTemplateContentSource('current')}
+                      className={`w-full p-3 rounded-lg border-2 text-left transition-colors ${newTemplateContentSource === 'current' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <LayoutTemplate className="w-5 h-5 text-primary" />
+                        <div>
+                          <div className="font-medium text-sm">Use Current Canvas</div>
+                          <div className="text-xs text-muted-foreground">Copy {nodes.length} nodes from this canvas</div>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-border">
+                <Button variant="outline" onClick={() => {
+                  setShowCreateTemplateDialog(false)
+                  setNewTemplateName('')
+                  setNewTemplateCustomIcon('')
+                  setNewTemplateBio('')
+                }}>
+                  Cancel
+                </Button>
+                <Button
+                  disabled={!newTemplateName.trim()}
+                  onClick={() => {
+                    if (newTemplateName.trim()) {
+                      // Enter template editor mode
+                      const startingNodes = newTemplateContentSource === 'current' ? [...nodes] : []
+                      const startingConns = newTemplateContentSource === 'current' ? [...connections] : []
+
+                      // Create a temporary template object
+                      const newTemplate: CustomTemplate = {
+                        id: `template-${Date.now()}`,
+                        name: newTemplateName.trim(),
+                        displayType: newTemplateDisplayType,
+                        customIcon: newTemplateDisplayType === 'location' ? newTemplateCustomIcon : undefined,
+                        bio: newTemplateBio || undefined,
+                        nodes: startingNodes,
+                        connections: startingConns,
+                        createdAt: Date.now(),
+                        updatedAt: Date.now()
+                      }
+
+                      // Store original canvas state and enter editor mode
+                      setTemplateEditorMode({
+                        template: newTemplate,
+                        isNew: true,
+                        originalNodes: [...nodes],
+                        originalConnections: [...connections]
+                      })
+
+                      // Load template nodes into the canvas for editing
+                      setNodes(startingNodes)
+                      setConnections(startingConns)
+
+                      setShowCreateTemplateDialog(false)
+                      setShowTemplatePanel(false)
+                      setNewTemplateName('')
+                      setNewTemplateCustomIcon('')
+                      setNewTemplateBio('')
+                    }
+                  }}
+                >
+                  Edit Layout
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Edit Template Dialog */}
+        {showEditTemplateDialog && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50">
+            <Card className="p-6 bg-card border border-border shadow-xl w-96">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-lg">Edit Template</h3>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowEditTemplateDialog(null)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Template Name</label>
+                  <input
+                    type="text"
+                    value={showEditTemplateDialog.name}
+                    onChange={(e) => setShowEditTemplateDialog({ ...showEditTemplateDialog, name: e.target.value })}
+                    className="w-full mt-1 px-3 py-2 rounded-md border border-border bg-background text-sm"
+                  />
+                </div>
+
+                {/* Subtext field - directly below title */}
+                <div>
+                  <label className="text-sm font-medium">Subtext</label>
+                  <textarea
+                    value={showEditTemplateDialog.bio || ''}
+                    onChange={(e) => setShowEditTemplateDialog({ ...showEditTemplateDialog, bio: e.target.value })}
+                    placeholder="Text shown below the title..."
+                    className="w-full mt-1 px-3 py-2 rounded-md border border-border bg-background text-sm resize-none"
+                    rows={2}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Display Style</label>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    <button
+                      onClick={() => setShowEditTemplateDialog({ ...showEditTemplateDialog, displayType: 'folder' })}
+                      className={`w-14 h-14 rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-colors ${showEditTemplateDialog.displayType === 'folder' ? 'border-primary bg-primary/10' : 'border-border'}`}
+                    >
+                      <Folder className="w-5 h-5 text-amber-600" />
+                      <span className="text-[9px]">Default</span>
+                    </button>
+                    <button
+                      onClick={() => setShowEditTemplateDialog({ ...showEditTemplateDialog, displayType: 'character' })}
+                      className={`w-14 h-14 rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-colors ${showEditTemplateDialog.displayType === 'character' ? 'border-primary bg-primary/10' : 'border-border'}`}
+                    >
+                      <ImageIcon className="w-5 h-5 text-sky-600" />
+                      <span className="text-[9px]">Picture</span>
+                    </button>
+                    <button
+                      onClick={() => setShowEditTemplateDialog({ ...showEditTemplateDialog, displayType: 'location' })}
+                      className={`w-14 h-14 rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-colors ${showEditTemplateDialog.displayType === 'location' ? 'border-primary bg-primary/10' : 'border-border'}`}
+                    >
+                      <Smile className="w-5 h-5 text-emerald-600" />
+                      <span className="text-[9px]">Icon</span>
+                    </button>
+                    <button
+                      onClick={() => setShowEditTemplateDialog({ ...showEditTemplateDialog, displayType: 'event' })}
+                      className={`w-14 h-14 rounded-lg border-2 flex flex-col items-center justify-center gap-0.5 transition-colors ${showEditTemplateDialog.displayType === 'event' ? 'border-primary bg-primary/10' : 'border-border'}`}
+                    >
+                      <Calendar className="w-5 h-5 text-purple-600" />
+                      <span className="text-[9px]">Timeline</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="text-xs text-muted-foreground">
+                  Contains {showEditTemplateDialog.nodes.length} nodes and {showEditTemplateDialog.connections.length} connections
+                </div>
+
+                <div className="border-t border-border pt-3 mt-3">
+                  <label className="text-sm font-medium">Template Contents</label>
+                  <button
+                    onClick={() => {
+                      // Enter template editor mode with the template's existing nodes
+                      setTemplateEditorMode({
+                        template: showEditTemplateDialog,
+                        isNew: false,
+                        originalNodes: [...nodes],
+                        originalConnections: [...connections]
+                      })
+                      // Load template nodes into canvas for editing
+                      setNodes(showEditTemplateDialog.nodes)
+                      setConnections(showEditTemplateDialog.connections)
+                      setShowEditTemplateDialog(null)
+                      setShowTemplatePanel(false)
+                    }}
+                    className="w-full mt-2 p-3 rounded-lg border border-border hover:border-primary hover:bg-accent/50 text-left transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Edit3 className="w-5 h-5 text-primary" />
+                      <div>
+                        <div className="font-medium text-sm">Edit Layout</div>
+                        <div className="text-xs text-muted-foreground">Modify the {showEditTemplateDialog.nodes.length} nodes in this template</div>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-6">
+                <Button variant="outline" onClick={() => setShowEditTemplateDialog(null)}>
+                  Cancel
+                </Button>
+                <Button onClick={() => {
+                  updateTemplate(showEditTemplateDialog.id, {
+                    name: showEditTemplateDialog.name,
+                    displayType: showEditTemplateDialog.displayType,
+                    bio: showEditTemplateDialog.bio
+                  })
+                  setShowEditTemplateDialog(null)
+                }}>
+                  Save Changes
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
         <div
           ref={canvasRef}
           className={`canvas-grid relative ${
@@ -4301,7 +5158,7 @@ export default function HTMLCanvas({
                         setNodes(updatedNodes)
                         saveToHistory(updatedNodes, connections)
                         if (onSave) {
-                          onSave(updatedNodes, connections)
+                          handleSave(updatedNodes, connections)
                         }
                         // Use flushSync to ensure editing mode exits AFTER history updates complete
                         flushSync(() => {
@@ -4459,7 +5316,7 @@ export default function HTMLCanvas({
                             saveToHistory(updatedNodes, connections)
                             setEditingField(null)
                             if (onSave) {
-                              onSave(updatedNodes, connections)
+                              handleSave(updatedNodes, connections)
                             }
                           })
                         }}
@@ -4679,7 +5536,7 @@ export default function HTMLCanvas({
                             saveToHistory(updatedNodes, connections)
                             setEditingField(null)
                             if (onSave) {
-                              onSave(updatedNodes, connections)
+                              handleSave(updatedNodes, connections)
                             }
                           })
                         }}
@@ -5211,9 +6068,13 @@ export default function HTMLCanvas({
                 >
                   {/* Location node layout similar to character but without profile picture */}
                   <div className="flex h-full items-center">
-                    {/* Location icon area (instead of profile picture) */}
+                    {/* Location icon area - show custom lucide icon if set, otherwise MapPin */}
                     <div className="flex-shrink-0 mr-3 flex items-center justify-center" style={{ marginLeft: '0px' }}>
-                      <MapPin className="w-6 h-6" style={{ color: getIconColor(node.type || 'location', getNodeColor(node.type || 'location', node.color, node.id)) }} />
+                      {renderLucideIcon(
+                        node.locationIcon || 'MapPin',
+                        'w-6 h-6',
+                        { color: getIconColor(node.type || 'location', getNodeColor(node.type || 'location', node.color, node.id)) }
+                      )}
                     </div>
 
                     {/* Location name */}
@@ -5239,7 +6100,7 @@ export default function HTMLCanvas({
                             saveToHistory(updatedNodes, connections)
                             setEditingField(null)
                             if (onSave) {
-                              onSave(updatedNodes, connections)
+                              handleSave(updatedNodes, connections)
                             }
                           })
                         }}
@@ -5303,7 +6164,7 @@ export default function HTMLCanvas({
 
                           // Save in background without blocking navigation
                           if (onSave) {
-                            onSave(updatedNodes, connections)
+                            handleSave(updatedNodes, connections)
                           }
 
                           colorContext.setCurrentFolderId(node.id)
@@ -5475,7 +6336,7 @@ export default function HTMLCanvas({
                           setNodes(updatedNodes)
                           saveToHistory(updatedNodes, connections)
                           if (onSave) {
-                            onSave(updatedNodes, connections)
+                            handleSave(updatedNodes, connections)
                           }
                           // Use flushSync to ensure editing mode exits AFTER history updates complete
                           flushSync(() => {
@@ -5556,7 +6417,7 @@ export default function HTMLCanvas({
                           setNodes(updatedNodes)
                           saveToHistory(updatedNodes, connections)
                           if (onSave) {
-                            onSave(updatedNodes, connections)
+                            handleSave(updatedNodes, connections)
                           }
                           // Use flushSync to ensure editing mode exits AFTER history updates complete
                           flushSync(() => {
@@ -5650,7 +6511,7 @@ export default function HTMLCanvas({
 
                             // Save in background without blocking navigation
                             if (onSave) {
-                              onSave(updatedNodes, connections)
+                              handleSave(updatedNodes, connections)
                             }
 
                             onNavigateToCanvas(linkedCanvasId, node.title || 'Event')
@@ -6338,7 +7199,7 @@ export default function HTMLCanvas({
                             saveToHistory(updatedNodes, connections)
                             setEditingField(null)
                             if (onSave) {
-                              onSave(updatedNodes, connections)
+                              handleSave(updatedNodes, connections)
                             }
                           })
                         }}
@@ -6396,7 +7257,7 @@ export default function HTMLCanvas({
 
                           // Save in background without blocking navigation
                           if (onSave) {
-                            onSave(updatedNodes, connections)
+                            handleSave(updatedNodes, connections)
                           }
 
                           onNavigateToCanvas(linkedCanvasId, node.text)
@@ -6654,9 +7515,7 @@ export default function HTMLCanvas({
                       setNodes(updatedNodes)
                       saveToHistory(updatedNodes, connections)
                       setEditingField(null)
-                      if (onSave) {
-                        onSave(updatedNodes, connections)
-                      }
+                      handleSave(updatedNodes, connections)
                     }}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -6887,7 +7746,7 @@ export default function HTMLCanvas({
                                           saveToHistory(updatedNodes, connections)
                                           setEditingField(null)
                                           if (onSave) {
-                                            onSave(updatedNodes, connections)
+                                            handleSave(updatedNodes, connections)
                                           }
                                         }}
                                         onClick={(e) => {
@@ -6969,7 +7828,7 @@ export default function HTMLCanvas({
 
                                           // Save in background without blocking navigation
                                           if (onSave) {
-                                            onSave(updatedNodes, connections)
+                                            handleSave(updatedNodes, connections)
                                           }
 
                                           colorContext.setCurrentFolderId(currentNode.id)
@@ -6987,9 +7846,13 @@ export default function HTMLCanvas({
                               ) : childNode.type === 'location' ? (
                                 <>
                                   <div className="flex items-center gap-3 p-2 h-full">
-                                    {/* Location icon */}
+                                    {/* Location icon - show custom lucide icon if set */}
                                     <div className="flex-shrink-0 flex items-center justify-center">
-                                      <MapPin className="w-6 h-6" style={{ color: getIconColor(childNode.type || 'location', getNodeColor(childNode.type || 'location', childNode.color, childNode.id), true) }} />
+                                      {renderLucideIcon(
+                                        childNode.locationIcon || 'MapPin',
+                                        'w-6 h-6',
+                                        { color: getIconColor(childNode.type || 'location', getNodeColor(childNode.type || 'location', childNode.color, childNode.id), true) }
+                                      )}
                                     </div>
 
                                     {/* Location name */}
@@ -7014,7 +7877,7 @@ export default function HTMLCanvas({
                                           saveToHistory(updatedNodes, connections)
                                           setEditingField(null)
                                           if (onSave) {
-                                            onSave(updatedNodes, connections)
+                                            handleSave(updatedNodes, connections)
                                           }
                                         }}
                                         onClick={(e) => {
@@ -7090,7 +7953,7 @@ export default function HTMLCanvas({
 
                                           // Save in background without blocking navigation
                                           if (onSave) {
-                                            onSave(updatedNodes, connections)
+                                            handleSave(updatedNodes, connections)
                                           }
 
                                           colorContext.setCurrentFolderId(currentNode.id)
@@ -7134,7 +7997,7 @@ export default function HTMLCanvas({
                                           saveToHistory(updatedNodes, connections)
                                           setEditingField(null)
                                           if (onSave) {
-                                            onSave(updatedNodes, connections)
+                                            handleSave(updatedNodes, connections)
                                           }
                                         }}
                                         onClick={(e) => {
@@ -7199,7 +8062,7 @@ export default function HTMLCanvas({
 
                                                 // Save in background without blocking navigation
                                                 if (onSave) {
-                                                  onSave(updatedNodes, connections)
+                                                  handleSave(updatedNodes, connections)
                                                 }
 
                                                 onNavigateToCanvas(linkedCanvasId, nodeTitle)
@@ -7277,7 +8140,7 @@ export default function HTMLCanvas({
                                       saveToHistory(updatedNodes, connections)
                                       setEditingField(null)
                                       if (onSave) {
-                                        onSave(updatedNodes, connections)
+                                        handleSave(updatedNodes, connections)
                                       }
                                     }}
                                     onClick={(e) => {
@@ -7359,7 +8222,7 @@ export default function HTMLCanvas({
                                     saveToHistory(updatedNodes, connections)
                                     setEditingField(null)
                                     if (onSave) {
-                                      onSave(updatedNodes, connections)
+                                      handleSave(updatedNodes, connections)
                                     }
                                   }}
                                   onClick={(e) => {
@@ -7423,7 +8286,7 @@ export default function HTMLCanvas({
 
                                       // Save in background without blocking navigation
                                       if (onSave) {
-                                        onSave(updatedNodes, connections)
+                                        handleSave(updatedNodes, connections)
                                       }
 
                                       // Switch to folder color context
@@ -7512,7 +8375,7 @@ export default function HTMLCanvas({
                         setNodes(updatedNodes)
                         saveToHistory(updatedNodes, connections)
                         if (onSave) {
-                          onSave(updatedNodes, connections)
+                          handleSave(updatedNodes, connections)
                         }
                         // Use flushSync to ensure editing mode exits AFTER history updates complete
                         flushSync(() => {
@@ -7569,7 +8432,7 @@ export default function HTMLCanvas({
 
                         // Save in background without blocking navigation
                         if (onSave) {
-                          onSave(updatedNodes, connections)
+                          handleSave(updatedNodes, connections)
                         }
 
                         // Switch to folder color context
@@ -8119,7 +8982,7 @@ export default function HTMLCanvas({
                             setNodes(updatedNodes)
                             saveToHistory(updatedNodes, connections)
                             if (onSave) {
-                              onSave(updatedNodes, connections)
+                              handleSave(updatedNodes, connections)
                             }
 
                             // Update modal state
@@ -8188,7 +9051,7 @@ export default function HTMLCanvas({
                               setNodes(updatedNodes)
                               saveToHistory(updatedNodes, connections)
                               if (onSave) {
-                                onSave(updatedNodes, connections)
+                                handleSave(updatedNodes, connections)
                               }
 
                               // Update modal state
@@ -8260,9 +9123,7 @@ export default function HTMLCanvas({
                           // Call saveToHistory and onSave in next tick to avoid state update conflicts
                           setTimeout(() => {
                             saveToHistory(currentNodes, connections)
-                            if (onSave) {
-                              onSave(currentNodes, connections)
-                            }
+                            handleSave(currentNodes, connections)
                           }, 0)
                           return currentNodes // Don't modify nodes
                         })
@@ -8617,9 +9478,7 @@ export default function HTMLCanvas({
 
                     setNodes(updatedNodes)
                     saveToHistory(updatedNodes, connections)
-                    if (onSave) {
-                      onSave(updatedNodes, connections)
-                    }
+                    handleSave(updatedNodes, connections)
 
                     // Update modal state
                     const updatedNode = updatedNodes.find(n => n.id === currentNode.id)
@@ -8701,9 +9560,7 @@ export default function HTMLCanvas({
 
                     setNodes(updatedNodes)
                     saveToHistory(updatedNodes, connections)
-                    if (onSave) {
-                      onSave(updatedNodes, connections)
-                    }
+                    handleSave(updatedNodes, connections)
 
                     // Update modal state
                     const updatedNode = updatedNodes.find(n => n.id === currentNode.id)
@@ -8819,9 +9676,7 @@ export default function HTMLCanvas({
 
                     setNodes(updatedNodes)
                     saveToHistory(updatedNodes, connections)
-                    if (onSave) {
-                      onSave(updatedNodes, connections)
-                    }
+                    handleSave(updatedNodes, connections)
 
                     // Update modal state
                     const updatedNode = updatedNodes.find(n => n.id === currentNode.id)
@@ -8869,6 +9724,7 @@ export default function HTMLCanvas({
         />
       )}
 
+      </div>
     </div>
   )
 }
