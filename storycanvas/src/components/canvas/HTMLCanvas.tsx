@@ -311,12 +311,24 @@ export default function HTMLCanvas({
     }
     return false
   })
+  const [snapResizeToGrid, setSnapResizeToGrid] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('canvas-snap-resize-to-grid')
+      return saved ? JSON.parse(saved) : false
+    }
+    return false
+  })
 
-  // Snap to grid function
+  // Snap to grid function (for moving nodes)
   const snapToGridFn = useCallback((value: number) => {
     if (!snapToGrid) return value
     return Math.round(value / gridSize) * gridSize
   }, [snapToGrid, gridSize])
+
+  // Snap to grid function for resizing (separate toggle)
+  const snapResizeToGridFn = useCallback((value: number) => {
+    return Math.round(value / gridSize) * gridSize
+  }, [gridSize])
 
   // Save snap-to-grid settings to localStorage whenever they change
   useEffect(() => {
@@ -330,6 +342,10 @@ export default function HTMLCanvas({
   useEffect(() => {
     localStorage.setItem('canvas-show-grid', JSON.stringify(showGrid))
   }, [showGrid])
+
+  useEffect(() => {
+    localStorage.setItem('canvas-snap-resize-to-grid', JSON.stringify(snapResizeToGrid))
+  }, [snapResizeToGrid])
 
   // Non-passive touch event handler to prevent scrolling when dragging nodes
   useEffect(() => {
@@ -1408,6 +1424,15 @@ export default function HTMLCanvas({
       let newWidth = Math.max(minWidth, resizeStartSize.width + deltaX)
       let newHeight = Math.max(minHeight, resizeStartSize.height + deltaY)
 
+      // Apply snap to grid for resize if enabled (separate from move snapping)
+      if (snapResizeToGrid) {
+        newWidth = snapResizeToGridFn(newWidth)
+        newHeight = snapResizeToGridFn(newHeight)
+        // Re-apply minimum sizes after snapping
+        newWidth = Math.max(minWidth, newWidth)
+        newHeight = Math.max(minHeight, newHeight)
+      }
+
       // Compact text nodes only resize width, height is auto
       if (resizingNodeObj.type === 'compact-text') {
         setNodes(prevNodes =>
@@ -1449,6 +1474,14 @@ export default function HTMLCanvas({
         // Ensure minimum sizes
         newWidth = Math.max(200, newWidth)
         newHeight = Math.max(200, newHeight)
+
+        // Apply snap to grid for image nodes (snap width, recalculate height to maintain aspect ratio)
+        if (snapResizeToGrid) {
+          newWidth = snapResizeToGridFn(newWidth)
+          newWidth = Math.max(200, newWidth)
+          newHeight = newWidth / photoAspectRatio
+          newHeight = Math.max(200, newHeight)
+        }
       } else if (resizingNodeObj.type === 'table') {
         // Table nodes: resize rows/columns based on direction
         const rowHeight = 40 // Approximate height per row
@@ -1494,6 +1527,14 @@ export default function HTMLCanvas({
         newWidth = Math.max(150, newColCount * colWidth)
         newHeight = Math.max(60, newRowCount * rowHeight)
 
+        // Apply snap to grid for table nodes if enabled
+        if (snapResizeToGrid) {
+          newWidth = snapResizeToGridFn(newWidth)
+          newHeight = snapResizeToGridFn(newHeight)
+          newWidth = Math.max(150, newWidth)
+          newHeight = Math.max(60, newHeight)
+        }
+
         // Update the node with new tableData
         setNodes(prevNodes =>
           prevNodes.map(node =>
@@ -1511,6 +1552,14 @@ export default function HTMLCanvas({
 
         newWidth = Math.max(minListWidth, newWidth)
         newHeight = Math.max(minListHeight, newHeight)
+
+        // Apply snap to grid for list nodes if enabled
+        if (snapResizeToGrid) {
+          newWidth = snapResizeToGridFn(newWidth)
+          newHeight = snapResizeToGridFn(newHeight)
+          newWidth = Math.max(minListWidth, newWidth)
+          newHeight = Math.max(minListHeight, newHeight)
+        }
 
         // Calculate scale factors for child nodes within the list
         const widthScale = newWidth / resizeStartSize.width
@@ -3339,8 +3388,109 @@ export default function HTMLCanvas({
           overflow: 'hidden'
         }}>
             {/* Top-right buttons when help is shown */}
+        {/* Mobile buttons - always visible */}
+        <div className="sm:hidden flex fixed top-[72px] right-4 z-50 gap-2">
+          <PaletteSelector
+            mode="advanced"
+            scope="project"
+            contextId={storyId}
+            currentPalette={colorContext.getCurrentPalette() || undefined}
+            currentFolderId={currentFolderId}
+            currentFolderTitle={currentFolderTitle}
+            onColorSelect={(color) => {
+              if (selectedId) {
+                handleColorChange(selectedId, color)
+              }
+            }}
+            onPaletteChange={(palette, selectedScope) => {
+              if (selectedScope === 'reset') {
+                colorContext.resetAllPalettes(storyId, palette)
+              } else if (selectedScope === 'folder' && currentFolderId) {
+                colorContext.setFolderPalette(currentFolderId, palette)
+                colorContext.applyPalette(palette)
+              } else {
+                colorContext.setProjectPalette(storyId, palette)
+                colorContext.applyPalette(palette)
+              }
+              resetAllNodesToThemeColors()
+              setPaletteRefresh(prev => prev + 1)
+            }}
+            trigger={
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 w-8 p-0 text-xs shadow-lg"
+                title="Color Palette"
+              >
+                <Palette className="w-4 h-4" />
+              </Button>
+            }
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowStylePanel(!showStylePanel)}
+            className="h-8 w-8 p-0 text-xs shadow-lg"
+            title="Node Style Settings"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowGridPanel(!showGridPanel)}
+            className="h-8 w-8 p-0 text-xs shadow-lg"
+            title="Grid Controls"
+          >
+            <Grid3x3 className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowHelp(!showHelp)}
+            className="h-8 w-8 p-0 text-xs shadow-lg"
+            title={showHelp ? "Close help" : "Show help"}
+          >
+            ?
+          </Button>
+        </div>
+
+        {/* Mobile help panel - same style as Style/Grid panels */}
         {showHelp && (
-          <div className="flex fixed top-[72px] right-4 z-50 gap-2 items-start">
+          <div className="sm:hidden fixed top-[72px] z-50 w-64 max-w-[calc(100vw-2rem)] right-4">
+            <Card className="p-3 bg-card/95 backdrop-blur-sm border border-border text-xs shadow-lg">
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="font-medium text-xs text-card-foreground">How to use:</h4>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowHelp(false)}
+                  className="h-6 w-6 p-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div><strong>Pan:</strong> Drag with finger</div>
+                <div><strong>Zoom:</strong> Pinch to zoom</div>
+                <div><strong>Select:</strong> Tap nodes to select and edit</div>
+                <div><strong>Move:</strong> Drag selected nodes to reposition</div>
+                <div><strong>Create:</strong> Select a tool then tap on canvas</div>
+                <div><strong>Context Menu:</strong> Double-tap on node</div>
+                <div><strong>Navigate:</strong> Tap arrow on folder/character nodes</div>
+              </div>
+              <div className="mt-2 pt-2 border-t border-border">
+                <div className="text-xs text-muted-foreground">
+                  Current tool: <span className="font-medium text-primary">{tool}</span>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Desktop buttons when help is shown - includes help card inline */}
+        {showHelp && (
+          <div className="hidden sm:flex fixed top-[72px] right-4 z-50 gap-2 items-start">
             <PaletteSelector
               mode="advanced"
               scope="project"
@@ -3357,24 +3507,15 @@ export default function HTMLCanvas({
               }}
               onPaletteChange={(palette, selectedScope) => {
                 if (selectedScope === 'reset') {
-                  // Reset all sections to use this palette (one-time action - clears all section palettes)
                   colorContext.resetAllPalettes(storyId, palette)
                 } else if (selectedScope === 'folder' && currentFolderId) {
-                  // Apply to folder only
                   colorContext.setFolderPalette(currentFolderId, palette)
-                  // Apply the palette immediately
                   colorContext.applyPalette(palette)
                 } else {
-                  // Apply to entire project (default - can be overridden by sections)
                   colorContext.setProjectPalette(storyId, palette)
-                  // Apply the palette immediately
                   colorContext.applyPalette(palette)
                 }
-
-                // Reset all nodes to use the new theme colors
                 resetAllNodesToThemeColors()
-
-                // Force re-render to update node colors
                 setPaletteRefresh(prev => prev + 1)
               }}
               trigger={
@@ -3441,10 +3582,10 @@ export default function HTMLCanvas({
             </Card>
           </div>
         )}
-        
-        {/* Top-right buttons when help is hidden */}
+
+        {/* Desktop buttons when help is hidden */}
         {!showHelp && (
-          <div className="flex fixed top-[72px] right-4 z-50 gap-2">
+          <div className="hidden sm:flex fixed top-[72px] right-4 z-50 gap-2">
             <PaletteSelector
               mode="advanced"
               scope="project"
@@ -3461,24 +3602,15 @@ export default function HTMLCanvas({
               }}
               onPaletteChange={(palette, selectedScope) => {
                 if (selectedScope === 'reset') {
-                  // Reset all sections to use this palette (one-time action - clears all section palettes)
                   colorContext.resetAllPalettes(storyId, palette)
                 } else if (selectedScope === 'folder' && currentFolderId) {
-                  // Apply to folder only
                   colorContext.setFolderPalette(currentFolderId, palette)
-                  // Apply the palette immediately
                   colorContext.applyPalette(palette)
                 } else {
-                  // Apply to entire project (default - can be overridden by sections)
                   colorContext.setProjectPalette(storyId, palette)
-                  // Apply the palette immediately
                   colorContext.applyPalette(palette)
                 }
-
-                // Reset all nodes to use the new theme colors
                 resetAllNodesToThemeColors()
-
-                // Force re-render to update node colors
                 setPaletteRefresh(prev => prev + 1)
               }}
               trigger={
@@ -3609,9 +3741,22 @@ export default function HTMLCanvas({
                     variant={snapToGrid ? "default" : "outline"}
                     onClick={() => setSnapToGrid(!snapToGrid)}
                     className="h-6 w-6 p-0"
-                    title="Toggle snap to grid"
+                    title="Toggle snap to grid (for moving nodes)"
                   >
                     {snapToGrid ? '✓' : ''}
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-xs font-medium text-muted-foreground">Snap Resize</span>
+                  <Button
+                    size="sm"
+                    variant={snapResizeToGrid ? "default" : "outline"}
+                    onClick={() => setSnapResizeToGrid(!snapResizeToGrid)}
+                    className="h-6 w-6 p-0"
+                    title="Toggle snap to grid when resizing nodes"
+                  >
+                    {snapResizeToGrid ? '✓' : ''}
                   </Button>
                 </div>
               </div>

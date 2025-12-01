@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Node } from '../../types'
 
 interface NodeContextMenuProps {
@@ -23,13 +23,95 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
   onSendToBack
 }) => {
   const menuRef = useRef<HTMLDivElement>(null)
+  const [adjustedPosition, setAdjustedPosition] = useState(position)
+  const [isReady, setIsReady] = useState(false)
+
+  // Track double-tap outside for mobile close behavior
+  const lastTouchOutsideRef = useRef<{ time: number; x: number; y: number } | null>(null)
+
+  // Adjust position to keep menu on screen
+  useEffect(() => {
+    if (menuRef.current) {
+      const menuRect = menuRef.current.getBoundingClientRect()
+      const padding = 10 // Padding from screen edges
+
+      let newX = position.x
+      let newY = position.y
+
+      // Adjust horizontal position
+      if (position.x + menuRect.width > window.innerWidth - padding) {
+        newX = window.innerWidth - menuRect.width - padding
+      }
+      if (newX < padding) {
+        newX = padding
+      }
+
+      // Adjust vertical position
+      if (position.y + menuRect.height > window.innerHeight - padding) {
+        newY = window.innerHeight - menuRect.height - padding
+      }
+      if (newY < padding) {
+        newY = padding
+      }
+
+      setAdjustedPosition({ x: newX, y: newY })
+
+      // Longer delay before allowing interactions to prevent double-tap second tap from triggering menu items
+      setTimeout(() => setIsReady(true), 350)
+    }
+  }, [position])
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+    // Mouse click outside closes immediately (desktop behavior)
+    const handleMouseClickOutside = (e: MouseEvent) => {
+      if (!isReady) return
+
+      if (menuRef.current && !menuRef.current.contains(e.target as HTMLElement)) {
         e.preventDefault()
         e.stopPropagation()
         onClose()
+      }
+    }
+
+    // Touch outside requires double-tap to close (mobile behavior)
+    const handleTouchOutside = (e: TouchEvent) => {
+      if (!isReady) return
+
+      if (menuRef.current && !menuRef.current.contains(e.target as HTMLElement)) {
+        const touch = e.touches[0]
+        if (!touch) return
+
+        const now = Date.now()
+        const lastTouch = lastTouchOutsideRef.current
+
+        // Check if this is a double-tap (within 400ms and 50px of last touch)
+        if (lastTouch) {
+          const timeDiff = now - lastTouch.time
+          const distance = Math.sqrt(
+            Math.pow(touch.clientX - lastTouch.x, 2) +
+            Math.pow(touch.clientY - lastTouch.y, 2)
+          )
+
+          if (timeDiff < 400 && distance < 50) {
+            // Double-tap detected - close the menu
+            e.preventDefault()
+            e.stopPropagation()
+            lastTouchOutsideRef.current = null
+            onClose()
+            return
+          }
+        }
+
+        // Record this touch for potential double-tap
+        lastTouchOutsideRef.current = {
+          time: now,
+          x: touch.clientX,
+          y: touch.clientY
+        }
+
+        // Prevent this single tap from doing anything else
+        e.preventDefault()
+        e.stopPropagation()
       }
     }
 
@@ -44,23 +126,31 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
     }
 
     // Use capture phase to ensure we get the event first
-    document.addEventListener('mousedown', handleClickOutside, true)
-    document.addEventListener('click', handleClickOutside, true)
+    // Separate handlers for mouse (single click) and touch (double tap)
+    document.addEventListener('mousedown', handleMouseClickOutside, true)
+    document.addEventListener('touchstart', handleTouchOutside, true)
     document.addEventListener('keydown', handleEscape)
     document.addEventListener('contextmenu', handleContextMenu)
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside, true)
-      document.removeEventListener('click', handleClickOutside, true)
+      document.removeEventListener('mousedown', handleMouseClickOutside, true)
+      document.removeEventListener('touchstart', handleTouchOutside, true)
       document.removeEventListener('keydown', handleEscape)
       document.removeEventListener('contextmenu', handleContextMenu)
     }
-  }, [onClose])
+  }, [onClose, isReady])
 
   const MenuItem = ({ label, onClick, destructive = false }: { label: string; onClick: () => void; destructive?: boolean }) => (
     <button
-      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors ${destructive ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20' : 'text-foreground'}`}
+      className={`w-full text-left px-3 py-2.5 text-sm hover:bg-accent active:bg-accent transition-colors ${destructive ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20' : 'text-foreground'}`}
       onClick={() => {
+        if (!isReady) return
+        onClick()
+        onClose()
+      }}
+      onTouchEnd={(e) => {
+        if (!isReady) return
+        e.preventDefault()
         onClick()
         onClose()
       }}
@@ -78,8 +168,15 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
         {options.map(option => (
           <button
             key={option.value}
-            className={`text-left px-2 py-0.5 rounded text-xs ${option.current ? 'bg-primary text-primary-foreground' : 'hover:bg-accent text-foreground'}`}
+            className={`text-left px-2 py-1.5 rounded text-sm ${option.current ? 'bg-primary text-primary-foreground' : 'hover:bg-accent active:bg-accent text-foreground'}`}
             onClick={() => {
+              if (!isReady) return
+              onSettingChange(node.id, label.toLowerCase().replace(/\s+/g, '_'), option.value)
+              onClose()
+            }}
+            onTouchEnd={(e) => {
+              if (!isReady) return
+              e.preventDefault()
               onSettingChange(node.id, label.toLowerCase().replace(/\s+/g, '_'), option.value)
               onClose()
             }}
@@ -93,14 +190,21 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
 
   const ToggleMenuItem = ({ label, settingKey, currentValue }: { label: string; settingKey: string; currentValue: boolean }) => (
     <button
-      className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors text-foreground flex items-center justify-between"
+      className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent active:bg-accent transition-colors text-foreground flex items-center justify-between"
       onClick={() => {
+        if (!isReady) return
+        onSettingChange(node.id, settingKey, !currentValue)
+        onClose()
+      }}
+      onTouchEnd={(e) => {
+        if (!isReady) return
+        e.preventDefault()
         onSettingChange(node.id, settingKey, !currentValue)
         onClose()
       }}
     >
       <span>{label}</span>
-      <span className={`text-[10px] font-medium ${currentValue ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+      <span className={`text-xs font-medium ${currentValue ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
         {currentValue ? 'ON' : 'OFF'}
       </span>
     </button>
@@ -111,9 +215,13 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
       ref={menuRef}
       className="fixed bg-background rounded-md shadow-lg border border-border z-[10000] min-w-[160px] max-w-[220px] py-1"
       style={{
-        left: `${position.x}px`,
-        top: `${position.y}px`
+        left: `${adjustedPosition.x}px`,
+        top: `${adjustedPosition.y}px`,
+        touchAction: 'none' // Prevent any touch scrolling on the menu
       }}
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
     >
       {/* Node-specific settings */}
       {node.type === 'image' && (
