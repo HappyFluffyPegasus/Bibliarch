@@ -256,6 +256,9 @@ export default function HTMLCanvas({
     position: { x: number; y: number }
   } | null>(null)
 
+  // Track double-tap for mobile context menu
+  const lastTapRef = useRef<{ nodeId: string; time: number; x: number; y: number } | null>(null)
+
   // Connection context menu state (for timeline connections between events)
   const [connectionContextMenu, setConnectionContextMenu] = useState<{
     connection: Connection
@@ -1197,6 +1200,29 @@ export default function HTMLCanvas({
   // Helper function to handle node drag start for both mouse and touch events
   const handleNodeDragStart = useCallback((node: Node, clientX: number, clientY: number, isTouch: boolean = false) => {
     if (tool !== 'select') return false
+
+    // For touch events, check for double-tap to open context menu
+    if (isTouch) {
+      const now = Date.now()
+      const lastTap = lastTapRef.current
+
+      if (lastTap && lastTap.nodeId === node.id) {
+        const timeDiff = now - lastTap.time
+        const distance = Math.sqrt(
+          Math.pow(clientX - lastTap.x, 2) + Math.pow(clientY - lastTap.y, 2)
+        )
+
+        // Double-tap detected (within 400ms and 50px)
+        if (timeDiff < 400 && distance < 50) {
+          lastTapRef.current = null
+          setContextMenu({ node, position: { x: clientX, y: clientY } })
+          return false // Don't start dragging
+        }
+      }
+
+      // Record this tap for potential double-tap
+      lastTapRef.current = { nodeId: node.id, time: now, x: clientX, y: clientY }
+    }
 
     // CRITICAL: Cancel any panning state when starting to drag a node
     setIsPanning(false)
