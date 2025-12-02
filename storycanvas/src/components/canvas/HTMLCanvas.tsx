@@ -128,6 +128,15 @@ interface CustomTemplate {
   updatedAt: number
 }
 
+// Collaborator presence state
+interface CollaboratorPresence {
+  odataUserId: string
+  username: string
+  color: string
+  cursor?: { x: number; y: number }
+  lastSeen: number
+}
+
 interface HTMLCanvasProps {
   storyId: string
   currentCanvasId?: string // Current canvas ID to check depth
@@ -136,7 +145,10 @@ interface HTMLCanvasProps {
   currentFolderTitle?: string | null // Current folder title for folder-specific palettes
   initialNodes?: Node[]
   initialConnections?: Connection[]
+  remoteNodes?: Node[] // For real-time collaboration updates
+  remoteConnections?: Connection[] // For real-time collaboration updates
   onSave?: (nodes: Node[], connections: Connection[]) => void
+  onBroadcastChange?: (nodes: Node[], connections: Connection[]) => void // Broadcast to collaborators
   onNavigateToCanvas?: (canvasId: string, nodeTitle: string) => void
   onStateChange?: (nodes: Node[], connections: Connection[]) => void  // Called when state changes (no save)
   canvasWidth?: number
@@ -145,6 +157,10 @@ interface HTMLCanvasProps {
   zoom?: number
   onZoomChange?: (zoom: number) => void
   eventDepth?: number  // Tracks event-to-event navigation depth (ignores folders/characters/locations)
+  // Collaboration props
+  collaborators?: Record<string, CollaboratorPresence>
+  onCursorMove?: (x: number, y: number) => void
+  userColor?: string
 }
 
 // Updated with smaller sidebar and trackpad support
@@ -166,7 +182,10 @@ export default function HTMLCanvas({
   currentFolderTitle = null,
   initialNodes = [],
   initialConnections = [],
+  remoteNodes,
+  remoteConnections,
   onSave,
+  onBroadcastChange,
   onNavigateToCanvas,
   onStateChange,
   canvasWidth = 3000,
@@ -174,12 +193,23 @@ export default function HTMLCanvas({
   initialShowHelp = false,
   zoom: controlledZoom,
   onZoomChange,
-  eventDepth = 0
+  eventDepth = 0,
+  collaborators = {},
+  onCursorMove,
+  userColor
 }: HTMLCanvasProps) {
   const colorContext = useColorContext()
   const [nodes, setNodes] = useState<Node[]>(initialNodes)
   const [connections, setConnections] = useState<Connection[]>(initialConnections)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  // Sync remote changes from collaborators
+  useEffect(() => {
+    if (remoteNodes !== undefined && remoteConnections !== undefined) {
+      setNodes(remoteNodes)
+      setConnections(remoteConnections)
+    }
+  }, [remoteNodes, remoteConnections])
   const [tool, setTool] = useState<'pan' | 'select' | 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'connect' | 'relationship-canvas' | 'line' | 'compact-text'>('select')
   const [editingField, setEditingField] = useState<{nodeId: string, field: string} | null>(null)
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -258,7 +288,11 @@ export default function HTMLCanvas({
     if (onSave) {
       onSave(nodesToSave, connectionsToSave)
     }
-  }, [templateEditorMode, onSave])
+    // Broadcast to collaborators for real-time sync
+    if (onBroadcastChange) {
+      onBroadcastChange(nodesToSave, connectionsToSave)
+    }
+  }, [templateEditorMode, onSave, onBroadcastChange])
 
   // Use controlled zoom if provided, otherwise use internal state
   const [internalZoom, setInternalZoom] = useState(1)
@@ -1420,6 +1454,14 @@ export default function HTMLCanvas({
     const clientY = 'touches' in e ? (e.touches.length > 0 ? e.touches[0].clientY : 0) : e.clientY
     const buttons = 'touches' in e ? (e.touches.length > 0 ? 1 : 0) : e.buttons
 
+    // Broadcast cursor position to collaborators (throttled)
+    if (onCursorMove && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect()
+      const canvasX = (clientX - rect.left) / zoom
+      const canvasY = (clientY - rect.top) / zoom
+      onCursorMove(canvasX, canvasY)
+    }
+
     // CRITICAL: If no mouse buttons are pressed while in "ready" state, cancel it
     // This fixes Mac trackpad sticky behavior where you can click to grab without holding
     // BUT: Don't interrupt active drags (draggingNode/resizingNode) as Mac trackpads may report buttons=0 momentarily
@@ -1776,7 +1818,7 @@ export default function HTMLCanvas({
       }
     }
 
-  }, [isPanning, lastPanPoint, draggingNode, isDragReady, dragOffset, dragStartPos, resizingNode, resizeStartPos, resizeStartSize, isDraggingCharacter, isSelecting, tool, selectionStart, nodes, draggingLineVertex])
+  }, [isPanning, lastPanPoint, draggingNode, isDragReady, dragOffset, dragStartPos, resizingNode, resizeStartPos, resizeStartSize, isDraggingCharacter, isSelecting, tool, selectionStart, nodes, draggingLineVertex, onCursorMove, zoom])
 
   const handleCanvasMouseUp = useCallback((e?: React.MouseEvent) => {
     setIsPanning(false)
@@ -8703,6 +8745,53 @@ export default function HTMLCanvas({
               }}
             />
           )}
+
+          {/* Collaborator cursors */}
+          {Object.entries(collaborators).map(([odataUserId, presence]) => {
+            if (!presence.cursor) return null
+            return (
+              <div
+                key={odataUserId}
+                className="pointer-events-none"
+                style={{
+                  position: 'absolute',
+                  left: `${presence.cursor.x}px`,
+                  top: `${presence.cursor.y}px`,
+                  zIndex: 10000,
+                  transition: 'left 0.1s ease-out, top 0.1s ease-out'
+                }}
+              >
+                {/* Cursor arrow SVG */}
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  style={{ transform: 'rotate(-15deg)' }}
+                >
+                  <path
+                    d="M5 3L19 12L12 13L9 20L5 3Z"
+                    fill={presence.color}
+                    stroke="white"
+                    strokeWidth="1.5"
+                  />
+                </svg>
+                {/* Username label */}
+                <div
+                  className="text-xs px-2 py-0.5 rounded-full whitespace-nowrap"
+                  style={{
+                    backgroundColor: presence.color,
+                    color: 'white',
+                    marginLeft: '12px',
+                    marginTop: '-4px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                  }}
+                >
+                  {presence.username}
+                </div>
+              </div>
+            )
+          })}
         </div>
         </div>
       </div>

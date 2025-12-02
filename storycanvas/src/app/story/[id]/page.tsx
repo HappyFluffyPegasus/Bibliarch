@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Sparkles, ChevronRight, Settings, LogOut, Home as HomeIcon, ChevronLeft, Plus, Minus, RotateCcw, Bitcoin } from 'lucide-react'
+import { Sparkles, ChevronRight, Settings, LogOut, Home as HomeIcon, ChevronLeft, Plus, Minus, RotateCcw, Bitcoin, Users } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
@@ -16,6 +16,8 @@ import { subCanvasTemplates } from '@/lib/templates'
 import FeedbackButton from '@/components/feedback/FeedbackButton'
 import { signOut } from '@/lib/auth/actions'
 import { useUser, useProfile, useStory, useCanvas, useUpdateStory, useSaveCanvas } from '@/lib/hooks/useSupabaseQuery'
+import { ShareDialog } from '@/components/collaboration/ShareDialog'
+import { useStoryAccess, useRealtimeCanvas, usePresence } from '@/lib/hooks/useCollaboration'
 
 // Use the HTML canvas instead to avoid Jest worker issues completely
 const Bibliarch = dynamic(
@@ -49,6 +51,7 @@ export default function StoryPage({ params }: PageProps) {
   const [isLoadingCanvas, setIsLoadingCanvas] = useState(false)
   const [canvasPath, setCanvasPath] = useState<{id: string, title: string}[]>([])
   const [showCanvasSettings, setShowCanvasSettings] = useState(false)
+  const [showShareDialog, setShowShareDialog] = useState(false)
   const [editedTitle, setEditedTitle] = useState('')
   const [editedBio, setEditedBio] = useState('')
   const [zoom, setZoom] = useState(1)
@@ -56,7 +59,8 @@ export default function StoryPage({ params }: PageProps) {
   // Use cached queries - all called unconditionally
   const { data: user, isLoading: isUserLoading } = useUser()
   const { data: profile } = useProfile(user?.id)
-  const { data: story, isLoading: isStoryLoading } = useStory(resolvedParams.id, user?.id)
+  const { data: story, isLoading: isStoryLoading } = useStory(resolvedParams.id)
+  const { data: storyAccess } = useStoryAccess(resolvedParams.id)
   const { data: canvasDataFromQuery, isLoading: isCanvasLoading } = useCanvas(resolvedParams.id, currentCanvasId)
   const updateStoryMutation = useUpdateStory()
   const saveCanvasMutation = useSaveCanvas()
@@ -66,6 +70,44 @@ export default function StoryPage({ params }: PageProps) {
 
   // Store the latest canvas state from Bibliarch component
   const latestCanvasData = useRef<{ nodes: any[], connections: any[] }>({ nodes: [], connections: [] })
+
+  // Track if we're currently applying remote changes (to avoid save loops)
+  const isApplyingRemoteChange = useRef(false)
+
+  // Handle remote canvas changes from other collaborators
+  const handleRemoteCanvasChange = useCallback((data: { nodes: any[]; connections: any[]; userId: string }) => {
+    // Don't process changes while we're applying one
+    if (isApplyingRemoteChange.current) return
+
+    console.log('📡 Received remote canvas change:', data.nodes.length, 'nodes')
+
+    isApplyingRemoteChange.current = true
+
+    // Update the canvas data with remote changes
+    setCanvasData({
+      nodes: data.nodes,
+      connections: data.connections
+    })
+    latestCanvasData.current = { nodes: data.nodes, connections: data.connections }
+
+    // Reset flag after a short delay
+    setTimeout(() => {
+      isApplyingRemoteChange.current = false
+    }, 100)
+  }, [])
+
+  // Subscribe to presence (who's online)
+  const { presenceState, updateCursor, userColor } = usePresence(
+    resolvedParams.id,
+    currentCanvasId,
+    username
+  )
+
+  // Check if others are present on this canvas
+  const othersPresent = Object.keys(presenceState || {}).length > 1
+
+  // Subscribe to realtime canvas changes only when others are present
+  const { broadcastChange } = useRealtimeCanvas(resolvedParams.id, currentCanvasId, handleRemoteCanvasChange, othersPresent)
 
   // Set project context for color palette persistence
   useEffect(() => {
@@ -153,7 +195,9 @@ export default function StoryPage({ params }: PageProps) {
       }
 
       // CRITICAL: Only apply template if canvas exists but is EMPTY
-      if (loadedData.nodes.length === 0) {
+      // AND user is the owner (not a collaborator) to prevent loops
+      const isOwner = storyAccess?.isOwner ?? false
+      if (loadedData.nodes.length === 0 && isOwner) {
         // Check for characters-folder template
         if (currentCanvasId.includes('characters-folder') && subCanvasTemplates['characters-folder']) {
           console.log('✅ Applying Characters & Relationships folder template to empty canvas')
@@ -484,7 +528,7 @@ export default function StoryPage({ params }: PageProps) {
     }
 
     setIsLoadingCanvas(false)
-  }, [canvasDataFromQuery, isCanvasLoading, currentCanvasId])
+  }, [canvasDataFromQuery, isCanvasLoading, currentCanvasId, storyAccess?.isOwner])
 
   const handleSaveCanvas = useCallback(async (nodes: any[], connections: any[] = []) => {
     const saveToCanvasId = currentCanvasIdRef.current
@@ -590,12 +634,14 @@ export default function StoryPage({ params }: PageProps) {
         })
 
         // Push the state back so user needs to click back again
-        window.history.pushState({ bibliarch: true }, '', window.location.href)
+        try {
+          window.history.pushState({ bibliarch: true }, '', window.location.href)
+        } catch (err) {
+          // Some mobile browsers restrict pushState
+          console.warn('pushState failed:', err)
+        }
       }
     }
-
-    // Push initial state to catch first back button click
-    window.history.pushState({ bibliarch: true }, '', window.location.href)
 
     // Add event listeners
     window.addEventListener('beforeunload', handleBeforeUnload)
@@ -608,7 +654,8 @@ export default function StoryPage({ params }: PageProps) {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('popstate', handlePopState)
     }
-  }, [saveBeforeUnload])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleSaveCanvasSettings() {
     if (!editedTitle.trim()) {
@@ -869,7 +916,20 @@ export default function StoryPage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 md:gap-4">
+            {/* Share button - only show for story owner */}
+            {storyAccess?.isOwner && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowShareDialog(true)}
+                title="Share Project"
+                className="gap-1 h-8 w-8 md:w-auto md:px-3 p-0 md:p-2"
+              >
+                <Users className="w-4 h-4" />
+                <span className="hidden md:inline text-xs">Share</span>
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -914,7 +974,10 @@ export default function StoryPage({ params }: PageProps) {
           currentFolderTitle={canvasPath.length > 0 ? canvasPath[canvasPath.length - 1].title : null}
           initialNodes={canvasData?.nodes || []}
           initialConnections={canvasData?.connections || []}
+          remoteNodes={othersPresent ? canvasData?.nodes : undefined}
+          remoteConnections={othersPresent ? canvasData?.connections : undefined}
           onSave={handleSaveCanvas}
+          onBroadcastChange={othersPresent ? broadcastChange : undefined}
           onNavigateToCanvas={handleNavigateToCanvas}
           onStateChange={(nodes, connections) => {
             // Update ref when state changes (for navigation saves, without triggering saves)
@@ -927,6 +990,10 @@ export default function StoryPage({ params }: PageProps) {
           zoom={zoom}
           onZoomChange={setZoom}
           eventDepth={canvasPath.filter(item => item.id.startsWith('event-canvas-')).length}
+          // Collaboration props
+          collaborators={presenceState}
+          onCursorMove={updateCursor}
+          userColor={userColor}
         />
 
         {/* Loading overlay when switching canvases */}
@@ -1008,6 +1075,14 @@ export default function StoryPage({ params }: PageProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Share Dialog */}
+      <ShareDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        storyId={resolvedParams.id}
+        storyTitle={story?.title || 'Untitled'}
+      />
 
     </div>
   )
