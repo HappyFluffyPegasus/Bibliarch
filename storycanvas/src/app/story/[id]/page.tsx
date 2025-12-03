@@ -104,7 +104,8 @@ export default function StoryPage({ params }: PageProps) {
   )
 
   // Check if others are present on this canvas
-  const othersPresent = Object.keys(presenceState || {}).length > 1
+  // presenceState already filters out current user, so > 0 means others are present
+  const othersPresent = Object.keys(presenceState || {}).length > 0
 
   // Subscribe to realtime canvas changes only when others are present
   const { broadcastChange } = useRealtimeCanvas(resolvedParams.id, currentCanvasId, handleRemoteCanvasChange, othersPresent)
@@ -564,6 +565,60 @@ export default function StoryPage({ params }: PageProps) {
     })
   }, [resolvedParams.id, user?.id, saveCanvasMutation])
 
+  // Debounced auto-save timer for collaborative mode
+  const collaborativeSaveTimer = useRef<NodeJS.Timeout | null>(null)
+
+  // Track previous othersPresent state to detect when someone joins
+  const prevOthersPresent = useRef(false)
+
+  // Handle state changes from canvas - broadcast and auto-save when collaborating
+  const handleStateChange = useCallback((nodes: any[], connections: any[]) => {
+    // Update refs
+    latestCanvasData.current = { nodes, connections }
+    hasUnsavedChanges.current = true
+
+    // Skip broadcasting if we're applying remote changes (prevents echo)
+    if (isApplyingRemoteChange.current) return
+
+    // Broadcast to collaborators if others are present
+    if (othersPresent && broadcastChange) {
+      broadcastChange(nodes, connections)
+    }
+
+    // Debounced auto-save when collaborating (every 2 seconds)
+    if (othersPresent) {
+      if (collaborativeSaveTimer.current) {
+        clearTimeout(collaborativeSaveTimer.current)
+      }
+      collaborativeSaveTimer.current = setTimeout(() => {
+        if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+          handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+        }
+      }, 2000)
+    }
+  }, [othersPresent, broadcastChange, handleSaveCanvas])
+
+  // Edge case: Save immediately when someone joins (so they get latest data)
+  useEffect(() => {
+    if (othersPresent && !prevOthersPresent.current) {
+      // Someone just joined - save current state immediately
+      if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+        console.log('👥 Collaborator joined - saving current state')
+        handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+      }
+    }
+    prevOthersPresent.current = othersPresent
+  }, [othersPresent, handleSaveCanvas])
+
+  // Cleanup collaborative save timer on unmount
+  useEffect(() => {
+    return () => {
+      if (collaborativeSaveTimer.current) {
+        clearTimeout(collaborativeSaveTimer.current)
+      }
+    }
+  }, [])
+
   // Save function that can be called synchronously for browser navigation
   const saveBeforeUnload = useCallback(async () => {
     // Prevent concurrent saves
@@ -979,12 +1034,7 @@ export default function StoryPage({ params }: PageProps) {
           onSave={handleSaveCanvas}
           onBroadcastChange={othersPresent ? broadcastChange : undefined}
           onNavigateToCanvas={handleNavigateToCanvas}
-          onStateChange={(nodes, connections) => {
-            // Update ref when state changes (for navigation saves, without triggering saves)
-            latestCanvasData.current = { nodes, connections }
-            // Mark as having unsaved changes
-            hasUnsavedChanges.current = true
-          }}
+          onStateChange={handleStateChange}
           canvasWidth={3000}
           canvasHeight={2000}
           zoom={zoom}
