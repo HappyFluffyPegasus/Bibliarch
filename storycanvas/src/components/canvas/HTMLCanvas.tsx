@@ -203,11 +203,19 @@ export default function HTMLCanvas({
   const [connections, setConnections] = useState<Connection[]>(initialConnections)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
+  // Track when applying remote changes to prevent re-broadcasting
+  const isApplyingRemote = useRef(false)
+
   // Sync remote changes from collaborators
   useEffect(() => {
     if (remoteNodes !== undefined && remoteConnections !== undefined) {
+      isApplyingRemote.current = true
       setNodes(remoteNodes)
       setConnections(remoteConnections)
+      // Reset flag after React processes the state update
+      requestAnimationFrame(() => {
+        isApplyingRemote.current = false
+      })
     }
   }, [remoteNodes, remoteConnections])
   const [tool, setTool] = useState<'pan' | 'select' | 'text' | 'character' | 'event' | 'location' | 'folder' | 'list' | 'image' | 'table' | 'connect' | 'relationship-canvas' | 'line' | 'compact-text'>('select')
@@ -929,7 +937,9 @@ export default function HTMLCanvas({
 
   // Notify parent when state changes (for navigation saves, without auto-saving)
   // onStateChange excluded from deps to prevent cursor jumping from constant re-renders
+  // Skip if applying remote changes to prevent echo/re-broadcast
   useEffect(() => {
+    if (isApplyingRemote.current) return
     if (onStateChange) {
       onStateChange(nodes, connections)
     }
