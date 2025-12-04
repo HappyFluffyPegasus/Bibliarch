@@ -446,7 +446,7 @@ export function useDeclineInvitation() {
 }
 
 // Real-time canvas collaboration hook using Broadcast (no database dependency)
-// Only activates when othersPresent is true (multiple users on same canvas)
+// Always stays connected when on a canvas - broadcasts when othersPresent
 export function useRealtimeCanvas(
   storyId: string | null,
   canvasType: string,
@@ -456,49 +456,62 @@ export function useRealtimeCanvas(
   const supabase = createClient()
   const channelRef = useRef<RealtimeChannel | null>(null)
   const userIdRef = useRef<string | null>(null)
+  const othersPresentRef = useRef(othersPresent)
+  const onRemoteChangeRef = useRef(onRemoteChange)
 
-  // Get current user ID
+  // Keep refs in sync with props (avoid re-running effects)
+  useEffect(() => {
+    othersPresentRef.current = othersPresent
+  }, [othersPresent])
+
+  useEffect(() => {
+    onRemoteChangeRef.current = onRemoteChange
+  }, [onRemoteChange])
+
+  // Get current user ID once
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       userIdRef.current = data.user?.id || null
     })
   }, [supabase])
 
+  // Subscribe to broadcast channel - stays connected while on canvas
+  // Only depends on storyId and canvasType (not othersPresent or callbacks)
   useEffect(() => {
-    // Only subscribe to real-time when others are present
-    if (!storyId || !othersPresent) {
-      if (channelRef.current) {
-        channelRef.current.unsubscribe()
-        channelRef.current = null
-      }
-      return
-    }
+    if (!storyId) return
 
-    // Use broadcast for real-time sync (doesn't require database save)
+    console.log('📡 Subscribing to broadcast channel:', `canvas-collab:${storyId}:${canvasType}`)
+
     const channel = supabase
       .channel(`canvas-collab:${storyId}:${canvasType}`)
       .on('broadcast', { event: 'canvas-update' }, (payload) => {
         // Don't process our own changes
         if (payload.payload?.userId === userIdRef.current) return
 
-        onRemoteChange({
+        console.log('📡 Received broadcast:', payload.payload?.nodes?.length, 'nodes')
+        onRemoteChangeRef.current({
           nodes: payload.payload?.nodes || [],
           connections: payload.payload?.connections || [],
           userId: payload.payload?.userId || 'remote'
         })
       })
-      .subscribe()
+      .subscribe((status) => {
+        console.log('📡 Broadcast channel status:', status)
+      })
 
     channelRef.current = channel
 
     return () => {
+      console.log('📡 Cleaning up broadcast channel')
       channel.unsubscribe()
+      channelRef.current = null
     }
-  }, [storyId, canvasType, onRemoteChange, othersPresent, supabase])
+  }, [storyId, canvasType, supabase])
 
   // Return a function to broadcast changes
   const broadcastChange = useCallback((nodes: any[], connections: any[]) => {
-    if (channelRef.current && othersPresent) {
+    if (channelRef.current && othersPresentRef.current) {
+      console.log('📡 Broadcasting:', nodes.length, 'nodes')
       channelRef.current.send({
         type: 'broadcast',
         event: 'canvas-update',
@@ -509,9 +522,9 @@ export function useRealtimeCanvas(
         }
       })
     }
-  }, [othersPresent])
+  }, [])
 
-  return { channel: channelRef.current, broadcastChange }
+  return { broadcastChange }
 }
 
 // Presence hook for showing online collaborators and cursors

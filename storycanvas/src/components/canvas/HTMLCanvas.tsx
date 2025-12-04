@@ -2476,7 +2476,6 @@ export default function HTMLCanvas({
   const getLightBorderColor = (nodeType: string) => {
     const nodeColor = getNodeColor(nodeType, undefined, undefined, false)
     const borderColor = darkenColor(nodeColor, 0.2)
-    console.log(`Light border for ${nodeType}: node=${nodeColor}, border=${borderColor}`)
     return borderColor
   }
 

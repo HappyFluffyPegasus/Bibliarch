@@ -48,6 +48,7 @@ export default function StoryPage({ params }: PageProps) {
   // State must come before conditional hooks
   const [currentCanvasId, setCurrentCanvasId] = useState('main')
   const [canvasData, setCanvasData] = useState<any>(null)
+  const [remoteUpdate, setRemoteUpdate] = useState<{ nodes: any[], connections: any[] } | null>(null)
   const [isLoadingCanvas, setIsLoadingCanvas] = useState(false)
   const [canvasPath, setCanvasPath] = useState<{id: string, title: string}[]>([])
   const [showCanvasSettings, setShowCanvasSettings] = useState(false)
@@ -83,8 +84,8 @@ export default function StoryPage({ params }: PageProps) {
 
     isApplyingRemoteChange.current = true
 
-    // Update the canvas data with remote changes
-    setCanvasData({
+    // Update ONLY the remote state - don't touch canvasData which is for initial load
+    setRemoteUpdate({
       nodes: data.nodes,
       connections: data.connections
     })
@@ -103,11 +104,37 @@ export default function StoryPage({ params }: PageProps) {
     username
   )
 
-  // Check if others are present on this canvas
-  // presenceState already filters out current user, so > 0 means others are present
-  const othersPresent = Object.keys(presenceState || {}).length > 0
+  // Check if others are present on this canvas with hysteresis
+  // This prevents flip-flopping when presence briefly disconnects
+  const rawOthersPresent = Object.keys(presenceState || {}).length > 0
+  const [othersPresent, setOthersPresent] = useState(false)
+  const othersPresentTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Subscribe to realtime canvas changes only when others are present
+  useEffect(() => {
+    if (rawOthersPresent && !othersPresent) {
+      // Someone appeared - update immediately
+      if (othersPresentTimeoutRef.current) {
+        clearTimeout(othersPresentTimeoutRef.current)
+        othersPresentTimeoutRef.current = null
+      }
+      setOthersPresent(true)
+    } else if (!rawOthersPresent && othersPresent) {
+      // Someone left - wait 3 seconds before marking as gone (hysteresis)
+      if (!othersPresentTimeoutRef.current) {
+        othersPresentTimeoutRef.current = setTimeout(() => {
+          setOthersPresent(false)
+          othersPresentTimeoutRef.current = null
+        }, 3000)
+      }
+    }
+    return () => {
+      if (othersPresentTimeoutRef.current) {
+        clearTimeout(othersPresentTimeoutRef.current)
+      }
+    }
+  }, [rawOthersPresent, othersPresent])
+
+  // Subscribe to realtime canvas changes
   const { broadcastChange } = useRealtimeCanvas(resolvedParams.id, currentCanvasId, handleRemoteCanvasChange, othersPresent)
 
   // Set project context for color palette persistence
@@ -186,6 +213,7 @@ export default function StoryPage({ params }: PageProps) {
 
     // Clear old data
     latestCanvasData.current = { nodes: [], connections: [] }
+    setRemoteUpdate(null) // Clear remote updates when switching canvases
 
     const canvas = canvasDataFromQuery
 
@@ -585,30 +613,46 @@ export default function StoryPage({ params }: PageProps) {
       broadcastChange(nodes, connections)
     }
 
-    // Debounced auto-save when collaborating (every 2 seconds)
-    if (othersPresent) {
+    // Debounced auto-save when collaborating (every 10 seconds)
+    // ONLY the owner saves - collaborators just broadcast their changes
+    if (othersPresent && storyAccess?.isOwner) {
       if (collaborativeSaveTimer.current) {
         clearTimeout(collaborativeSaveTimer.current)
       }
       collaborativeSaveTimer.current = setTimeout(() => {
         if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+          console.log('💾 Auto-saving (collaborative mode)...')
           handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
         }
-      }, 2000)
+      }, 10000) // 10 seconds
     }
-  }, [othersPresent, broadcastChange, handleSaveCanvas])
+  }, [othersPresent, broadcastChange, handleSaveCanvas, storyAccess?.isOwner])
 
   // Edge case: Save immediately when someone joins (so they get latest data)
+  // Only the owner saves - collaborators just wait for broadcast
+  // Debounced to prevent spam when presence flickers
+  const collaboratorJoinSaveTimer = useRef<NodeJS.Timeout | null>(null)
   useEffect(() => {
-    if (othersPresent && !prevOthersPresent.current) {
-      // Someone just joined - save current state immediately
-      if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
-        console.log('👥 Collaborator joined - saving current state')
-        handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+    if (othersPresent && !prevOthersPresent.current && storyAccess?.isOwner) {
+      // Someone just joined - debounce the save to prevent spam
+      if (collaboratorJoinSaveTimer.current) {
+        clearTimeout(collaboratorJoinSaveTimer.current)
       }
+      collaboratorJoinSaveTimer.current = setTimeout(() => {
+        if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+          console.log('👥 Collaborator joined - owner saving current state')
+          handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+        }
+      }, 500) // Wait 500ms to confirm they're really there
     }
     prevOthersPresent.current = othersPresent
-  }, [othersPresent, handleSaveCanvas])
+
+    return () => {
+      if (collaboratorJoinSaveTimer.current) {
+        clearTimeout(collaboratorJoinSaveTimer.current)
+      }
+    }
+  }, [othersPresent, handleSaveCanvas, storyAccess?.isOwner])
 
   // Cleanup collaborative save timer on unmount
   useEffect(() => {
@@ -1029,8 +1073,8 @@ export default function StoryPage({ params }: PageProps) {
           currentFolderTitle={canvasPath.length > 0 ? canvasPath[canvasPath.length - 1].title : null}
           initialNodes={canvasData?.nodes || []}
           initialConnections={canvasData?.connections || []}
-          remoteNodes={othersPresent ? canvasData?.nodes : undefined}
-          remoteConnections={othersPresent ? canvasData?.connections : undefined}
+          remoteNodes={othersPresent && remoteUpdate ? remoteUpdate.nodes : undefined}
+          remoteConnections={othersPresent && remoteUpdate ? remoteUpdate.connections : undefined}
           onSave={handleSaveCanvas}
           onBroadcastChange={othersPresent ? broadcastChange : undefined}
           onNavigateToCanvas={handleNavigateToCanvas}
