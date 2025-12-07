@@ -603,19 +603,47 @@ export function usePresence(
     }
   }, [storyId, canvasType, username])
 
-  // Update cursor position
-  const updateCursor = useCallback(async (x: number, y: number) => {
-    if (!channelRef.current) return
+  // Update cursor position - throttled to reduce network traffic
+  const lastCursorUpdate = useRef<number>(0)
+  const pendingCursorUpdate = useRef<{ x: number; y: number } | null>(null)
+  const cursorThrottleTimer = useRef<NodeJS.Timeout | null>(null)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await channelRef.current.track({
-        odataUserId: user.id,
+  const updateCursor = useCallback((x: number, y: number) => {
+    if (!channelRef.current || !currentUserIdRef.current) return
+
+    const now = Date.now()
+    const timeSinceLastUpdate = now - lastCursorUpdate.current
+
+    // Store the latest position
+    pendingCursorUpdate.current = { x, y }
+
+    // Throttle to max 10 updates per second (100ms)
+    if (timeSinceLastUpdate >= 100) {
+      lastCursorUpdate.current = now
+      channelRef.current.track({
+        odataUserId: currentUserIdRef.current,
         username: username || 'Anonymous',
         color: userColorRef.current,
         cursor: { x, y },
-        lastSeen: Date.now(),
+        lastSeen: now,
       })
+      pendingCursorUpdate.current = null
+    } else if (!cursorThrottleTimer.current) {
+      // Schedule an update for the remaining time
+      cursorThrottleTimer.current = setTimeout(() => {
+        cursorThrottleTimer.current = null
+        if (pendingCursorUpdate.current && channelRef.current && currentUserIdRef.current) {
+          lastCursorUpdate.current = Date.now()
+          channelRef.current.track({
+            odataUserId: currentUserIdRef.current,
+            username: username || 'Anonymous',
+            color: userColorRef.current,
+            cursor: pendingCursorUpdate.current,
+            lastSeen: Date.now(),
+          })
+          pendingCursorUpdate.current = null
+        }
+      }, 100 - timeSinceLastUpdate)
     }
   }, [username])
 

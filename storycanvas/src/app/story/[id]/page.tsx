@@ -593,13 +593,7 @@ export default function StoryPage({ params }: PageProps) {
     })
   }, [resolvedParams.id, user?.id, saveCanvasMutation])
 
-  // Debounced auto-save timer for collaborative mode
-  const collaborativeSaveTimer = useRef<NodeJS.Timeout | null>(null)
-
-  // Track previous othersPresent state to detect when someone joins
-  const prevOthersPresent = useRef(false)
-
-  // Handle state changes from canvas - broadcast and auto-save when collaborating
+  // Handle state changes from canvas - broadcast to collaborators
   const handleStateChange = useCallback((nodes: any[], connections: any[]) => {
     // Update refs
     latestCanvasData.current = { nodes, connections }
@@ -612,56 +606,7 @@ export default function StoryPage({ params }: PageProps) {
     if (othersPresent && broadcastChange) {
       broadcastChange(nodes, connections)
     }
-
-    // Debounced auto-save when collaborating (every 10 seconds)
-    // ONLY the owner saves - collaborators just broadcast their changes
-    if (othersPresent && storyAccess?.isOwner) {
-      if (collaborativeSaveTimer.current) {
-        clearTimeout(collaborativeSaveTimer.current)
-      }
-      collaborativeSaveTimer.current = setTimeout(() => {
-        if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
-          console.log('💾 Auto-saving (collaborative mode)...')
-          handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
-        }
-      }, 10000) // 10 seconds
-    }
-  }, [othersPresent, broadcastChange, handleSaveCanvas, storyAccess?.isOwner])
-
-  // Edge case: Save immediately when someone joins (so they get latest data)
-  // Only the owner saves - collaborators just wait for broadcast
-  // Debounced to prevent spam when presence flickers
-  const collaboratorJoinSaveTimer = useRef<NodeJS.Timeout | null>(null)
-  useEffect(() => {
-    if (othersPresent && !prevOthersPresent.current && storyAccess?.isOwner) {
-      // Someone just joined - debounce the save to prevent spam
-      if (collaboratorJoinSaveTimer.current) {
-        clearTimeout(collaboratorJoinSaveTimer.current)
-      }
-      collaboratorJoinSaveTimer.current = setTimeout(() => {
-        if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
-          console.log('👥 Collaborator joined - owner saving current state')
-          handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
-        }
-      }, 500) // Wait 500ms to confirm they're really there
-    }
-    prevOthersPresent.current = othersPresent
-
-    return () => {
-      if (collaboratorJoinSaveTimer.current) {
-        clearTimeout(collaboratorJoinSaveTimer.current)
-      }
-    }
-  }, [othersPresent, handleSaveCanvas, storyAccess?.isOwner])
-
-  // Cleanup collaborative save timer on unmount
-  useEffect(() => {
-    return () => {
-      if (collaborativeSaveTimer.current) {
-        clearTimeout(collaborativeSaveTimer.current)
-      }
-    }
-  }, [])
+  }, [othersPresent, broadcastChange])
 
   // Save function that can be called synchronously for browser navigation
   const saveBeforeUnload = useCallback(async () => {

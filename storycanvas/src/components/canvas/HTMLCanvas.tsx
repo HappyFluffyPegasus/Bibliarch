@@ -1465,10 +1465,13 @@ export default function HTMLCanvas({
     const buttons = 'touches' in e ? (e.touches.length > 0 ? 1 : 0) : e.buttons
 
     // Broadcast cursor position to collaborators (throttled)
-    if (onCursorMove && canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect()
-      const canvasX = (clientX - rect.left) / zoom
-      const canvasY = (clientY - rect.top) / zoom
+    // Must account for scroll position and zoom to get canvas-space coordinates
+    if (onCursorMove && scrollContainerRef.current) {
+      const scrollContainer = scrollContainerRef.current
+      const rect = scrollContainer.getBoundingClientRect()
+      // Convert screen coords to canvas coords: add scroll offset, divide by zoom
+      const canvasX = (clientX - rect.left + scrollContainer.scrollLeft) / zoom
+      const canvasY = (clientY - rect.top + scrollContainer.scrollTop) / zoom
       onCursorMove(canvasX, canvasY)
     }
 
