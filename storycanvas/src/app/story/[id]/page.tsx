@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Sparkles, ChevronRight, Settings, LogOut, Home as HomeIcon, ChevronLeft, Plus, Minus, RotateCcw, Bitcoin } from 'lucide-react'
+import { Sparkles, ChevronRight, Settings, LogOut, Home as HomeIcon, ChevronLeft, Plus, Minus, RotateCcw, Bitcoin, Save, Cloud, CloudOff, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
@@ -870,6 +870,30 @@ export default function StoryPage({ params }: PageProps) {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Save indicator and manual save button */}
+            <div className="flex items-center gap-1">
+              {saveCanvasMutation.isPending ? (
+                <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="hidden sm:inline">Saving...</span>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+                      handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+                    }
+                  }}
+                  title="Save now"
+                  className="h-8 px-2 gap-1.5"
+                >
+                  <Cloud className="w-4 h-4" />
+                  <span className="hidden sm:inline text-xs">Save</span>
+                </Button>
+              )}
+            </div>
             <Button
               variant="ghost"
               size="sm"
