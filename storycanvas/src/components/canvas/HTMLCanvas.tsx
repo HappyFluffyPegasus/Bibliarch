@@ -1871,6 +1871,8 @@ export default function HTMLCanvas({
             setDragOffset({ x: 0, y: 0 })
             setDragPosition({ x: 0, y: 0 })
             saveToHistory(updatedNodes, connections)
+            // Save drop into list to database
+            handleSave(updatedNodes, connections)
 
             droppedIntoList = true
             break
@@ -1947,9 +1949,11 @@ export default function HTMLCanvas({
         setDragOffset({ x: 0, y: 0 })
         setDragPosition({ x: 0, y: 0 })
         saveToHistory(updatedNodes, connections)
+        // Save node position to database
+        handleSave(updatedNodes, connections)
       }
     }
-    
+
     if (resizingNode) {
       // Save resize changes to history when resizing ends
       saveToHistory(nodes, connections)
@@ -1958,7 +1962,8 @@ export default function HTMLCanvas({
       setResizeStartPos({ x: 0, y: 0 })
       // Re-enable text selection after resize
       document.body.style.userSelect = ''
-
+      // Save resize to database
+      handleSave(nodes, connections)
     }
 
     if (draggingLineVertex) {
@@ -2807,7 +2812,8 @@ export default function HTMLCanvas({
     setConnections(newConnections)
     saveToHistory(newNodes, newConnections)
     setSelectedId(null)
-
+    // Save deletion to database
+    handleSave(newNodes, newConnections)
   }
 
   const handleDeleteConnection = (connectionId: string) => {
@@ -2815,6 +2821,8 @@ export default function HTMLCanvas({
     setConnections(newConnections)
     saveToHistory(nodes, newConnections)
     setConnectionContextMenu(null)
+    // Save deletion to database
+    handleSave(nodes, newConnections)
   }
 
   const handleColorChange = (nodeId: string, color: string) => {
@@ -9248,8 +9256,9 @@ export default function HTMLCanvas({
               </Button>
               <Button
                 onClick={() => {
+                  // Save the relationship canvas data to database
+                  handleSave(nodes, connections)
                   setRelationshipCanvasModal(null)
-
                 }}
               >
                 Save Changes
