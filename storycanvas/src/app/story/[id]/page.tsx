@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Sparkles, ChevronRight, Settings, LogOut, Home as HomeIcon, ChevronLeft, Plus, Minus, RotateCcw, Bitcoin, Users } from 'lucide-react'
+import { Sparkles, ChevronRight, Settings, LogOut, Home as HomeIcon, ChevronLeft, Plus, Minus, RotateCcw, Bitcoin, Users, Cloud, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
@@ -71,6 +71,27 @@ export default function StoryPage({ params }: PageProps) {
 
   // Store the latest canvas state from Bibliarch component
   const latestCanvasData = useRef<{ nodes: any[], connections: any[] }>({ nodes: [], connections: [] })
+
+  // Store current palette for saving
+  const currentPaletteRef = useRef<any>(null)
+
+  // Function to save palette to database immediately
+  const savePaletteToDatabase = useCallback(async (palette: any) => {
+    if (!user?.id) return
+
+    currentPaletteRef.current = palette
+    const { nodes, connections } = latestCanvasData.current
+
+    console.log('🎨 Saving palette to database:', palette?.name || palette?.id)
+
+    await saveCanvasMutation.mutateAsync({
+      storyId: resolvedParams.id,
+      canvasType: currentCanvasId,
+      nodes: nodes.length > 0 ? nodes : [],
+      connections: connections.length > 0 ? connections : [],
+      palette
+    })
+  }, [resolvedParams.id, currentCanvasId, user?.id, saveCanvasMutation])
 
   // Track if we're currently applying remote changes (to avoid save loops)
   const isApplyingRemoteChange = useRef(false)
@@ -559,6 +580,18 @@ export default function StoryPage({ params }: PageProps) {
     setIsLoadingCanvas(false)
   }, [canvasDataFromQuery, isCanvasLoading, currentCanvasId, storyAccess?.isOwner])
 
+  // Load and apply palette from database when canvas data is loaded
+  useEffect(() => {
+    if (canvasDataFromQuery?.palette && currentCanvasId === 'main') {
+      console.log('🎨 Loading palette from database:', canvasDataFromQuery.palette?.name || canvasDataFromQuery.palette?.id)
+      // Store in ref
+      currentPaletteRef.current = canvasDataFromQuery.palette
+      // Apply palette using color context
+      colorContext.setProjectPalette(resolvedParams.id, canvasDataFromQuery.palette)
+      colorContext.applyPalette(canvasDataFromQuery.palette)
+    }
+  }, [canvasDataFromQuery?.palette, currentCanvasId, resolvedParams.id])
+
   const handleSaveCanvas = useCallback(async (nodes: any[], connections: any[] = []) => {
     const saveToCanvasId = currentCanvasIdRef.current
 
@@ -961,6 +994,30 @@ export default function StoryPage({ params }: PageProps) {
           </div>
 
           <div className="flex items-center gap-1 md:gap-4">
+            {/* Save indicator and manual save button */}
+            <div className="flex items-center gap-1">
+              {saveCanvasMutation.isPending ? (
+                <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="hidden sm:inline">Saving...</span>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (latestCanvasData.current.nodes.length > 0 || latestCanvasData.current.connections.length > 0) {
+                      handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
+                    }
+                  }}
+                  title="Save now"
+                  className="h-8 px-2 gap-1.5"
+                >
+                  <Cloud className="w-4 h-4" />
+                  <span className="hidden sm:inline text-xs">Save</span>
+                </Button>
+              )}
+            </div>
             {/* Share button - only show for story owner */}
             {storyAccess?.isOwner && (
               <Button
@@ -1024,6 +1081,7 @@ export default function StoryPage({ params }: PageProps) {
           onBroadcastChange={othersPresent ? broadcastChange : undefined}
           onNavigateToCanvas={handleNavigateToCanvas}
           onStateChange={handleStateChange}
+          onPaletteSave={savePaletteToDatabase}
           canvasWidth={3000}
           canvasHeight={2000}
           zoom={zoom}
