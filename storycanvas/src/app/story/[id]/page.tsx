@@ -67,6 +67,27 @@ export default function StoryPage({ params }: PageProps) {
   // Store the latest canvas state from Bibliarch component
   const latestCanvasData = useRef<{ nodes: any[], connections: any[] }>({ nodes: [], connections: [] })
 
+  // Store current palette for saving
+  const currentPaletteRef = useRef<any>(null)
+
+  // Function to save palette to database immediately
+  const savePaletteToDatabase = useCallback(async (palette: any) => {
+    if (!user?.id) return
+
+    currentPaletteRef.current = palette
+    const { nodes, connections } = latestCanvasData.current
+
+    console.log('🎨 Saving palette to database:', palette?.name || palette?.id)
+
+    await saveCanvasMutation.mutateAsync({
+      storyId: resolvedParams.id,
+      canvasType: currentCanvasId,
+      nodes: nodes.length > 0 ? nodes : [],
+      connections: connections.length > 0 ? connections : [],
+      palette
+    })
+  }, [resolvedParams.id, currentCanvasId, user?.id, saveCanvasMutation])
+
   // Set project context for color palette persistence
   useEffect(() => {
     colorContext.setCurrentProjectId(resolvedParams.id)
@@ -485,6 +506,18 @@ export default function StoryPage({ params }: PageProps) {
 
     setIsLoadingCanvas(false)
   }, [canvasDataFromQuery, isCanvasLoading, currentCanvasId])
+
+  // Load and apply palette from database when canvas data is loaded
+  useEffect(() => {
+    if (canvasDataFromQuery?.palette && currentCanvasId === 'main') {
+      console.log('🎨 Loading palette from database:', canvasDataFromQuery.palette?.name || canvasDataFromQuery.palette?.id)
+      // Store in ref
+      currentPaletteRef.current = canvasDataFromQuery.palette
+      // Apply palette using color context
+      colorContext.setProjectPalette(resolvedParams.id, canvasDataFromQuery.palette)
+      colorContext.applyPalette(canvasDataFromQuery.palette)
+    }
+  }, [canvasDataFromQuery?.palette, currentCanvasId, resolvedParams.id])
 
   const handleSaveCanvas = useCallback(async (nodes: any[], connections: any[] = []) => {
     const saveToCanvasId = currentCanvasIdRef.current
@@ -946,6 +979,7 @@ export default function StoryPage({ params }: PageProps) {
             // Mark as having unsaved changes
             hasUnsavedChanges.current = true
           }}
+          onPaletteSave={savePaletteToDatabase}
           canvasWidth={3000}
           canvasHeight={2000}
           zoom={zoom}

@@ -153,7 +153,7 @@ export function useCanvas(storyId: string | null | undefined, canvasType: string
 
       const { data, error } = await supabase
         .from('canvas_data')
-        .select('id, story_id, canvas_type, nodes, connections, updated_at')
+        .select('id, story_id, canvas_type, nodes, connections, palette, updated_at')
         .eq('story_id', storyId)
         .eq('canvas_type', canvasType)
         .order('updated_at', { ascending: false })
@@ -268,12 +268,14 @@ export function useSaveCanvas() {
       storyId,
       canvasType,
       nodes,
-      connections
+      connections,
+      palette
     }: {
       storyId: string
       canvasType: string
       nodes: any[]
       connections: any[]
+      palette?: any
     }) => {
       const { data, error } = await supabase
         .from('canvas_data')
@@ -282,6 +284,7 @@ export function useSaveCanvas() {
           canvas_type: canvasType,
           nodes,
           connections,
+          palette,
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'story_id,canvas_type'
@@ -304,6 +307,7 @@ export function useSaveCanvas() {
           canvas_type: variables.canvasType,
           nodes: variables.nodes,
           connections: variables.connections,
+          palette: variables.palette,
           updated_at: new Date().toISOString()
         }
       )

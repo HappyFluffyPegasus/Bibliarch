@@ -139,6 +139,7 @@ interface HTMLCanvasProps {
   onSave?: (nodes: Node[], connections: Connection[]) => void
   onNavigateToCanvas?: (canvasId: string, nodeTitle: string) => void
   onStateChange?: (nodes: Node[], connections: Connection[]) => void  // Called when state changes (no save)
+  onPaletteSave?: (palette: any) => void  // Called when palette is applied to save to database
   canvasWidth?: number
   canvasHeight?: number
   initialShowHelp?: boolean
@@ -169,6 +170,7 @@ export default function HTMLCanvas({
   onSave,
   onNavigateToCanvas,
   onStateChange,
+  onPaletteSave,
   canvasWidth = 3000,
   canvasHeight = 2000,
   initialShowHelp = false,
@@ -4038,6 +4040,10 @@ export default function HTMLCanvas({
               }
               resetAllNodesToThemeColors()
               setPaletteRefresh(prev => prev + 1)
+              // Save palette to database
+              if (onPaletteSave) {
+                onPaletteSave(palette)
+              }
             }}
             trigger={
               <Button
@@ -4236,6 +4242,10 @@ export default function HTMLCanvas({
               }
               resetAllNodesToThemeColors()
               setPaletteRefresh(prev => prev + 1)
+              // Save palette to database
+              if (onPaletteSave) {
+                onPaletteSave(palette)
+              }
             }}
             trigger={
               <Button
