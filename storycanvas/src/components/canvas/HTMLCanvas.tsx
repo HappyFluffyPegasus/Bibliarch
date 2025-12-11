@@ -2597,16 +2597,30 @@ export default function HTMLCanvas({
 
         return
       } else {
-        // Second click: create timeline connection between events
-        const newConnection: Connection = {
-          id: generateUniqueId('timeline'),
-          from: connectingFrom,
-          to: node.id,
-          type: 'leads-to' // Timeline sequence connection
+        // Second click: toggle timeline connection between events
+        // Check if connection already exists (in either direction)
+        const existingConnectionIndex = connections.findIndex(
+          c => (c.from === connectingFrom && c.to === node.id) ||
+               (c.from === node.id && c.to === connectingFrom)
+        )
+
+        if (existingConnectionIndex !== -1) {
+          // Connection exists: remove it
+          const newConnections = connections.filter((_, i) => i !== existingConnectionIndex)
+          setConnections(newConnections)
+          saveToHistory(nodes, newConnections)
+        } else {
+          // No connection: create one
+          const newConnection: Connection = {
+            id: generateUniqueId('timeline'),
+            from: connectingFrom,
+            to: node.id,
+            type: 'leads-to' // Timeline sequence connection
+          }
+          const newConnections = [...connections, newConnection]
+          setConnections(newConnections)
+          saveToHistory(nodes, newConnections)
         }
-        const newConnections = [...connections, newConnection]
-        setConnections(newConnections)
-        saveToHistory(nodes, newConnections)
         setConnectingFrom(null)
 
         return
