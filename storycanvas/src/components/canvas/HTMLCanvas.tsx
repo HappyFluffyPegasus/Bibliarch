@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { flushSync } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette, ArrowRight, Menu, Grid3x3, Bold, Italic, Underline, ArrowUpRight, StickyNote, LayoutTemplate, Trash2, Copy, Edit3, Smile, Home, Castle, TreePine, Mountain, Building2, Landmark, Church, Store, Hospital, School, Factory, Waves, Palmtree, Tent, Map, Star, Bookmark, Flag, Compass, Globe, Sun, Moon, Cloud, Zap, Flame, Snowflake, Crown, Shield, Sword, Gem, Key, Lock, Gift, Music, Camera, Gamepad2, Trophy, Target, Lightbulb, Rocket, Anchor, Plane, Car, Ship, Train, FileText, File, ClipboardList, Pin, Paperclip, Sparkles, FolderOpen, Book, BookOpen, Library, Archive, Package, Box, Notebook, FileStack, Circle, Square, Triangle, Diamond, Hexagon, Octagon, Pentagon, Check, Droplet, Flower, Leaf, TreeDeciduous, Drama, Film, Mic, Dice5, Users, UserCircle, Skull, Ghost, Bot, Orbit, Wand2, Baby, Bird, Bug, Cat, Dog, Fish, Rabbit, Snail, Turtle, Squirrel, Rat, Building, Crosshair, ScrollText } from 'lucide-react'
+import { Plus, Minus, MousePointer, Hand, Type, Folder, User, MapPin, Calendar, Undo, Redo, X, List, Move, Image as ImageIcon, Table, Heart, Settings, SlidersHorizontal, TextCursor, Palette, ArrowRight, Menu, Grid3x3, Bold, Italic, Underline, ArrowUpRight, StickyNote, LayoutTemplate, Trash2, Copy, Edit3, Smile, Home, Castle, TreePine, Mountain, Building2, Landmark, Church, Store, Hospital, School, Factory, Waves, Palmtree, Tent, Map, Star, Bookmark, Flag, Compass, Globe, Sun, Moon, Cloud, Zap, Flame, Snowflake, Crown, Shield, Sword, Gem, Key, Lock, Gift, Music, Camera, Gamepad2, Trophy, Target, Lightbulb, Rocket, Anchor, Plane, Car, Ship, Train } from 'lucide-react'
 import { PaletteSelector } from '@/components/ui/palette-selector'
 import { NodeStylePanel } from '@/components/ui/node-style-panel'
 import { PerformanceOptimizer } from '@/lib/performance-utils'
@@ -197,9 +197,6 @@ export default function HTMLCanvas({
 
   // Mode tracking: 'moving' (default) or 'typing' (when text is focused)
   const [interactionMode, setInteractionMode] = useState<'moving' | 'typing'>('moving')
-
-  // Toolbar tooltip state
-  const [toolbarTooltip, setToolbarTooltip] = useState<{ text: string; y: number } | null>(null)
 
   // Node style preferences state
   const [nodeStylePreferences, setNodeStylePreferences] = useState<NodeStylePreferences>(() => {
@@ -1282,8 +1279,8 @@ export default function HTMLCanvas({
 
     const newNode: Node = {
       id: generateUniqueId(tool),
-      x: Math.max(0, x),
-      y: Math.max(0, y),
+      x: Math.max(0, x - 100),
+      y: Math.max(0, y - 60),
       text: getDefaultText(tool),
       content: getDefaultContent(tool),
       width: tool === 'list' ? 320 : tool === 'image' ? 300 : tool === 'character' ? 320 : tool === 'location' ? 320 : tool === 'event' ? 220 : tool === 'table' ? 280 : tool === 'relationship-canvas' ? 600 : tool === 'line' ? 200 : tool === 'compact-text' ? 200 : 300,  // Event nodes portrait: 220px wide, text/folder: 300px
@@ -3541,32 +3538,17 @@ export default function HTMLCanvas({
   }, [])
 
   const getNodeIcon = (type?: string, node?: Node) => {
-    // Check for custom Lucide icon first (applies to all node types)
-    const customIcon = node?.settings?.icon
-    if (customIcon && typeof customIcon === 'string') {
-      // Map of icon names to Lucide components
-      const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-        FileText, File, ClipboardList, Pin, Paperclip, Bookmark, Lightbulb, Star, Sparkles, Zap,
-        Folder, FolderOpen, Book, BookOpen, Library, Archive, Package, Box, Notebook, FileStack,
-        Heart, Circle, Square, Triangle, Diamond, Hexagon, Octagon, Pentagon, Check, X,
-        Sun, Moon, Cloud, Snowflake, Flame, Droplet, Flower, Leaf, TreeDeciduous, Mountain,
-        Gamepad2, Palette, Drama, Film, Mic, Music, Dice5, Trophy, Sword, Shield,
-        User, Users, UserCircle, Crown, Skull, Ghost, Bot, Orbit, Wand2, Baby,
-        Bird, Bug, Cat, Dog, Fish, Rabbit, Snail, Turtle, Squirrel, Rat,
-        Castle, Home, Building, Gem, Key, Crosshair, Target, Map, ScrollText, Compass,
-      }
-      const IconComponent = iconMap[customIcon]
-      if (IconComponent) {
-        return <IconComponent className="w-5 h-5" />
-      }
-    }
-
-    // Default icons per node type
     switch (type) {
       case 'character': return <User className="w-5 h-5" />
       case 'event': return <Calendar className="w-5 h-5" />
       case 'location': return <MapPin className="w-5 h-5" />
-      case 'folder': return <Folder className="w-5 h-5" />
+      case 'folder': {
+        const icon = node?.settings?.icon || 'folder'
+        if (icon === 'book') return <span className="text-base">📚</span>
+        if (icon === 'archive') return <span className="text-base">📦</span>
+        if (icon === 'box') return <span className="text-base">📦</span>
+        return <Folder className="w-5 h-5" />
+      }
       case 'list': return <List className="w-5 h-5" />
       case 'image': return <ImageIcon className="w-5 h-5" />
       case 'table': return <Table className="w-5 h-5" />
@@ -3817,160 +3799,105 @@ export default function HTMLCanvas({
 
         {/* Creation Tools */}
         <div className="flex flex-col gap-1">
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Text', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+          <Button
+            size="sm"
+            variant={tool === 'text' ? 'default' : 'outline'}
+            onClick={() => setTool('text')}
+            className={`h-12 w-14 p-0 ${tool === 'text' ? 'bg-sky-600 text-white' : ''}`}
+            title="Add Text Node - Click canvas to create"
           >
-            <Button
-              size="sm"
-              variant={tool === 'text' ? 'default' : 'outline'}
-              onClick={() => setTool('text')}
-              className={`h-12 w-14 p-0 ${tool === 'text' ? 'bg-sky-600 text-white' : ''}`}
-            >
-              <Type className="w-7 h-7" />
-            </Button>
-          </div>
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Quick Note', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+            <Type className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
+            variant={tool === 'compact-text' ? 'default' : 'outline'}
+            onClick={() => setTool('compact-text')}
+            className={`h-12 w-14 p-0 ${tool === 'compact-text' ? 'bg-sky-600 text-white' : ''}`}
+            title="Add Compact Note - Click canvas to create"
           >
-            <Button
-              size="sm"
-              variant={tool === 'compact-text' ? 'default' : 'outline'}
-              onClick={() => setTool('compact-text')}
-              className={`h-12 w-14 p-0 ${tool === 'compact-text' ? 'bg-sky-600 text-white' : ''}`}
-            >
-              <StickyNote className="w-7 h-7" />
-            </Button>
-          </div>
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Character', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+            <StickyNote className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
+            variant={tool === 'character' ? 'default' : 'outline'}
+            onClick={() => setTool('character')}
+            className={`h-12 w-14 p-0 ${tool === 'character' ? 'bg-sky-600 text-white' : ''}`}
+            title="Add Character - Click canvas to create"
           >
-            <Button
-              size="sm"
-              variant={tool === 'character' ? 'default' : 'outline'}
-              onClick={() => setTool('character')}
-              className={`h-12 w-14 p-0 ${tool === 'character' ? 'bg-sky-600 text-white' : ''}`}
-            >
-              <User className="w-7 h-7" />
-            </Button>
-          </div>
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Event', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+            <User className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
+            variant={tool === 'event' ? 'default' : 'outline'}
+            onClick={() => setTool('event')}
+            className={`h-12 w-14 p-0 ${tool === 'event' ? 'bg-sky-600 text-white' : ''}`}
+            title="Add Event - Click canvas to create | Click events to connect timeline"
           >
-            <Button
-              size="sm"
-              variant={tool === 'event' ? 'default' : 'outline'}
-              onClick={() => setTool('event')}
-              className={`h-12 w-14 p-0 ${tool === 'event' ? 'bg-sky-600 text-white' : ''}`}
-            >
-              <Calendar className="w-7 h-7" />
-            </Button>
-          </div>
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Location', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+            <Calendar className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
+            variant={tool === 'location' ? 'default' : 'outline'}
+            onClick={() => setTool('location')}
+            className={`h-12 w-14 p-0 ${tool === 'location' ? 'bg-sky-600 text-white' : ''}`}
+            title="Add Location - Click canvas to create"
           >
-            <Button
-              size="sm"
-              variant={tool === 'location' ? 'default' : 'outline'}
-              onClick={() => setTool('location')}
-              className={`h-12 w-14 p-0 ${tool === 'location' ? 'bg-sky-600 text-white' : ''}`}
-            >
-              <MapPin className="w-7 h-7" />
-            </Button>
-          </div>
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Folder', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+            <MapPin className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
+            variant={tool === 'folder' ? 'default' : 'outline'}
+            onClick={() => setTool('folder')}
+            className={`h-12 w-14 p-0 ${tool === 'folder' ? 'bg-sky-600 text-white' : ''}`}
+            title="Add Section/Folder - Click canvas to create"
           >
-            <Button
-              size="sm"
-              variant={tool === 'folder' ? 'default' : 'outline'}
-              onClick={() => setTool('folder')}
-              className={`h-12 w-14 p-0 ${tool === 'folder' ? 'bg-sky-600 text-white' : ''}`}
-            >
-              <Folder className="w-7 h-7" />
-            </Button>
-          </div>
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'List', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+            <Folder className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
+            variant={tool === 'list' ? 'default' : 'outline'}
+            onClick={() => setTool('list')}
+            className={`h-12 w-14 p-0 ${tool === 'list' ? 'bg-sky-600 text-white' : ''}`}
+            title="Add List - Click canvas to create"
           >
-            <Button
-              size="sm"
-              variant={tool === 'list' ? 'default' : 'outline'}
-              onClick={() => setTool('list')}
-              className={`h-12 w-14 p-0 ${tool === 'list' ? 'bg-sky-600 text-white' : ''}`}
-            >
-              <List className="w-7 h-7" />
-            </Button>
-          </div>
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Image', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+            <List className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
+            variant={tool === 'image' ? 'default' : 'outline'}
+            onClick={() => setTool('image')}
+            className={`h-12 w-14 p-0 ${tool === 'image' ? 'bg-sky-600 text-white' : ''}`}
+            title="Add Image - Click canvas to create"
           >
-            <Button
-              size="sm"
-              variant={tool === 'image' ? 'default' : 'outline'}
-              onClick={() => setTool('image')}
-              className={`h-12 w-14 p-0 ${tool === 'image' ? 'bg-sky-600 text-white' : ''}`}
-            >
-              <ImageIcon className="w-7 h-7" />
-            </Button>
-          </div>
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Table', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+            <ImageIcon className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
+            variant={tool === 'table' ? 'default' : 'outline'}
+            onClick={() => setTool('table')}
+            className={`h-12 w-14 p-0 ${tool === 'table' ? 'bg-sky-600 text-white' : ''}`}
+            title="Add Table - Click canvas to create"
           >
-            <Button
-              size="sm"
-              variant={tool === 'table' ? 'default' : 'outline'}
-              onClick={() => setTool('table')}
-              className={`h-12 w-14 p-0 ${tool === 'table' ? 'bg-sky-600 text-white' : ''}`}
-            >
-              <Table className="w-7 h-7" />
-            </Button>
-          </div>
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Relationships', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+            <Table className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
+            variant={tool === 'relationship-canvas' ? 'default' : 'outline'}
+            onClick={() => setTool('relationship-canvas')}
+            className={`h-12 w-14 p-0 ${tool === 'relationship-canvas' ? 'bg-sky-600 text-white' : ''}`}
+            title="Add Relationship Canvas - Click canvas to create"
           >
-            <Button
-              size="sm"
-              variant={tool === 'relationship-canvas' ? 'default' : 'outline'}
-              onClick={() => setTool('relationship-canvas')}
-              className={`h-12 w-14 p-0 ${tool === 'relationship-canvas' ? 'bg-sky-600 text-white' : ''}`}
-            >
-              <Heart className="w-7 h-7" />
-            </Button>
-          </div>
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Line', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+            <Heart className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
+            variant={tool === 'line' ? 'default' : 'outline'}
+            onClick={() => setTool('line')}
+            className={`h-12 w-14 p-0 ${tool === 'line' ? 'bg-sky-600 text-white' : ''}`}
+            title="Add Curved Line - Click canvas to create"
           >
-            <Button
-              size="sm"
-              variant={tool === 'line' ? 'default' : 'outline'}
-              onClick={() => setTool('line')}
-              className={`h-12 w-14 p-0 ${tool === 'line' ? 'bg-sky-600 text-white' : ''}`}
-            >
-              <ArrowUpRight className="w-7 h-7" />
-            </Button>
-          </div>
+            <ArrowUpRight className="w-7 h-7" />
+          </Button>
         </div>
 
         {/* Divider */}
@@ -3978,20 +3905,15 @@ export default function HTMLCanvas({
 
         {/* Template Button */}
         <div className="flex flex-col gap-1">
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Custom Templates', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+          <Button
+            size="sm"
+            variant={showTemplatePanel ? 'default' : 'outline'}
+            onClick={() => setShowTemplatePanel(!showTemplatePanel)}
+            className={`h-12 w-14 p-0 ${showTemplatePanel ? 'bg-sky-600 text-white' : ''}`}
+            title="Custom Templates"
           >
-            <Button
-              size="sm"
-              variant={showTemplatePanel ? 'default' : 'outline'}
-              onClick={() => setShowTemplatePanel(!showTemplatePanel)}
-              className={`h-12 w-14 p-0 ${showTemplatePanel ? 'bg-sky-600 text-white' : ''}`}
-            >
-              <LayoutTemplate className="w-7 h-7" />
-            </Button>
-          </div>
+            <LayoutTemplate className="w-7 h-7" />
+          </Button>
         </div>
 
         {/* Divider */}
@@ -3999,44 +3921,34 @@ export default function HTMLCanvas({
 
         {/* Undo/Redo Controls */}
         <div className="flex flex-col gap-1">
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Undo', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+          <Button
+            key={`undo-${historyIndex}-${history.length}`}
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              console.log('[History] Undo button clicked. State - Index:', historyIndex, 'Length:', history.length, 'canUndo:', canUndo)
+              undo()
+            }}
+            disabled={!canUndo}
+            className="h-11 w-14 p-0"
+            title="Undo (Ctrl+Z / Cmd+Z)"
           >
-            <Button
-              key={`undo-${historyIndex}-${history.length}`}
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                console.log('[History] Undo button clicked. State - Index:', historyIndex, 'Length:', history.length, 'canUndo:', canUndo)
-                undo()
-              }}
-              disabled={!canUndo}
-              className="h-11 w-14 p-0"
-            >
-              <Undo className="w-7 h-7" />
-            </Button>
-          </div>
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Redo', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+            <Undo className="w-7 h-7" />
+          </Button>
+          <Button
+            key={`redo-${historyIndex}-${history.length}`}
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              console.log('[History] Redo button clicked. State - Index:', historyIndex, 'Length:', history.length, 'canRedo:', canRedo)
+              redo()
+            }}
+            disabled={!canRedo}
+            className="h-11 w-14 p-0"
+            title="Redo (Ctrl+Y / Cmd+Shift+Z)"
           >
-            <Button
-              key={`redo-${historyIndex}-${history.length}`}
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                console.log('[History] Redo button clicked. State - Index:', historyIndex, 'Length:', history.length, 'canRedo:', canRedo)
-                redo()
-              }}
-              disabled={!canRedo}
-              className="h-11 w-14 p-0"
-            >
-              <Redo className="w-7 h-7" />
-            </Button>
-          </div>
+            <Redo className="w-7 h-7" />
+          </Button>
         </div>
 
         {/* Divider */}
@@ -4044,54 +3956,39 @@ export default function HTMLCanvas({
 
         {/* Zoom Controls */}
         <div className="flex flex-col gap-1">
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Zoom In', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const newZoom = Math.min(3, zoom * 1.2)
+              setZoom(newZoom)
+            }}
+            className="h-11 w-14 p-0"
+            title="Zoom In (Ctrl + Mouse Wheel)"
           >
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const newZoom = Math.min(3, zoom * 1.2)
-                setZoom(newZoom)
-              }}
-              className="h-11 w-14 p-0"
-            >
-              <Plus className="w-7 h-7" />
-            </Button>
-          </div>
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Zoom Out', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+            <Plus className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const newZoom = Math.max(0.47, zoom * 0.8)
+              setZoom(newZoom)
+            }}
+            className="h-11 w-14 p-0"
+            title="Zoom Out (Ctrl + Mouse Wheel)"
           >
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const newZoom = Math.max(0.47, zoom * 0.8)
-                setZoom(newZoom)
-              }}
-              className="h-11 w-14 p-0"
-            >
-              <Minus className="w-7 h-7" />
-            </Button>
-          </div>
-          <div
-            className="relative"
-            onMouseEnter={(e) => setToolbarTooltip({ text: 'Reset Zoom', y: e.currentTarget.getBoundingClientRect().top })}
-            onMouseLeave={() => setToolbarTooltip(null)}
+            <Minus className="w-7 h-7" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setZoom(1)}
+            className="h-11 w-14 p-0 text-xs font-bold"
+            title="Reset Zoom (100%)"
           >
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setZoom(1)}
-              className="h-11 w-14 p-0 text-xs font-bold"
-            >
-              {Math.round(zoom * 100)}%
-            </Button>
-          </div>
+            {Math.round(zoom * 100)}%
+          </Button>
         </div>
 
         {/* Divider */}
@@ -4099,16 +3996,6 @@ export default function HTMLCanvas({
 
         {/* Canvas Controls */}
           </>
-        )}
-
-        {/* Toolbar Tooltip */}
-        {toolbarTooltip && (
-          <div
-            className="fixed left-24 px-3 py-1.5 bg-popover text-popover-foreground text-sm rounded-md shadow-lg border border-border whitespace-nowrap z-50 pointer-events-none"
-            style={{ top: toolbarTooltip.y + 6 }}
-          >
-            {toolbarTooltip.text}
-          </div>
         )}
       </div>
 
