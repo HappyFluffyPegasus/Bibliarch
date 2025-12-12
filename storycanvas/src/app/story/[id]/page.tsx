@@ -731,7 +731,7 @@ export default function StoryPage({ params }: PageProps) {
     try {
       // Load parent canvas data - use maybeSingle to handle non-existent canvases gracefully
       const { data: parentCanvasData, error } = await supabase
-        .from('canvases')
+        .from('canvas_data')
         .select('nodes, connections')
         .eq('story_id', resolvedParams.id)
         .eq('canvas_type', parentCanvasId)
@@ -792,7 +792,7 @@ export default function StoryPage({ params }: PageProps) {
 
       // Load target folder's canvas data - use maybeSingle to handle non-existent canvases
       const { data: folderCanvasData, error } = await supabase
-        .from('canvases')
+        .from('canvas_data')
         .select('nodes, connections')
         .eq('story_id', resolvedParams.id)
         .eq('canvas_type', targetCanvasId)

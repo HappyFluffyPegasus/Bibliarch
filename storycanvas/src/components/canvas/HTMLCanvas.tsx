@@ -1990,17 +1990,19 @@ export default function HTMLCanvas({
         const folderTargets = nodes.filter(n => (n.type === 'folder' || n.type === 'character') && n.id !== draggingNode)
         for (const folderNode of folderTargets) {
           // Check if dragged node overlaps with folder bounds
-          const draggedRight = dragPosition.x + draggedNodeObj.width
-          const draggedBottom = dragPosition.y + draggedNodeObj.height
+          const draggedWidth = draggedNodeObj.width || 240
+          const draggedHeight = draggedNodeObj.height || 120
+          const draggedRight = dragPosition.x + draggedWidth
+          const draggedBottom = dragPosition.y + draggedHeight
           const folderRight = folderNode.x + (folderNode.width || 240)
           const folderBottom = folderNode.y + (folderNode.height || 120)
 
-          const isOverlapping = !(
-            dragPosition.x > folderRight ||
-            draggedRight < folderNode.x ||
-            dragPosition.y > folderBottom ||
-            draggedBottom < folderNode.y
-          )
+          // AABB overlap detection - true if any part of dragged node overlaps folder
+          const isOverlapping =
+            dragPosition.x < folderRight &&
+            draggedRight > folderNode.x &&
+            dragPosition.y < folderBottom &&
+            draggedBottom > folderNode.y
 
           if (isOverlapping) {
             // Show confirmation dialog
