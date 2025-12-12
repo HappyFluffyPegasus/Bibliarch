@@ -140,6 +140,8 @@ interface HTMLCanvasProps {
   onNavigateToCanvas?: (canvasId: string, nodeTitle: string) => void
   onStateChange?: (nodes: Node[], connections: Connection[]) => void  // Called when state changes (no save)
   onPaletteSave?: (palette: any) => void  // Called when palette is applied to save to database
+  onMoveNodeToParent?: (node: Node) => void  // Called when a node should be moved to parent canvas
+  onMoveNodeToFolder?: (node: Node, folderId: string) => void  // Called when a node should be moved into a folder
   canvasWidth?: number
   canvasHeight?: number
   initialShowHelp?: boolean
@@ -171,6 +173,8 @@ export default function HTMLCanvas({
   onNavigateToCanvas,
   onStateChange,
   onPaletteSave,
+  onMoveNodeToParent,
+  onMoveNodeToFolder,
   canvasWidth = 3000,
   canvasHeight = 2000,
   initialShowHelp = false,
@@ -201,6 +205,9 @@ export default function HTMLCanvas({
   // Toolbar tooltip state
   const [toolbarTooltip, setToolbarTooltip] = useState<{ text: string; y: number } | null>(null)
 
+  // Detect Mac for keyboard shortcuts display
+  const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0
+
   // Node style preferences state
   const [nodeStylePreferences, setNodeStylePreferences] = useState<NodeStylePreferences>(() => {
     // Load from localStorage on init
@@ -227,6 +234,22 @@ export default function HTMLCanvas({
   const [draggingLineVertex, setDraggingLineVertex] = useState<{ nodeId: string; vertex: 'start' | 'middle' | 'end' } | null>(null)
   // Table column resize state
   const [resizingColumn, setResizingColumn] = useState<{ nodeId: string; colIndex: number; startX: number; startWidths: Record<string, number>; tableWidth: number; colKeys: string[] } | null>(null)
+
+  // Clipboard state for copy/paste - persists to localStorage so it works across folders
+  const [clipboard, setClipboard] = useState<Node[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bibliarch-clipboard')
+      return saved ? JSON.parse(saved) : []
+    }
+    return []
+  })
+
+  // Save clipboard to localStorage when it changes
+  useEffect(() => {
+    if (clipboard.length > 0) {
+      localStorage.setItem('bibliarch-clipboard', JSON.stringify(clipboard))
+    }
+  }, [clipboard])
 
   // Template system state
   const [showTemplatePanel, setShowTemplatePanel] = useState(false)
@@ -314,6 +337,12 @@ export default function HTMLCanvas({
   const [contextMenu, setContextMenu] = useState<{
     node: Node
     position: { x: number; y: number }
+  } | null>(null)
+
+  // Move to folder confirmation dialog state
+  const [moveToFolderDialog, setMoveToFolderDialog] = useState<{
+    node: Node
+    targetFolder: Node
   } | null>(null)
 
   // Track double-tap for mobile context menu
@@ -1215,12 +1244,83 @@ export default function HTMLCanvas({
         setSelectedId(null)
         setConnectingFrom(null) // Cancel any pending connections
         setTool('pan')
+      } else if (cmdOrCtrl && e.key === 'c') {
+        // Copy selected nodes
+        e.preventDefault()
+        const nodesToCopy = selectedIds.length > 0
+          ? nodes.filter(n => selectedIds.includes(n.id))
+          : selectedId ? nodes.filter(n => n.id === selectedId) : []
+        if (nodesToCopy.length > 0) {
+          setClipboard(nodesToCopy)
+        }
+      } else if (cmdOrCtrl && e.key === 'x') {
+        // Cut selected nodes (copy + delete)
+        e.preventDefault()
+        const nodesToCut = selectedIds.length > 0
+          ? nodes.filter(n => selectedIds.includes(n.id))
+          : selectedId ? nodes.filter(n => n.id === selectedId) : []
+        if (nodesToCut.length > 0) {
+          setClipboard(nodesToCut)
+          // Delete the nodes
+          const nodeIdsToDelete = new Set(nodesToCut.map(n => n.id))
+          const newNodes = nodes.filter(n => !nodeIdsToDelete.has(n.id))
+          const newConnections = connections.filter(c => !nodeIdsToDelete.has(c.from) && !nodeIdsToDelete.has(c.to))
+          setNodes(newNodes)
+          setConnections(newConnections)
+          saveToHistory(newNodes, newConnections)
+          handleSave(newNodes, newConnections)
+          setSelectedId(null)
+          setSelectedIds([])
+        }
+      } else if (cmdOrCtrl && e.key === 'v') {
+        // Paste nodes from clipboard
+        e.preventDefault()
+        if (clipboard.length > 0) {
+          const pastedNodes = clipboard.map(n => ({
+            ...n,
+            id: generateUniqueId(n.type || 'node'),
+            x: n.x + 30,
+            y: n.y + 30
+          }))
+          const newNodes = [...nodes, ...pastedNodes]
+          setNodes(newNodes)
+          saveToHistory(newNodes, connections)
+          handleSave(newNodes, connections)
+          // Select the pasted nodes
+          setSelectedIds(pastedNodes.map(n => n.id))
+          if (pastedNodes.length === 1) {
+            setSelectedId(pastedNodes[0].id)
+          }
+        }
+      } else if (cmdOrCtrl && e.key === 'd') {
+        // Duplicate selected nodes (in-place copy+paste)
+        e.preventDefault()
+        const nodesToDupe = selectedIds.length > 0
+          ? nodes.filter(n => selectedIds.includes(n.id))
+          : selectedId ? nodes.filter(n => n.id === selectedId) : []
+        if (nodesToDupe.length > 0) {
+          const dupedNodes = nodesToDupe.map(n => ({
+            ...n,
+            id: generateUniqueId(n.type || 'node'),
+            x: n.x + 30,
+            y: n.y + 30
+          }))
+          const newNodes = [...nodes, ...dupedNodes]
+          setNodes(newNodes)
+          saveToHistory(newNodes, connections)
+          handleSave(newNodes, connections)
+          // Select the duplicated nodes
+          setSelectedIds(dupedNodes.map(n => n.id))
+          if (dupedNodes.length === 1) {
+            setSelectedId(dupedNodes[0].id)
+          }
+        }
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [undo, redo, selectedId, selectedIds, nodes, connections, saveToHistory, setNodes, setConnections, setSelectedId, setSelectedIds])
+  }, [undo, redo, selectedId, selectedIds, nodes, connections, saveToHistory, setNodes, setConnections, setSelectedId, setSelectedIds, clipboard, handleSave])
 
   // Auto-sync: When selectedIds has exactly 1 item, sync to selectedId for single-selection mode
   useEffect(() => {
@@ -2972,9 +3072,18 @@ export default function HTMLCanvas({
   const handleDragOver = (e: React.DragEvent, targetNodeId: string) => {
     const targetNode = nodes.find(n => n.id === targetNodeId)
     const draggedNodeObj = nodes.find(n => n.id === draggedNode)
-    
+
     // List nodes only accept folder nodes
     if (targetNode?.type === 'list' && draggedNode !== targetNodeId && draggedNodeObj?.type === 'folder') {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+      setDropTarget(targetNodeId)
+    }
+    // Folder/character nodes can accept other nodes to move them inside
+    else if ((targetNode?.type === 'folder' || targetNode?.type === 'character') &&
+             draggedNode !== targetNodeId &&
+             draggedNodeObj &&
+             onMoveNodeToFolder) {
       e.preventDefault()
       e.dataTransfer.dropEffect = 'move'
       setDropTarget(targetNodeId)
@@ -2992,7 +3101,22 @@ export default function HTMLCanvas({
     const draggedNodeId = draggedNode
     const targetNode = nodes.find(n => n.id === targetNodeId)
     const draggedNodeObj = nodes.find(n => n.id === draggedNodeId)
-    
+
+    // Handle drop on folder/character nodes - show confirmation dialog
+    if ((targetNode?.type === 'folder' || targetNode?.type === 'character') &&
+        draggedNodeObj &&
+        draggedNodeId !== targetNodeId &&
+        onMoveNodeToFolder) {
+      // Show confirmation dialog
+      setMoveToFolderDialog({
+        node: draggedNodeObj,
+        targetFolder: targetNode
+      })
+      setDraggedNode(null)
+      setDropTarget(null)
+      return
+    }
+
     // Only allow folder, character, location, and event nodes to be added to list containers
     if (targetNode?.type === 'list' && draggedNodeObj && draggedNodeId !== targetNodeId && !draggedNodeObj.parentId) {
       if (draggedNodeObj.type !== 'folder' && draggedNodeObj.type !== 'character' && draggedNodeObj.type !== 'location' && draggedNodeObj.type !== 'event') {
@@ -3706,7 +3830,7 @@ export default function HTMLCanvas({
                   applyFormatting('bold')
                 }}
                 className="h-12 w-14 p-0"
-                title="Bold (Ctrl+B)"
+                title={`Bold (${isMac ? '⌘' : 'Ctrl'}+B)`}
               >
                 <Bold className="w-7 h-7" />
               </Button>
@@ -3718,7 +3842,7 @@ export default function HTMLCanvas({
                   applyFormatting('italic')
                 }}
                 className="h-12 w-14 p-0"
-                title="Italic (Ctrl+I)"
+                title={`Italic (${isMac ? '⌘' : 'Ctrl'}+I)`}
               >
                 <Italic className="w-7 h-7" />
               </Button>
@@ -3730,7 +3854,7 @@ export default function HTMLCanvas({
                   applyFormatting('underline')
                 }}
                 className="h-12 w-14 p-0"
-                title="Underline (Ctrl+U)"
+                title={`Underline (${isMac ? '⌘' : 'Ctrl'}+U)`}
               >
                 <Underline className="w-7 h-7" />
               </Button>
@@ -4524,7 +4648,7 @@ export default function HTMLCanvas({
               </div>
               <div className="text-xs text-muted-foreground space-y-1">
                 <div><strong>Pan:</strong> Click & drag, or use trackpad/scroll</div>
-                <div><strong>Zoom:</strong> Ctrl + scroll wheel</div>
+                <div><strong>Zoom:</strong> {isMac ? '⌘' : 'Ctrl'} + scroll wheel</div>
                 <div><strong>Select:</strong> Only tool for editing text - click nodes to select and edit</div>
                 <div><strong>Move:</strong> Drag selected nodes to reposition them</div>
                 <div><strong>Create:</strong> Select a tool then click on canvas</div>
@@ -4534,7 +4658,9 @@ export default function HTMLCanvas({
                 <div><strong>Navigate:</strong> Click arrow on folder/character nodes to enter</div>
                 <div><strong>Organize:</strong> Drag nodes into list containers</div>
                 <div><strong>Delete:</strong> Select node and press Delete or Backspace</div>
-                <div><strong>Undo/Redo:</strong> Ctrl+Z / Ctrl+Y</div>
+                <div><strong>Copy/Paste:</strong> {isMac ? '⌘' : 'Ctrl'}+C / {isMac ? '⌘' : 'Ctrl'}+V</div>
+                <div><strong>Cut/Duplicate:</strong> {isMac ? '⌘' : 'Ctrl'}+X / {isMac ? '⌘' : 'Ctrl'}+D</div>
+                <div><strong>Undo/Redo:</strong> {isMac ? '⌘' : 'Ctrl'}+Z / {isMac ? '⌘' : 'Ctrl'}+Y</div>
                 <div><strong>Cancel:</strong> Press Escape to deselect</div>
               </div>
               <div className="mt-2 pt-2 border-t border-border">
@@ -5260,6 +5386,15 @@ export default function HTMLCanvas({
                       }
                     }
                   }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setSelectedId(node.id)
+                    setContextMenu({
+                      node,
+                      position: { x: e.clientX, y: e.clientY }
+                    })
+                  }}
                   onTouchStart={(e) => {
                     if (e.touches.length === 1) {
                       const touch = e.touches[0]
@@ -5422,6 +5557,15 @@ export default function HTMLCanvas({
                         })
                       }
                     }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setSelectedId(node.id)
+                    setContextMenu({
+                      node,
+                      position: { x: e.clientX, y: e.clientY }
+                    })
                   }}
                   onTouchStart={(e) => {
                     if (e.touches.length === 1) {
@@ -5819,6 +5963,15 @@ export default function HTMLCanvas({
                       }
                     }
                   }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setSelectedId(node.id)
+                    setContextMenu({
+                      node,
+                      position: { x: e.clientX, y: e.clientY }
+                    })
+                  }}
                   onTouchStart={(e) => {
                     if (e.touches.length === 1) {
                       const touch = e.touches[0]
@@ -6198,6 +6351,15 @@ export default function HTMLCanvas({
                       }
                     }
                   }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setSelectedId(node.id)
+                    setContextMenu({
+                      node,
+                      position: { x: e.clientX, y: e.clientY }
+                    })
+                  }}
                   onTouchStart={(e) => {
                     if (e.touches.length === 1) {
                       const touch = e.touches[0]
@@ -6423,6 +6585,15 @@ export default function HTMLCanvas({
                         })
                       }
                     }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setSelectedId(node.id)
+                    setContextMenu({
+                      node,
+                      position: { x: e.clientX, y: e.clientY }
+                    })
                   }}
                   onTouchStart={(e) => {
                     if (e.touches.length === 1) {
@@ -6765,6 +6936,15 @@ export default function HTMLCanvas({
                         })
                       }
                     }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setSelectedId(node.id)
+                    setContextMenu({
+                      node,
+                      position: { x: e.clientX, y: e.clientY }
+                    })
                   }}
                 >
                   {/* Header */}
@@ -7240,6 +7420,15 @@ export default function HTMLCanvas({
                       }
                     }
                   }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setSelectedId(node.id)
+                    setContextMenu({
+                      node,
+                      position: { x: e.clientX, y: e.clientY }
+                    })
+                  }}
                   onTouchStart={(e) => {
                     if (e.touches.length === 1) {
                       const touch = e.touches[0]
@@ -7524,6 +7713,15 @@ export default function HTMLCanvas({
                     })
                   }
                 }
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setSelectedId(node.id)
+                setContextMenu({
+                  node,
+                  position: { x: e.clientX, y: e.clientY }
+                })
               }}
               onTouchStart={(e) => {
                 if (e.touches.length === 1) {
@@ -9857,6 +10055,22 @@ export default function HTMLCanvas({
           onDelete={handleDeleteNode}
           onBringToFront={handleBringToFront}
           onSendToBack={handleSendToBack}
+          isInsideFolder={canvasPath.length > 0}
+          onMoveToParent={onMoveNodeToParent ? (nodeId) => {
+            const nodeToMove = nodes.find(n => n.id === nodeId)
+            if (nodeToMove && onMoveNodeToParent) {
+              // Remove node from current canvas
+              const newNodes = nodes.filter(n => n.id !== nodeId)
+              // Also remove any connections involving this node
+              const newConnections = connections.filter(c => c.from !== nodeId && c.to !== nodeId)
+              setNodes(newNodes)
+              setConnections(newConnections)
+              saveToHistory(newNodes, newConnections)
+              handleSave(newNodes, newConnections)
+              // Move to parent canvas
+              onMoveNodeToParent(nodeToMove)
+            }
+          } : undefined}
         />
       )}
 
@@ -9868,6 +10082,49 @@ export default function HTMLCanvas({
           onClose={() => setConnectionContextMenu(null)}
           onDelete={handleDeleteConnection}
         />
+      )}
+
+      {/* Move to folder confirmation dialog */}
+      {moveToFolderDialog && (
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-xl border border-border p-6 max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-2">Move to {moveToFolderDialog.targetFolder.type === 'character' ? 'Character' : 'Folder'}?</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Move &quot;{moveToFolderDialog.node.text || moveToFolderDialog.node.title || 'this node'}&quot; into &quot;{moveToFolderDialog.targetFolder.text || moveToFolderDialog.targetFolder.title}&quot;?
+            </p>
+            <p className="text-xs text-muted-foreground mb-4">
+              The node will be removed from this canvas and added to the {moveToFolderDialog.targetFolder.type}&apos;s internal canvas.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                className="px-4 py-2 text-sm rounded-md border border-border hover:bg-accent"
+                onClick={() => setMoveToFolderDialog(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
+                onClick={() => {
+                  if (onMoveNodeToFolder) {
+                    // Remove node from current canvas
+                    const newNodes = nodes.filter(n => n.id !== moveToFolderDialog.node.id)
+                    // Also remove any connections involving this node
+                    const newConnections = connections.filter(c => c.from !== moveToFolderDialog.node.id && c.to !== moveToFolderDialog.node.id)
+                    setNodes(newNodes)
+                    setConnections(newConnections)
+                    saveToHistory(newNodes, newConnections)
+                    handleSave(newNodes, newConnections)
+                    // Move to target folder
+                    onMoveNodeToFolder(moveToFolderDialog.node, moveToFolderDialog.targetFolder.id)
+                  }
+                  setMoveToFolderDialog(null)
+                }}
+              >
+                Move
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       </div>

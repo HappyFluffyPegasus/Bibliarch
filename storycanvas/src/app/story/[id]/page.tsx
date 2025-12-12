@@ -716,6 +716,106 @@ export default function StoryPage({ params }: PageProps) {
     setCurrentCanvasId(previousLocation?.id || 'main')
   }
 
+  // Move a node to the parent canvas
+  async function handleMoveNodeToParent(node: any) {
+    if (canvasPath.length === 0) return // Already at main canvas
+
+    // Get the parent canvas ID
+    const parentCanvasId = canvasPath.length > 1
+      ? canvasPath[canvasPath.length - 2].id
+      : 'main'
+
+    console.log('Moving node to parent canvas:', node.id, 'from', currentCanvasId, 'to', parentCanvasId)
+
+    try {
+      // Load parent canvas data
+      const { data: parentCanvasData, error } = await supabase
+        .from('canvases')
+        .select('nodes, connections')
+        .eq('story_id', resolvedParams.id)
+        .eq('canvas_type', parentCanvasId)
+        .single()
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading parent canvas:', error)
+        return
+      }
+
+      // Add node to parent canvas with a new position
+      const parentNodes = parentCanvasData?.nodes || []
+      const nodeWithNewPosition = {
+        ...node,
+        x: 100 + Math.random() * 200, // Random position to avoid overlap
+        y: 100 + Math.random() * 200,
+      }
+
+      const updatedParentNodes = [...parentNodes, nodeWithNewPosition]
+      const parentConnections = parentCanvasData?.connections || []
+
+      // Save parent canvas
+      await saveCanvasMutation.mutateAsync({
+        storyId: resolvedParams.id,
+        canvasType: parentCanvasId,
+        nodes: updatedParentNodes,
+        connections: parentConnections,
+      })
+
+      console.log('Node moved to parent canvas successfully')
+    } catch (err) {
+      console.error('Failed to move node to parent:', err)
+    }
+  }
+
+  // Move a node into a folder's canvas
+  async function handleMoveNodeToFolder(node: any, folderId: string) {
+    console.log('Moving node into folder:', node.id, 'to folder', folderId)
+
+    try {
+      // Determine the target canvas ID based on folder type
+      // Folders use their ID as canvas ID, characters use character-canvas-{id}
+      const folderNode = latestCanvasData.current.nodes.find((n: any) => n.id === folderId)
+      const targetCanvasId = folderNode?.type === 'character'
+        ? `character-canvas-${folderId}`
+        : folderId
+
+      // Load target folder's canvas data
+      const { data: folderCanvasData, error } = await supabase
+        .from('canvases')
+        .select('nodes, connections')
+        .eq('story_id', resolvedParams.id)
+        .eq('canvas_type', targetCanvasId)
+        .single()
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading folder canvas:', error)
+        return
+      }
+
+      // Add node to folder's canvas with a new position
+      const folderNodes = folderCanvasData?.nodes || []
+      const nodeWithNewPosition = {
+        ...node,
+        x: 100 + Math.random() * 200,
+        y: 100 + Math.random() * 200,
+      }
+
+      const updatedFolderNodes = [...folderNodes, nodeWithNewPosition]
+      const folderConnections = folderCanvasData?.connections || []
+
+      // Save folder's canvas
+      await saveCanvasMutation.mutateAsync({
+        storyId: resolvedParams.id,
+        canvasType: targetCanvasId,
+        nodes: updatedFolderNodes,
+        connections: folderConnections,
+      })
+
+      console.log('Node moved to folder canvas successfully')
+    } catch (err) {
+      console.error('Failed to move node to folder:', err)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -980,6 +1080,8 @@ export default function StoryPage({ params }: PageProps) {
             hasUnsavedChanges.current = true
           }}
           onPaletteSave={savePaletteToDatabase}
+          onMoveNodeToParent={handleMoveNodeToParent}
+          onMoveNodeToFolder={handleMoveNodeToFolder}
           canvasWidth={3000}
           canvasHeight={2000}
           zoom={zoom}

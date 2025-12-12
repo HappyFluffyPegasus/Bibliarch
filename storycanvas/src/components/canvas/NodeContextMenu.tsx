@@ -219,6 +219,8 @@ interface NodeContextMenuProps {
   onDelete: (nodeId: string) => void
   onBringToFront: (nodeId: string) => void
   onSendToBack: (nodeId: string) => void
+  onMoveToParent?: (nodeId: string) => void
+  isInsideFolder?: boolean
 }
 
 export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
@@ -229,7 +231,9 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
   onDuplicate,
   onDelete,
   onBringToFront,
-  onSendToBack
+  onSendToBack,
+  onMoveToParent,
+  isInsideFolder
 }) => {
   const menuRef = useRef<HTMLDivElement>(null)
   const [adjustedPosition, setAdjustedPosition] = useState(position)
@@ -536,6 +540,12 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
       <MenuItem label="Duplicate" onClick={() => onDuplicate(node.id)} />
       <MenuItem label="Bring to Front" onClick={() => onBringToFront(node.id)} />
       <MenuItem label="Send to Back" onClick={() => onSendToBack(node.id)} />
+      {isInsideFolder && onMoveToParent && (
+        <>
+          <Divider />
+          <MenuItem label="Move to Parent Canvas" onClick={() => onMoveToParent(node.id)} />
+        </>
+      )}
       <Divider />
       <MenuItem label="Delete" onClick={() => onDelete(node.id)} destructive />
     </div>
