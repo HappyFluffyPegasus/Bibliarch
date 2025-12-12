@@ -1985,6 +1985,40 @@ export default function HTMLCanvas({
         }
       }
 
+      // Check if dropped onto a folder or character node (to move into it)
+      if (!droppedIntoList && draggedNodeObj && onMoveNodeToFolder) {
+        const folderTargets = nodes.filter(n => (n.type === 'folder' || n.type === 'character') && n.id !== draggingNode)
+        for (const folderNode of folderTargets) {
+          // Check if dragged node overlaps with folder bounds
+          const draggedRight = dragPosition.x + draggedNodeObj.width
+          const draggedBottom = dragPosition.y + draggedNodeObj.height
+          const folderRight = folderNode.x + (folderNode.width || 240)
+          const folderBottom = folderNode.y + (folderNode.height || 120)
+
+          const isOverlapping = !(
+            dragPosition.x > folderRight ||
+            draggedRight < folderNode.x ||
+            dragPosition.y > folderBottom ||
+            draggedBottom < folderNode.y
+          )
+
+          if (isOverlapping) {
+            // Show confirmation dialog
+            setMoveToFolderDialog({
+              node: draggedNodeObj,
+              targetFolder: folderNode
+            })
+
+            // Clear drag states
+            setDraggingNode(null)
+            setDragOffset({ x: 0, y: 0 })
+            setDragPosition({ x: 0, y: 0 })
+            droppedIntoList = true // Prevent normal drop handling
+            break
+          }
+        }
+      }
+
       if (!droppedIntoList) {
         // Update positions when dragging ends (normal canvas drop)
         // If multiple nodes are selected, move them all together while maintaining relative positions
@@ -7429,6 +7463,9 @@ export default function HTMLCanvas({
                       position: { x: e.clientX, y: e.clientY }
                     })
                   }}
+                  onDragOver={(e) => handleDragOver(e, node.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, node.id)}
                   onTouchStart={(e) => {
                     if (e.touches.length === 1) {
                       const touch = e.touches[0]
@@ -7678,13 +7715,8 @@ export default function HTMLCanvas({
                   return
                 }
 
-                // Right click on unselected node pans
+                // Right click - let onContextMenu handle it (don't start panning)
                 if (e.button === 2) {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsPanning(true)
-                  setIsMoving(true)
-                  setLastPanPoint({ x: e.clientX, y: e.clientY })
                   return
                 }
 
@@ -7723,6 +7755,9 @@ export default function HTMLCanvas({
                   position: { x: e.clientX, y: e.clientY }
                 })
               }}
+              onDragOver={(e) => handleDragOver(e, node.id)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, node.id)}
               onTouchStart={(e) => {
                 if (e.touches.length === 1) {
                   const touch = e.touches[0]

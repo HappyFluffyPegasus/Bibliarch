@@ -726,6 +726,7 @@ export default function StoryPage({ params }: PageProps) {
       : 'main'
 
     console.log('Moving node to parent canvas:', node.id, 'from', currentCanvasId, 'to', parentCanvasId)
+    console.log('Canvas path:', canvasPath)
 
     try {
       // Load parent canvas data
@@ -736,8 +737,11 @@ export default function StoryPage({ params }: PageProps) {
         .eq('canvas_type', parentCanvasId)
         .single()
 
+      console.log('Parent canvas query result:', { data: parentCanvasData, error, parentCanvasId })
+
+      // PGRST116 means no rows found, which is fine - we'll create an empty canvas
       if (error && error.code !== 'PGRST116') {
-        console.error('Error loading parent canvas:', error)
+        console.error('Error loading parent canvas:', error.message || error.code || JSON.stringify(error))
         return
       }
 
