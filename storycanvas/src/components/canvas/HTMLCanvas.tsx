@@ -201,6 +201,12 @@ export default function HTMLCanvas({
   // Toolbar tooltip state
   const [toolbarTooltip, setToolbarTooltip] = useState<{ text: string; y: number } | null>(null)
 
+  // Detect Mac for keyboard shortcuts display
+  const [isMac, setIsMac] = useState(false)
+  useEffect(() => {
+    setIsMac(typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform))
+  }, [])
+
   // Node style preferences state
   const [nodeStylePreferences, setNodeStylePreferences] = useState<NodeStylePreferences>(() => {
     // Load from localStorage on init
@@ -227,6 +233,9 @@ export default function HTMLCanvas({
   const [draggingLineVertex, setDraggingLineVertex] = useState<{ nodeId: string; vertex: 'start' | 'middle' | 'end' } | null>(null)
   // Table column resize state
   const [resizingColumn, setResizingColumn] = useState<{ nodeId: string; colIndex: number; startX: number; startWidths: Record<string, number>; tableWidth: number; colKeys: string[] } | null>(null)
+
+  // Clipboard state for copy/paste
+  const [clipboard, setClipboard] = useState<Node[]>([])
 
   // Template system state
   const [showTemplatePanel, setShowTemplatePanel] = useState(false)
@@ -865,17 +874,15 @@ export default function HTMLCanvas({
     if (!canvas) return
 
     const handleNativeWheel = (e: WheelEvent) => {
-      // Check if Ctrl/Cmd key is pressed for zoom
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault() // This now works because passive: false
+      // Zoom with scroll wheel (no modifier needed)
+      e.preventDefault() // This now works because passive: false
 
-        // Use same zoom delta as buttons for consistent behavior (1.2x / 0.8x = 20% change)
-        const zoomDelta = e.deltaY > 0 ? 0.8 : 1.2
-        setZoom(currentZoom => {
-          const newZoom = Math.max(0.47, Math.min(3, currentZoom * zoomDelta))
-          return newZoom
-        })
-      }
+      // Use same zoom delta as buttons for consistent behavior (1.2x / 0.8x = 20% change)
+      const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1 // Smaller increments for smoother zoom
+      setZoom(currentZoom => {
+        const newZoom = Math.max(0.25, Math.min(3, currentZoom * zoomDelta))
+        return newZoom
+      })
     }
 
     canvas.addEventListener('wheel', handleNativeWheel, { passive: false })
@@ -1176,7 +1183,7 @@ export default function HTMLCanvas({
     return { x: node.x, y: node.y }
   }, [draggingNode, dragPosition, selectedIds, nodes])
 
-  // Keyboard shortcuts for undo/redo and delete
+  // Keyboard shortcuts for undo/redo, delete, copy/paste
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger shortcuts while user is typing in contentEditable or input/textarea
@@ -1192,6 +1199,67 @@ export default function HTMLCanvas({
       } else if (cmdOrCtrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
         e.preventDefault()
         redo()
+      } else if (cmdOrCtrl && e.key === 'c' && (selectedId || selectedIds.length > 0)) {
+        // Copy selected nodes
+        e.preventDefault()
+        const nodesToCopy = selectedIds.length > 0
+          ? nodes.filter(n => selectedIds.includes(n.id))
+          : nodes.filter(n => n.id === selectedId)
+        setClipboard(nodesToCopy)
+      } else if (cmdOrCtrl && e.key === 'x' && (selectedId || selectedIds.length > 0)) {
+        // Cut selected nodes (copy then delete)
+        e.preventDefault()
+        const nodesToCut = selectedIds.length > 0
+          ? nodes.filter(n => selectedIds.includes(n.id))
+          : nodes.filter(n => n.id === selectedId)
+        setClipboard(nodesToCut)
+        // Delete the nodes
+        const nodeIdsToDelete = new Set(nodesToCut.map(n => n.id))
+        const newNodes = nodes.filter(node => !nodeIdsToDelete.has(node.id))
+        const newConnections = connections.filter(conn =>
+          !nodeIdsToDelete.has(conn.from) && !nodeIdsToDelete.has(conn.to)
+        )
+        setNodes(newNodes)
+        setConnections(newConnections)
+        saveToHistory(newNodes, newConnections)
+        handleSave(newNodes, newConnections)
+        setSelectedIds([])
+        setSelectedId(null)
+      } else if (cmdOrCtrl && e.key === 'v' && clipboard.length > 0) {
+        // Paste nodes
+        e.preventDefault()
+        const pastedNodes: Node[] = clipboard.map(node => ({
+          ...node,
+          id: generateUniqueId(node.type || 'text'),
+          x: node.x + 30, // Offset so they don't overlap
+          y: node.y + 30,
+        }))
+        const newNodes = [...nodes, ...pastedNodes]
+        setNodes(newNodes)
+        saveToHistory(newNodes, connections)
+        handleSave(newNodes, connections)
+        // Select the pasted nodes
+        setSelectedIds(pastedNodes.map(n => n.id))
+        setSelectedId(pastedNodes.length === 1 ? pastedNodes[0].id : null)
+      } else if (cmdOrCtrl && e.key === 'd' && (selectedId || selectedIds.length > 0)) {
+        // Duplicate selected nodes (instant copy-paste)
+        e.preventDefault()
+        const nodesToDupe = selectedIds.length > 0
+          ? nodes.filter(n => selectedIds.includes(n.id))
+          : nodes.filter(n => n.id === selectedId)
+        const duplicatedNodes: Node[] = nodesToDupe.map(node => ({
+          ...node,
+          id: generateUniqueId(node.type || 'text'),
+          x: node.x + 30,
+          y: node.y + 30,
+        }))
+        const newNodes = [...nodes, ...duplicatedNodes]
+        setNodes(newNodes)
+        saveToHistory(newNodes, connections)
+        handleSave(newNodes, connections)
+        // Select the duplicated nodes
+        setSelectedIds(duplicatedNodes.map(n => n.id))
+        setSelectedId(duplicatedNodes.length === 1 ? duplicatedNodes[0].id : null)
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && (selectedId || selectedIds.length > 0)) {
         e.preventDefault()
         // Delete all selected nodes
@@ -1220,7 +1288,7 @@ export default function HTMLCanvas({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [undo, redo, selectedId, selectedIds, nodes, connections, saveToHistory, setNodes, setConnections, setSelectedId, setSelectedIds])
+  }, [undo, redo, selectedId, selectedIds, nodes, connections, saveToHistory, setNodes, setConnections, setSelectedId, setSelectedIds, clipboard, handleSave])
 
   // Auto-sync: When selectedIds has exactly 1 item, sync to selectedId for single-selection mode
   useEffect(() => {
@@ -3706,7 +3774,7 @@ export default function HTMLCanvas({
                   applyFormatting('bold')
                 }}
                 className="h-12 w-14 p-0"
-                title="Bold (Ctrl+B)"
+                title={isMac ? "Bold (⌘B)" : "Bold (Ctrl+B)"}
               >
                 <Bold className="w-7 h-7" />
               </Button>
@@ -3718,7 +3786,7 @@ export default function HTMLCanvas({
                   applyFormatting('italic')
                 }}
                 className="h-12 w-14 p-0"
-                title="Italic (Ctrl+I)"
+                title={isMac ? "Italic (⌘I)" : "Italic (Ctrl+I)"}
               >
                 <Italic className="w-7 h-7" />
               </Button>
@@ -3730,7 +3798,7 @@ export default function HTMLCanvas({
                   applyFormatting('underline')
                 }}
                 className="h-12 w-14 p-0"
-                title="Underline (Ctrl+U)"
+                title={isMac ? "Underline (⌘U)" : "Underline (Ctrl+U)"}
               >
                 <Underline className="w-7 h-7" />
               </Button>
@@ -4524,7 +4592,7 @@ export default function HTMLCanvas({
               </div>
               <div className="text-xs text-muted-foreground space-y-1">
                 <div><strong>Pan:</strong> Click & drag, or use trackpad/scroll</div>
-                <div><strong>Zoom:</strong> Ctrl + scroll wheel</div>
+                <div><strong>Zoom:</strong> Scroll wheel</div>
                 <div><strong>Select:</strong> Only tool for editing text - click nodes to select and edit</div>
                 <div><strong>Move:</strong> Drag selected nodes to reposition them</div>
                 <div><strong>Create:</strong> Select a tool then click on canvas</div>
@@ -4533,8 +4601,12 @@ export default function HTMLCanvas({
                 )}
                 <div><strong>Navigate:</strong> Click arrow on folder/character nodes to enter</div>
                 <div><strong>Organize:</strong> Drag nodes into list containers</div>
+                <div><strong>Copy/Paste:</strong> {isMac ? '⌘C / ⌘V' : 'Ctrl+C / Ctrl+V'}</div>
+                <div><strong>Cut:</strong> {isMac ? '⌘X' : 'Ctrl+X'}</div>
+                <div><strong>Duplicate:</strong> {isMac ? '⌘D' : 'Ctrl+D'}</div>
                 <div><strong>Delete:</strong> Select node and press Delete or Backspace</div>
-                <div><strong>Undo/Redo:</strong> Ctrl+Z / Ctrl+Y</div>
+                <div><strong>Undo/Redo:</strong> {isMac ? '⌘Z / ⌘⇧Z' : 'Ctrl+Z / Ctrl+Y'}</div>
+                <div><strong>Context Menu:</strong> Right-click{isMac ? ' or Ctrl+click' : ''}</div>
                 <div><strong>Cancel:</strong> Press Escape to deselect</div>
               </div>
               <div className="mt-2 pt-2 border-t border-border">
@@ -5274,6 +5346,19 @@ export default function HTMLCanvas({
                     }
                   }}
                   onClick={(e) => handleNodeClick(node, e)}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    // Select the node first if not already selected
+                    if (selectedId !== node.id && !selectedIds.includes(node.id)) {
+                      setSelectedId(node.id)
+                      setSelectedIds([node.id])
+                    }
+                    setContextMenu({
+                      node,
+                      position: { x: e.clientX, y: e.clientY }
+                    })
+                  }}
                 >
                   <div
                     contentEditable={editingField?.nodeId === node.id && editingField?.field === 'content'}
@@ -5434,6 +5519,18 @@ export default function HTMLCanvas({
                       e.stopPropagation()
                       handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                     }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (selectedId !== node.id && !selectedIds.includes(node.id)) {
+                      setSelectedId(node.id)
+                      setSelectedIds([node.id])
+                    }
+                    setContextMenu({
+                      node,
+                      position: { x: e.clientX, y: e.clientY }
+                    })
                   }}
                 >
                   <div className="w-full h-full flex flex-col">
@@ -5831,6 +5928,18 @@ export default function HTMLCanvas({
                       handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                     }
                   }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (selectedId !== node.id && !selectedIds.includes(node.id)) {
+                      setSelectedId(node.id)
+                      setSelectedIds([node.id])
+                    }
+                    setContextMenu({
+                      node,
+                      position: { x: e.clientX, y: e.clientY }
+                    })
+                  }}
                 >
                   <div className="w-full h-auto relative">
                     <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
@@ -6210,6 +6319,18 @@ export default function HTMLCanvas({
                       handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                     }
                   }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (selectedId !== node.id && !selectedIds.includes(node.id)) {
+                      setSelectedId(node.id)
+                      setSelectedIds([node.id])
+                    }
+                    setContextMenu({
+                      node,
+                      position: { x: e.clientX, y: e.clientY }
+                    })
+                  }}
                 >
                   {/* Location node layout similar to character but without profile picture */}
                   <div className="flex h-full items-center">
@@ -6435,6 +6556,18 @@ export default function HTMLCanvas({
                       e.stopPropagation()
                       handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                     }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (selectedId !== node.id && !selectedIds.includes(node.id)) {
+                      setSelectedId(node.id)
+                      setSelectedIds([node.id])
+                    }
+                    setContextMenu({
+                      node,
+                      position: { x: e.clientX, y: e.clientY }
+                    })
                   }}
                 >
                   {/* Event node storyboard layout */}
@@ -6765,6 +6898,18 @@ export default function HTMLCanvas({
                         })
                       }
                     }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (selectedId !== node.id && !selectedIds.includes(node.id)) {
+                      setSelectedId(node.id)
+                      setSelectedIds([node.id])
+                    }
+                    setContextMenu({
+                      node,
+                      position: { x: e.clientX, y: e.clientY }
+                    })
                   }}
                 >
                   {/* Header */}
@@ -7252,6 +7397,18 @@ export default function HTMLCanvas({
                       handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                     }
                   }}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (selectedId !== node.id && !selectedIds.includes(node.id)) {
+                      setSelectedId(node.id)
+                      setSelectedIds([node.id])
+                    }
+                    setContextMenu({
+                      node,
+                      position: { x: e.clientX, y: e.clientY }
+                    })
+                  }}
                 >
                   {/* Character node layout with profile picture */}
                   <div className="flex h-full items-center">
@@ -7537,6 +7694,18 @@ export default function HTMLCanvas({
                   handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                 }
               }}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                if (selectedId !== node.id && !selectedIds.includes(node.id)) {
+                  setSelectedId(node.id)
+                  setSelectedIds([node.id])
+                }
+                setContextMenu({
+                  node,
+                  position: { x: e.clientX, y: e.clientY }
+                })
+              }}
             >
               {/* Extended draggable border strips for easier grabbing - only around edges */}
               {/* Top border strip */}
@@ -7805,6 +7974,18 @@ export default function HTMLCanvas({
                                   // In select mode, drag the parent list node instead of child
                                   handleNodeDragStart(node, touch.clientX, touch.clientY, true)
                                 }
+                              }}
+                              onContextMenu={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                if (selectedId !== childNode.id && !selectedIds.includes(childNode.id)) {
+                                  setSelectedId(childNode.id)
+                                  setSelectedIds([childNode.id])
+                                }
+                                setContextMenu({
+                                  node: childNode,
+                                  position: { x: e.clientX, y: e.clientY }
+                                })
                               }}
                             >
                               {/* Render character nodes with profile picture layout */}

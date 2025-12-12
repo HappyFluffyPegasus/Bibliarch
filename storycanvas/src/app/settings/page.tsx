@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, ArrowLeft, User, KeyRound, Mail } from 'lucide-react'
+import { Loader2, ArrowLeft, User, KeyRound, Mail, Trash2, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function SettingsPage() {
@@ -28,6 +28,10 @@ export default function SettingsPage() {
   const [newUsername, setNewUsername] = useState('')
   const [createdAt, setCreatedAt] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const router = useRouter()
 
   // Load user data
@@ -176,6 +180,73 @@ export default function SettingsPage() {
     }
 
     setIsLoadingUsername(false)
+  }
+
+  // Handle account deletion
+  async function handleDeleteAccount(e: React.FormEvent) {
+    e.preventDefault()
+
+    if (deleteConfirmText !== 'DELETE') {
+      setDeleteError('Please type DELETE to confirm')
+      return
+    }
+
+    setIsDeleting(true)
+    setDeleteError(null)
+
+    try {
+      const supabase = createClient()
+
+      // Delete user's data first (stories, canvases, etc.)
+      // The database should have CASCADE deletes set up, but we'll be explicit
+
+      // Delete all stories owned by the user (this should cascade to canvases, nodes, etc.)
+      const { error: storiesError } = await supabase
+        .from('stories')
+        .delete()
+        .eq('user_id', userId)
+
+      if (storiesError) {
+        console.error('Error deleting stories:', storiesError)
+        // Continue anyway - we want to delete the account
+      }
+
+      // Delete the user's profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId)
+
+      if (profileError) {
+        console.error('Error deleting profile:', profileError)
+        // Continue anyway
+      }
+
+      // Delete collaborations where user is a collaborator
+      const { error: collabError } = await supabase
+        .from('story_collaborators')
+        .delete()
+        .eq('user_id', userId)
+
+      if (collabError) {
+        console.error('Error deleting collaborations:', collabError)
+      }
+
+      // Delete the account using the database function
+      const { error: deleteError } = await supabase.rpc('delete_own_account')
+
+      if (deleteError) {
+        throw new Error(deleteError.message)
+      }
+
+      // Sign out and redirect to home
+      await supabase.auth.signOut()
+      router.push('/?deleted=true')
+    } catch (err) {
+      console.error('Delete account error:', err)
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete account. Please try again.')
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -388,6 +459,107 @@ export default function SettingsPage() {
                   )}
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+
+          {/* Delete Account Card */}
+          <Card className="backdrop-blur-sm bg-white/90 dark:bg-gray-900/90 border-red-200 dark:border-red-900">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                <Trash2 className="w-5 h-5" />
+                Delete Account
+              </CardTitle>
+              <CardDescription>
+                Permanently delete your account and all associated data
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!showDeleteConfirm ? (
+                <div className="space-y-4">
+                  <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-red-700 dark:text-red-300">
+                        <p className="font-medium mb-1">Warning: This action cannot be undone</p>
+                        <p>Deleting your account will permanently remove:</p>
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                          <li>All your stories and canvases</li>
+                          <li>All nodes, connections, and content</li>
+                          <li>Your profile and account settings</li>
+                          <li>Access to shared stories</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    className="w-full"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    I want to delete my account
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleDeleteAccount} className="space-y-4">
+                  <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                    <p className="text-sm text-red-700 dark:text-red-300 font-medium">
+                      To confirm deletion, please type <span className="font-mono bg-red-100 dark:bg-red-800 px-1 rounded">DELETE</span> below:
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Input
+                      type="text"
+                      placeholder="Type DELETE to confirm"
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                      disabled={isDeleting}
+                      className="border-red-200 dark:border-red-800 focus:ring-red-500"
+                    />
+                  </div>
+
+                  {deleteError && (
+                    <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 rounded-md">
+                      {deleteError}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setShowDeleteConfirm(false)
+                        setDeleteConfirmText('')
+                        setDeleteError(null)
+                      }}
+                      disabled={isDeleting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="destructive"
+                      className="flex-1"
+                      disabled={isDeleting || deleteConfirmText !== 'DELETE'}
+                    >
+                      {isDeleting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Forever
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              )}
             </CardContent>
           </Card>
         </div>
