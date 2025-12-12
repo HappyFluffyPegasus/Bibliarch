@@ -729,18 +729,17 @@ export default function StoryPage({ params }: PageProps) {
     console.log('Canvas path:', canvasPath)
 
     try {
-      // Load parent canvas data
+      // Load parent canvas data - use maybeSingle to handle non-existent canvases gracefully
       const { data: parentCanvasData, error } = await supabase
         .from('canvases')
         .select('nodes, connections')
         .eq('story_id', resolvedParams.id)
         .eq('canvas_type', parentCanvasId)
-        .single()
+        .maybeSingle()
 
       console.log('Parent canvas query result:', { data: parentCanvasData, error, parentCanvasId })
 
-      // PGRST116 means no rows found, which is fine - we'll create an empty canvas
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error loading parent canvas:', error.message || error.code || JSON.stringify(error))
         return
       }
@@ -776,22 +775,33 @@ export default function StoryPage({ params }: PageProps) {
 
     try {
       // Determine the target canvas ID based on folder type
-      // Folders use their ID as canvas ID, characters use character-canvas-{id}
+      // Folders use linkedCanvasId if it exists, otherwise construct from ID
       const folderNode = latestCanvasData.current.nodes.find((n: any) => n.id === folderId)
-      const targetCanvasId = folderNode?.type === 'character'
-        ? `character-canvas-${folderId}`
-        : folderId
+      console.log('Found folder node:', folderNode)
 
-      // Load target folder's canvas data
+      let targetCanvasId: string
+      if (folderNode?.linkedCanvasId) {
+        targetCanvasId = folderNode.linkedCanvasId
+      } else if (folderNode?.type === 'character') {
+        targetCanvasId = `character-canvas-${folderId}`
+      } else {
+        targetCanvasId = `folder-canvas-${folderId}`
+      }
+
+      console.log('Target canvas ID:', targetCanvasId)
+
+      // Load target folder's canvas data - use maybeSingle to handle non-existent canvases
       const { data: folderCanvasData, error } = await supabase
         .from('canvases')
         .select('nodes, connections')
         .eq('story_id', resolvedParams.id)
         .eq('canvas_type', targetCanvasId)
-        .single()
+        .maybeSingle()
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading folder canvas:', error)
+      console.log('Folder canvas query result:', { data: folderCanvasData, error, targetCanvasId })
+
+      if (error) {
+        console.error('Error loading folder canvas:', error.message || error.code || JSON.stringify(error))
         return
       }
 
