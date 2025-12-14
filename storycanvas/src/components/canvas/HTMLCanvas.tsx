@@ -343,6 +343,7 @@ export default function HTMLCanvas({
   const [moveToFolderDialog, setMoveToFolderDialog] = useState<{
     node: Node
     targetFolder: Node
+    intendedPosition: { x: number; y: number }  // Where user dropped the node
   } | null>(null)
 
   // Track double-tap for mobile context menu
@@ -889,6 +890,7 @@ export default function HTMLCanvas({
   }, [])
 
   // Add native wheel event listener with passive: false to enable zoom preventDefault
+  // Also handles panning for mouse wheel (vs trackpad which uses native scroll)
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -904,7 +906,30 @@ export default function HTMLCanvas({
           const newZoom = Math.max(0.47, Math.min(3, currentZoom * zoomDelta))
           return newZoom
         })
+        return
       }
+
+      // Detect if this is a mouse wheel (vs trackpad)
+      // Mouse wheels: deltaMode=1 (line mode) or large deltaY values
+      // Trackpads: deltaMode=0 (pixel mode) with small incremental values
+      const isMouse = e.deltaMode === 1 || Math.abs(e.deltaY) >= 50
+
+      if (isMouse) {
+        // For mouse wheel, pan the canvas
+        const canvasContainer = canvas.parentElement
+        if (canvasContainer) {
+          e.preventDefault()
+          const scrollMultiplier = 2.5
+          if (e.shiftKey) {
+            // Shift + wheel = horizontal scroll
+            canvasContainer.scrollLeft += e.deltaY * scrollMultiplier
+          } else {
+            // Regular wheel = vertical scroll
+            canvasContainer.scrollTop += e.deltaY * scrollMultiplier
+          }
+        }
+      }
+      // For trackpad, let native scroll behavior handle it
     }
 
     canvas.addEventListener('wheel', handleNativeWheel, { passive: false })
@@ -1421,6 +1446,17 @@ export default function HTMLCanvas({
   }, [tool, nodes, connections, saveToHistory, editingField, onSave, visibleNodeIds])
 
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+    // Blur any active text field when clicking on canvas background
+    // This ensures keyboard shortcuts (Ctrl+Z, etc.) work properly
+    if (e.target === canvasRef.current) {
+      const activeElement = document.activeElement as HTMLElement
+      if (activeElement?.getAttribute('contenteditable') === 'true' ||
+          activeElement?.tagName === 'INPUT' ||
+          activeElement?.tagName === 'TEXTAREA') {
+        activeElement.blur()
+      }
+    }
+
     // Middle mouse (button 1) or right mouse (button 2) always pans
     if ((e.button === 1 || e.button === 2) && e.target === canvasRef.current) {
       e.preventDefault() // Prevent context menu on right click
@@ -1986,29 +2022,32 @@ export default function HTMLCanvas({
       }
 
       // Check if dropped onto a folder or character node (to move into it)
+      // Use CENTER of dragged node (not any overlap) to reduce false positives
       if (!droppedIntoList && draggedNodeObj && onMoveNodeToFolder) {
         const folderTargets = nodes.filter(n => (n.type === 'folder' || n.type === 'character') && n.id !== draggingNode)
         for (const folderNode of folderTargets) {
-          // Check if dragged node overlaps with folder bounds
+          // Calculate CENTER of dragged node
           const draggedWidth = draggedNodeObj.width || 240
           const draggedHeight = draggedNodeObj.height || 120
-          const draggedRight = dragPosition.x + draggedWidth
-          const draggedBottom = dragPosition.y + draggedHeight
+          const draggedCenterX = dragPosition.x + draggedWidth / 2
+          const draggedCenterY = dragPosition.y + draggedHeight / 2
+
+          // Check if CENTER is inside folder bounds (much smaller hitbox than full overlap)
           const folderRight = folderNode.x + (folderNode.width || 240)
           const folderBottom = folderNode.y + (folderNode.height || 120)
 
-          // AABB overlap detection - true if any part of dragged node overlaps folder
-          const isOverlapping =
-            dragPosition.x < folderRight &&
-            draggedRight > folderNode.x &&
-            dragPosition.y < folderBottom &&
-            draggedBottom > folderNode.y
+          const isCenterInsideFolder =
+            draggedCenterX > folderNode.x &&
+            draggedCenterX < folderRight &&
+            draggedCenterY > folderNode.y &&
+            draggedCenterY < folderBottom
 
-          if (isOverlapping) {
-            // Show confirmation dialog
+          if (isCenterInsideFolder) {
+            // Show confirmation dialog - store intended position for cancel
             setMoveToFolderDialog({
               node: draggedNodeObj,
-              targetFolder: folderNode
+              targetFolder: folderNode,
+              intendedPosition: { x: dragPosition.x, y: dragPosition.y }
             })
 
             // Clear drag states
@@ -3143,10 +3182,11 @@ export default function HTMLCanvas({
         draggedNodeObj &&
         draggedNodeId !== targetNodeId &&
         onMoveNodeToFolder) {
-      // Show confirmation dialog
+      // Show confirmation dialog - use node's current position as intended
       setMoveToFolderDialog({
         node: draggedNodeObj,
-        targetFolder: targetNode
+        targetFolder: targetNode,
+        intendedPosition: { x: draggedNodeObj.x, y: draggedNodeObj.y }
       })
       setDraggedNode(null)
       setDropTarget(null)
@@ -10135,7 +10175,20 @@ export default function HTMLCanvas({
             <div className="flex gap-3 justify-end">
               <button
                 className="px-4 py-2 text-sm rounded-md border border-border hover:bg-accent"
-                onClick={() => setMoveToFolderDialog(null)}
+                onClick={() => {
+                  // Place node at intended position (where user dropped it)
+                  if (moveToFolderDialog) {
+                    const updatedNodes = nodes.map(n =>
+                      n.id === moveToFolderDialog.node.id
+                        ? { ...n, x: moveToFolderDialog.intendedPosition.x, y: moveToFolderDialog.intendedPosition.y }
+                        : n
+                    )
+                    setNodes(updatedNodes)
+                    saveToHistory(updatedNodes, connections)
+                    handleSave(updatedNodes, connections)
+                  }
+                  setMoveToFolderDialog(null)
+                }}
               >
                 Cancel
               </button>
