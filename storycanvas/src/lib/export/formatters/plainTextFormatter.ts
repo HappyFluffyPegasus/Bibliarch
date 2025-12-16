@@ -5,46 +5,165 @@
 import type { StoryMetadata, CanvasData, ExportOptions, ExportNode } from '../types'
 import { sortNodesByPosition, getNestedCanvasId } from '../canvasTraversal'
 
-// Placeholder text that should be filtered from exports (UI-only instructions)
-const UI_PLACEHOLDERS = new Set([
+// Template default content that should be SKIPPED entirely
+// These are placeholder prompts from templates that users haven't filled in
+const TEMPLATE_DEFAULTS = new Set([
+  // General
+  'Write your content here...',
+  'Describe what happens in this event...',
   'Upload a map of your world here',
+  'Upload a map of your world here →',
+  'Upload a map of this country/region (any shape/size) →',
   'Click to add image',
   'Drag and drop an image here',
   'Add your image here',
+
+  // Character templates
+  'What is their history and past?',
+  'Who are they at the start?',
+  'Who have they become?',
+  'What themes do they represent?',
+  'What drives this character?',
+  'What are their moral principles?',
+
+  // Event templates
+  'What event kicks off your story?',
+  'What challenges does your protagonist face?',
+  'What major event changes everything?',
+  'What is the final confrontation?',
+  'How does everything wrap up?',
+  'What happens first in this event?',
+  'What happens next?',
+  'What happens after that?',
+  'How does this event conclude?',
+  'How does this serve the overall story? What does the audience learn? What changes as a result?',
+  'What themes are explored here? Any symbolic elements? Motifs or recurring imagery?',
+  'How should the audience feel? Emotional journey within this event. Key emotional beats.',
+  'Introduce your protagonist and their ordinary world. Set the tone and establish the initial situation before everything changes.',
+  'The event that kicks off your story and disrupts the protagonist\'s ordinary world. This is what sets everything in motion.',
+  'The protagonist makes a crucial decision or faces a situation they cannot back away from. The stakes are raised.',
+  'A major revelation or turning point that changes the protagonist\'s understanding of their situation. The game changes.',
+  'The lowest point for your protagonist. All seems lost, and they must find the strength to continue despite overwhelming odds.',
+  'The final confrontation or decisive moment. The protagonist faces their greatest challenge and the main conflict reaches its peak.',
+  'The aftermath of the climax. Loose ends are tied up, and we see how the protagonist\'s world has changed.',
+  'Where does this happen? What\'s the mood/tone? Time of day, weather, sensory details?',
+  'What\'s at stake in this moment? What could go wrong? What tension exists?',
+  'Important lines or exchanges. Memorable moments.',
+  'Key visual moments. Action sequences. Important blocking or cinematography ideas.',
+
+  // Location templates
+  'Where does most of your story take place?',
+  'What are the rules that govern your story world?',
+  'What happened before your story begins?',
+  'What other important places appear in your story?',
+  'How should your world feel to readers?',
+
+  // Theme templates
+  'What is the main conflict driving your story?',
+  'What ethical dilemmas does your story explore?',
+  'How do your characters change and learn?',
+  'What broader social issues does your story address?',
+  'What emotions should readers feel and why?',
+  'Jot recurring imagery, symbols, or foreshadowing ideas.',
+  'Track how conflict escalates and what\'s at risk.',
+  'What subplots or secondary stories run alongside your main plot?',
+
+  // Worldbuilding templates
+  'What are the major landforms, climates, and regions?',
+  'What unites or defines cultures across the world?',
+  'How advanced is the world, and what role does magic/tech play?',
+  'What do people believe in, and how does it affect daily life?',
+  'What fuels prosperity or scarcity across nations?',
+  'Are there many languages? A common tongue?',
+  'How do people move, migrate, or share ideas?',
+  'What\'s seen as sacred, shameful, or universally important?',
+  'Who holds authority (political, magical, religious)?',
+  'What are the big global threats or rivalries?',
+  'What major events shaped this world?',
+
+  // Country/Location templates
+  'What defines the country\'s traditions, customs, festivals, and rituals?',
+  'What terrain, natural resources, or weather shape life here?',
+  'Are there dominant faiths, cults, or superstitions?',
+  'What\'s sacred, shameful, or central to identity?',
+  'What\'s their army/navy like? Are they expansionist or defensive?',
+  'Who rules? What systems of government, monarchy, or councils exist?',
+  'List the most important or notable urban centers.',
+  'What\'s unique about their level of progress or magical practices?',
+  'Rivalries, wars, rebellions, internal strife, and current political tensions.',
+  'What\'s daily living like for common people vs. elites?',
+  'How did this country form? What key events shaped it? Founding myths, major wars, cultural shifts, and historical turning points.',
+  'What are the main exports/imports? How wealthy is the nation?',
+  'Music, fashion, food, or art they\'re known for abroad.',
+  'What\'s spoken here? Any regional slang or secret codes?',
+  'Who rules? How? What parties/factions exist? How stable is the government?',
+  'What social classes exist? How mobile is society? What are the cultural values?',
+  'What are the unique traditions, festivals, foods, and daily customs?',
+  'What natural resources, terrains, and geographic features define this land?',
+  'What\'s the weather like? Seasons? Environmental challenges?',
+  'How do they protect themselves? What\'s their military structure and strength?',
+  'What do people believe? Major religions, spiritual practices, or philosophies.',
+  'Internal conflicts, border disputes, or major challenges they face.',
+  'What does this location share with the world? Art, music, customs, technology, philosophy.',
 ])
 
-// Check if content is UI placeholder (should be removed)
-function isUIPlaceholder(content: string | undefined): boolean {
-  if (!content) return false
+// Check if content is a template default (should be skipped)
+function isTemplateDefault(content: string | undefined): boolean {
+  if (!content) return true
   const trimmed = content.trim()
-  return UI_PLACEHOLDERS.has(trimmed)
+  if (!trimmed) return true
+  return TEMPLATE_DEFAULTS.has(trimmed)
+}
+
+// Check if a string contains only template/placeholder content
+function isEmptyOrTemplate(content: string | undefined): boolean {
+  if (!content) return true
+  const trimmed = content.trim()
+  if (!trimmed) return true
+  if (TEMPLATE_DEFAULTS.has(trimmed)) return true
+  // Also check if it starts with common template patterns
+  if (trimmed.startsWith('What ') && trimmed.endsWith('?')) return true
+  if (trimmed.startsWith('How ') && trimmed.endsWith('?')) return true
+  if (trimmed.startsWith('Who ') && trimmed.endsWith('?')) return true
+  if (trimmed.startsWith('Where ') && trimmed.endsWith('?')) return true
+  if (trimmed.startsWith('Describe ') && trimmed.endsWith('...')) return true
+  if (trimmed.includes('Upload a map')) return true
+  return false
 }
 
 // Get display name for a node - uses 'text' field as primary
 function getNodeName(node: ExportNode): string {
-  // For events, prefer title if it exists, otherwise use text
   if (node.type === 'event' && node.title) {
     return node.title
   }
-  // Primary display name is always 'text'
-  return node.text || 'Untitled'
+  return node.text || ''
 }
 
 // Get content/description for a node
 function getNodeContent(node: ExportNode): string | undefined {
-  // For events, use summary
   if (node.type === 'event') {
     return node.summary
   }
-  // For text nodes, use content
   if (node.type === 'text' || node.type === 'compact-text') {
     return node.content
   }
-  // For locations, use content or description
   if (node.type === 'location') {
     return node.content || node.description
   }
   return node.content || node.description
+}
+
+// Check if a node has any meaningful content
+function hasContent(node: ExportNode): boolean {
+  const name = getNodeName(node)
+  const content = getNodeContent(node)
+
+  // If name is empty or "Untitled", check if there's real content
+  if (!name || name === 'Untitled' || name === 'Untitled Section') {
+    return !isEmptyOrTemplate(content)
+  }
+
+  return true
 }
 
 interface CharacterWithContent {
@@ -93,6 +212,34 @@ function createEmptyContent(): CollectedContent {
     folders: [],
     allNodes: []
   }
+}
+
+// Sort events by extracting age/number from title for chronological order
+function sortEventsByAge(events: EventWithContent[]): EventWithContent[] {
+  return [...events].sort((a, b) => {
+    const nameA = getNodeName(a.node)
+    const nameB = getNodeName(b.node)
+
+    // Try to extract age numbers from titles like "Age 0-4", "Age 5", etc.
+    const ageMatchA = nameA.match(/age\s*(\d+)/i)
+    const ageMatchB = nameB.match(/age\s*(\d+)/i)
+
+    if (ageMatchA && ageMatchB) {
+      return parseInt(ageMatchA[1]) - parseInt(ageMatchB[1])
+    }
+
+    // If one has age and other doesn't, age comes first
+    if (ageMatchA) return -1
+    if (ageMatchB) return 1
+
+    // Otherwise sort by sequence order if available
+    if (a.node.sequenceOrder !== undefined && b.node.sequenceOrder !== undefined) {
+      return a.node.sequenceOrder - b.node.sequenceOrder
+    }
+
+    // Fall back to original order
+    return 0
+  })
 }
 
 // Recursively collect content from a canvas, including all nested canvases
@@ -157,7 +304,7 @@ function collectCanvasContent(
         content.tables.push(node)
         break
       case 'list':
-        content.lists.push(node)
+        // Skip list nodes entirely - they just contain references
         break
       case 'image':
         content.images.push(node)
@@ -183,42 +330,34 @@ function collectCanvasContent(
 }
 
 // Create a title heading with underline
-// Level 1: TITLE with ===== underline
-// Level 2: Title with ----- underline
-// Level 3+: Title with no underline but prefix markers
 function makeHeading(text: string, level: number): string {
   if (level === 1) {
-    // Main title - ALL CAPS with double line
     const title = text.toUpperCase()
     return `${title}\n${'='.repeat(title.length)}\n\n`
   } else if (level === 2) {
-    // Section - Title Case with single line
     return `${text}\n${'-'.repeat(text.length)}\n\n`
   } else if (level === 3) {
-    // Subsection - with arrow prefix
     return `► ${text}\n\n`
   } else if (level === 4) {
-    // Sub-subsection - with bullet prefix
-    return `  • ${text}\n\n`
+    return `    • ${text}\n\n`
   } else {
-    // Deeper levels - indented with dash
-    const indent = '    '.repeat(level - 4)
+    const indent = '        ' + '    '.repeat(level - 5)
     return `${indent}- ${text}\n\n`
   }
 }
 
-// Format a labeled field
+// Format a labeled field - only if it has real content
 function formatField(label: string, value: string | undefined, indent: string = ''): string {
-  if (value && value.trim() && !isUIPlaceholder(value)) {
-    // Wrap long content with proper indentation
-    const lines = value.split('\n')
-    if (lines.length > 1) {
-      return `${indent}${label}:\n${lines.map(l => `${indent}    ${l}`).join('\n')}\n\n`
-    }
-    return `${indent}${label}: ${value}\n`
-  } else {
-    return `${indent}${label}: (not written yet)\n`
+  // Skip if value is empty or template default
+  if (isEmptyOrTemplate(value)) {
+    return ''
   }
+
+  const lines = value!.split('\n')
+  if (lines.length > 1) {
+    return `${indent}${label}:\n${lines.map(l => `${indent}    ${l}`).join('\n')}\n\n`
+  }
+  return `${indent}${label}: ${value}\n`
 }
 
 // Format a character node with all its content
@@ -228,24 +367,18 @@ function formatCharacter(
 ): string {
   const node = charWithContent.node
   const name = getNodeName(node)
+
+  // Skip characters with no name
+  if (!name) return ''
+
   let output = makeHeading(name, level)
 
   const indent = level >= 3 ? '    ' : ''
 
-  // Role
+  // Only show fields that have real content
   output += formatField('Role', node.role, indent)
-
-  // Description
-  if (node.description) {
-    output += formatField('Description', node.description, indent)
-  }
-
-  // Backstory
-  if (node.backstory) {
-    output += formatField('Backstory', node.backstory, indent)
-  }
-
-  output += '\n'
+  output += formatField('Description', node.description, indent)
+  output += formatField('Backstory', node.backstory, indent)
 
   // Include text notes from character's sub-canvas as fields
   const subContent = charWithContent.subCanvasContent
@@ -254,19 +387,21 @@ function formatCharacter(
     const fieldName = getNodeName(textNote)
     const fieldContent = getNodeContent(textNote)
 
-    if (isUIPlaceholder(fieldContent)) continue
+    // Skip if no name or template content
+    if (!fieldName || isEmptyOrTemplate(fieldContent)) continue
 
     output += formatField(fieldName, fieldContent, indent)
   }
 
-  // Include tables from character's sub-canvas
+  // Include tables from character's sub-canvas (skip untitled ones)
   for (const table of subContent.tables) {
-    output += formatTable(table, level + 1)
-  }
-
-  // Include lists from character's sub-canvas
-  for (const list of subContent.lists) {
-    output += formatList(list, level + 1)
+    const tableName = getNodeName(table)
+    if (tableName && tableName !== 'Untitled') {
+      output += formatTable(table, level + 1)
+    } else {
+      // For untitled tables, show as "Character Info" if it has data
+      output += formatTable({ ...table, text: 'Character Info' } as ExportNode, level + 1)
+    }
   }
 
   // Include nested folders from character's sub-canvas
@@ -284,44 +419,57 @@ function formatEvent(
 ): string {
   const node = eventWithContent.node
   const name = getNodeName(node)
+
+  // Skip events with no name
+  if (!name) return ''
+
+  // Skip if the event only has template content
+  const summary = node.summary
+  const subContent = eventWithContent.subCanvasContent
+  const hasRealSummary = !isEmptyOrTemplate(summary)
+  const hasSubContent = subContent.events.length > 0 ||
+                        subContent.textNotes.some(n => !isEmptyOrTemplate(getNodeContent(n))) ||
+                        subContent.tables.length > 0 ||
+                        subContent.folders.length > 0
+
+  // If no real content at all, skip this event
+  if (!hasRealSummary && !hasSubContent && !node.durationText) {
+    return ''
+  }
+
   let output = makeHeading(name, level)
 
   const indent = level >= 3 ? '    ' : ''
 
   // Duration
-  if (node.durationText) {
+  if (node.durationText && node.durationText !== 'N/A') {
     output += `${indent}Duration: ${node.durationText}\n`
   }
 
-  // Summary/Description
-  const summary = node.summary
-  if (summary && summary.trim() && !isUIPlaceholder(summary)) {
-    const lines = summary.split('\n')
+  // Summary/Description - only if real content
+  if (hasRealSummary) {
+    const lines = summary!.split('\n')
     for (const line of lines) {
       output += `${indent}${line}\n`
     }
-  } else {
-    output += `${indent}(no description written yet)\n`
   }
 
   output += '\n'
 
-  // Include sub-content from event's canvas
-  const subContent = eventWithContent.subCanvasContent
-
-  // Sub-events
+  // Sub-events - sorted by age
   if (subContent.events.length > 0) {
-    for (const subEvent of subContent.events) {
+    const sortedSubEvents = sortEventsByAge(subContent.events)
+    for (const subEvent of sortedSubEvents) {
       output += formatEvent(subEvent, level + 1)
     }
   }
 
-  // Text notes inside event
+  // Text notes inside event - only with real content
   for (const textNote of subContent.textNotes) {
     const fieldName = getNodeName(textNote)
     const fieldContent = getNodeContent(textNote)
 
-    if (isUIPlaceholder(fieldContent)) continue
+    if (!fieldName || isEmptyOrTemplate(fieldContent)) continue
 
     output += formatField(fieldName, fieldContent, indent)
   }
@@ -346,14 +494,17 @@ function formatLocation(
 ): string {
   const node = locationWithContent.node
   const name = getNodeName(node)
+
+  if (!name) return ''
+
   let output = makeHeading(name, level)
 
   const indent = level >= 3 ? '    ' : ''
 
-  // Content/Description
+  // Content/Description - only if real content
   const content = getNodeContent(node)
-  if (content && content.trim() && !isUIPlaceholder(content)) {
-    const lines = content.split('\n')
+  if (!isEmptyOrTemplate(content)) {
+    const lines = content!.split('\n')
     for (const line of lines) {
       output += `${indent}${line}\n`
     }
@@ -363,12 +514,12 @@ function formatLocation(
   // Include sub-content from location's canvas
   const subContent = locationWithContent.subCanvasContent
 
-  // Text notes inside location
+  // Text notes inside location - only with real content
   for (const textNote of subContent.textNotes) {
     const fieldName = getNodeName(textNote)
     const fieldContent = getNodeContent(textNote)
 
-    if (isUIPlaceholder(fieldContent)) continue
+    if (!fieldName || isEmptyOrTemplate(fieldContent)) continue
 
     output += formatField(fieldName, fieldContent, indent)
   }
@@ -376,11 +527,6 @@ function formatLocation(
   // Tables inside location
   for (const table of subContent.tables) {
     output += formatTable(table, level + 1)
-  }
-
-  // Lists inside location
-  for (const list of subContent.lists) {
-    output += formatList(list, level + 1)
   }
 
   // Nested locations
@@ -396,26 +542,23 @@ function formatLocation(
   return output
 }
 
-// Format a text note
+// Format a text note - only if it has real content
 function formatTextNote(node: ExportNode, level: number): string {
   const title = getNodeName(node)
   const content = getNodeContent(node)
 
-  if (isUIPlaceholder(content)) return ''
+  // Skip if no title or content is template default
+  if (!title || isEmptyOrTemplate(content)) return ''
 
   let output = makeHeading(title, level)
 
   const indent = level >= 3 ? '    ' : ''
 
-  if (content && content.trim()) {
-    const lines = content.split('\n')
-    for (const line of lines) {
-      output += `${indent}${line}\n`
-    }
-    output += '\n'
-  } else {
-    output += `${indent}(not written yet)\n\n`
+  const lines = content!.split('\n')
+  for (const line of lines) {
+    output += `${indent}${line}\n`
   }
+  output += '\n'
 
   return output
 }
@@ -425,13 +568,9 @@ function formatTable(node: ExportNode, level: number): string {
   const title = getNodeName(node)
   const tableData = node.tableData
 
-  let output = makeHeading(title, level)
-
-  const indent = level >= 3 ? '    ' : ''
-
+  // Skip tables with no data
   if (!tableData || tableData.length === 0) {
-    output += `${indent}(no data in table)\n\n`
-    return output
+    return ''
   }
 
   // Get all column keys from the first row
@@ -440,9 +579,29 @@ function formatTable(node: ExportNode, level: number): string {
   )
 
   if (columns.length === 0) {
-    output += `${indent}(no data in table)\n\n`
-    return output
+    return ''
   }
+
+  // Check if table has any meaningful data (not just empty cells)
+  const hasData = tableData.some(row =>
+    columns.some(col => {
+      const val = row[col]
+      return val && val.trim() && val !== '☐' && val !== '☑'
+    })
+  )
+
+  if (!hasData) {
+    return ''
+  }
+
+  let output = ''
+
+  // Only add heading if table has a real title
+  if (title && title !== 'Untitled') {
+    output += makeHeading(title, level)
+  }
+
+  const indent = level >= 3 ? '    ' : ''
 
   // Calculate column widths
   const colWidths = columns.map(col => {
@@ -458,50 +617,39 @@ function formatTable(node: ExportNode, level: number): string {
   output += indent + columns.map((col, i) => col.padEnd(colWidths[i])).join(' | ') + '\n'
   output += indent + colWidths.map(w => '-'.repeat(w)).join('-+-') + '\n'
 
-  // Data rows
+  // Data rows - skip empty rows
   for (const row of tableData) {
-    output += indent + columns.map((col, i) =>
-      ((row[col] || '') as string).padEnd(colWidths[i])
-    ).join(' | ') + '\n'
+    const hasRowData = columns.some(col => {
+      const val = row[col]
+      return val && val.trim()
+    })
+    if (hasRowData) {
+      output += indent + columns.map((col, i) =>
+        ((row[col] || '') as string).padEnd(colWidths[i])
+      ).join(' | ') + '\n'
+    }
   }
 
   output += '\n'
   return output
 }
 
-// Format a list node
-function formatList(node: ExportNode, level: number): string {
-  const title = getNodeName(node)
-  const childIds = node.childIds || []
-
-  let output = makeHeading(title, level)
-
-  const indent = level >= 3 ? '    ' : ''
-
-  if (childIds.length === 0) {
-    output += `${indent}(no items in list)\n\n`
-  } else {
-    output += `${indent}${childIds.length} items\n\n`
-  }
-
-  return output
-}
-
 // Format a relationship node as text
 function formatRelationshipNode(node: ExportNode, level: number): string {
   const title = getNodeName(node)
-  let output = makeHeading(title, level)
 
-  const indent = level >= 3 ? '    ' : ''
   const relData = node.relationshipData
-
-  if (!relData) {
-    output += `${indent}(no relationship data)\n\n`
-    return output
-  }
+  if (!relData) return ''
 
   const characters = relData.selectedCharacters || []
   const relationships = relData.relationships || []
+
+  // Skip if no relationships
+  if (relationships.length === 0) return ''
+
+  let output = makeHeading(title || 'Relationships', level)
+
+  const indent = level >= 3 ? '    ' : ''
 
   if (characters.length > 0) {
     output += `${indent}Characters:\n`
@@ -512,7 +660,7 @@ function formatRelationshipNode(node: ExportNode, level: number): string {
   }
 
   if (relationships.length > 0) {
-    output += `${indent}Relationships:\n`
+    output += `${indent}Connections:\n`
     for (const rel of relationships) {
       const fromChar = characters.find(c => c.id === rel.fromCharacterId)
       const toChar = characters.find(c => c.id === rel.toCharacterId)
@@ -547,17 +695,29 @@ function formatFolder(
   const title = getNodeName(node)
   const children = folderWithContent.children
 
+  // Skip folders with no title
+  if (!title) return ''
+
+  // Check if folder has any real content
+  const folderContent = formatContent(children, level + 1)
+  const nodeContent = node.content
+
+  // Skip if folder has no content and no children content
+  if (!folderContent.trim() && isEmptyOrTemplate(nodeContent)) {
+    return ''
+  }
+
   let output = makeHeading(title, level)
 
   const indent = level >= 3 ? '    ' : ''
 
-  // Folder description if any
-  if (node.content && !isUIPlaceholder(node.content)) {
-    output += `${indent}${node.content}\n\n`
+  // Folder description if any real content
+  if (!isEmptyOrTemplate(nodeContent)) {
+    output += `${indent}${nodeContent}\n\n`
   }
 
   // Format all content inside the folder
-  output += formatContent(children, level + 1)
+  output += folderContent
 
   return output
 }
@@ -574,8 +734,9 @@ function formatContent(
     output += formatCharacter(char, level)
   }
 
-  // Events
-  for (const event of content.events) {
+  // Events - sorted by age
+  const sortedEvents = sortEventsByAge(content.events)
+  for (const event of sortedEvents) {
     output += formatEvent(event, level)
   }
 
@@ -589,19 +750,14 @@ function formatContent(
     output += formatRelationshipNode(relNode, level)
   }
 
-  // Text notes
+  // Text notes - only with real content
   for (const note of content.textNotes) {
     output += formatTextNote(note, level)
   }
 
-  // Tables
+  // Tables - only with real content
   for (const table of content.tables) {
     output += formatTable(table, level)
-  }
-
-  // Lists
-  for (const list of content.lists) {
-    output += formatList(list, level)
   }
 
   // Folders (recursive)
@@ -620,7 +776,7 @@ function filterContentByOptions(content: CollectedContent, options: ExportOption
     locations: options.include.locations ? content.locations : [],
     textNotes: options.include.textNotes ? content.textNotes : [],
     tables: options.include.tables ? content.tables : [],
-    lists: options.include.lists ? content.lists : [],
+    lists: [],
     images: [],
     relationshipNodes: options.include.relationshipNodes ? content.relationshipNodes : [],
     folders: content.folders.map(f => ({
@@ -641,8 +797,8 @@ export function formatAsPlainText(
   // Title - Level 1 (ALL CAPS with === underline)
   output += makeHeading(story.title, 1)
 
-  // Story bio/description
-  if (story.bio) {
+  // Story bio/description - only if exists and not template
+  if (story.bio && !isEmptyOrTemplate(story.bio)) {
     output += `${story.bio}\n\n`
   }
 
