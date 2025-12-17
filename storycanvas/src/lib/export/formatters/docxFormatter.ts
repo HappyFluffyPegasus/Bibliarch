@@ -474,6 +474,7 @@ function formatEvent(event: EventWithContent, level: HeadingLevelType): Paragrap
   const summary = event.node.summary
   const sub = event.subCanvasContent
   const hasRealSummary = !isEmptyOrTemplate(summary)
+  const hasDuration = event.node.durationText && event.node.durationText !== 'N/A'
 
   // Format children first to see if they have any content
   const childParagraphs: Paragraph[] = []
@@ -504,15 +505,15 @@ function formatEvent(event: EventWithContent, level: HeadingLevelType): Paragrap
 
   const hasChildContent = childParagraphs.length > 0 || textNoteParagraphs.length > 0 || tableParagraphs.length > 0
 
-  // If no content anywhere, skip entirely
-  if (!hasRealSummary && !hasChildContent) {
+  // If no content anywhere (no summary, no duration, no children), skip entirely
+  if (!hasRealSummary && !hasDuration && !hasChildContent) {
     return paragraphs
   }
 
   paragraphs.push(createHeading(name, level))
 
-  if (event.node.durationText && event.node.durationText !== 'N/A') {
-    paragraphs.push(createLabeledField('Duration', event.node.durationText))
+  if (hasDuration) {
+    paragraphs.push(createLabeledField('Duration', event.node.durationText!))
   }
 
   if (hasRealSummary) {
