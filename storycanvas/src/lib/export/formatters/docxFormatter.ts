@@ -543,46 +543,52 @@ function formatLocation(loc: LocationWithContent, level: HeadingLevelType): Para
   const content = getNodeContent(loc.node)
   const sub = loc.subCanvasContent
   const hasContent = !isEmptyOrTemplate(content)
+  const nextLevel = getNextHeadingLevel(level)
 
-  // Format children first to see if they have content
-  const childParagraphs: Paragraph[] = []
+  // NON-FOLDER content goes FIRST
+  const nonFolderParagraphs: Paragraph[] = []
 
   // Text notes with content
   for (const note of sub.textNotes) {
     const fieldName = getNodeName(note)
     const fieldContent = getNodeContent(note)
     if (fieldName && !isEmptyOrTemplate(fieldContent)) {
-      childParagraphs.push(createLabeledField(fieldName, fieldContent!))
+      nonFolderParagraphs.push(createLabeledField(fieldName, fieldContent!))
     }
   }
 
   // Tables - always skip empty tables
   for (const table of sub.tables) {
     const tableName = getNodeName(table)
-    childParagraphs.push(...createTable(table.tableData || [], tableName, true))
+    nonFolderParagraphs.push(...createTable(table.tableData || [], tableName, true))
   }
 
-  const nextLevel = getNextHeadingLevel(level)
-
+  // Sub-locations
   for (const subLoc of sub.locations) {
-    childParagraphs.push(...formatLocation(subLoc, nextLevel))
+    nonFolderParagraphs.push(...formatLocation(subLoc, nextLevel))
   }
 
+  // FOLDERS go LAST
+  const folderParagraphs: Paragraph[] = []
   for (const folder of sub.folders) {
-    childParagraphs.push(...formatFolder(folder, nextLevel))
+    folderParagraphs.push(...formatFolder(folder, nextLevel))
   }
+
+  const hasChildren = nonFolderParagraphs.length > 0 || folderParagraphs.length > 0
 
   // Always show locations, even if empty
   paragraphs.push(createHeading(name, level))
 
-  if (!hasContent && childParagraphs.length === 0) {
+  if (!hasContent && !hasChildren) {
     // No content - show placeholder
     paragraphs.push(createNotEditedText())
   } else {
     if (hasContent) {
       paragraphs.push(createBodyText(content!))
     }
-    paragraphs.push(...childParagraphs)
+    // Non-folder content first, then folders
+    paragraphs.push(...nonFolderParagraphs)
+    paragraphs.push(...folderParagraphs)
   }
 
   return paragraphs
@@ -673,46 +679,48 @@ function formatFolder(folder: FolderWithContent, level: HeadingLevelType): Parag
   if (!title) return paragraphs
 
   const nextLevel = getNextHeadingLevel(level)
-
-  // Format folder's content - text notes inside folders should always show
-  const childParagraphs: Paragraph[] = []
   const children = folder.children
 
-  for (const char of children.characters) {
-    childParagraphs.push(...formatCharacter(char, nextLevel))
-  }
-
-  const sortedEvents = sortEventsByAge(children.events)
-  for (const event of sortedEvents) {
-    childParagraphs.push(...formatEvent(event, nextLevel))
-  }
-
-  for (const loc of children.locations) {
-    childParagraphs.push(...formatLocation(loc, nextLevel))
-  }
-
-  for (const rel of children.relationshipNodes) {
-    childParagraphs.push(...formatRelationship(rel, nextLevel))
-  }
+  // NON-FOLDER content goes FIRST (above sub-folders)
+  const nonFolderParagraphs: Paragraph[] = []
 
   // Text notes inside folders always show
   for (const note of children.textNotes) {
-    childParagraphs.push(...formatTextNote(note, nextLevel, true))
+    nonFolderParagraphs.push(...formatTextNote(note, nextLevel, true))
   }
 
   // Tables - always skip empty tables
   for (const table of children.tables) {
     const tableName = getNodeName(table)
-    childParagraphs.push(...createTable(table.tableData || [], tableName, true))
+    nonFolderParagraphs.push(...createTable(table.tableData || [], tableName, true))
   }
 
+  for (const char of children.characters) {
+    nonFolderParagraphs.push(...formatCharacter(char, nextLevel))
+  }
+
+  const sortedEvents = sortEventsByAge(children.events)
+  for (const event of sortedEvents) {
+    nonFolderParagraphs.push(...formatEvent(event, nextLevel))
+  }
+
+  for (const loc of children.locations) {
+    nonFolderParagraphs.push(...formatLocation(loc, nextLevel))
+  }
+
+  for (const rel of children.relationshipNodes) {
+    nonFolderParagraphs.push(...formatRelationship(rel, nextLevel))
+  }
+
+  // FOLDER content goes AFTER non-folder content
+  const folderParagraphs: Paragraph[] = []
   for (const subFolder of children.folders) {
-    childParagraphs.push(...formatFolder(subFolder, nextLevel))
+    folderParagraphs.push(...formatFolder(subFolder, nextLevel))
   }
 
   const nodeContent = folder.node.content
   const hasContent = !isEmptyOrTemplate(nodeContent)
-  const hasChildren = childParagraphs.length > 0
+  const hasChildren = nonFolderParagraphs.length > 0 || folderParagraphs.length > 0
 
   // Always show folders
   paragraphs.push(createHeading(title, level))
@@ -723,7 +731,9 @@ function formatFolder(folder: FolderWithContent, level: HeadingLevelType): Parag
     if (hasContent) {
       paragraphs.push(createBodyText(nodeContent!))
     }
-    paragraphs.push(...childParagraphs)
+    // Non-folder content first, then sub-folders
+    paragraphs.push(...nonFolderParagraphs)
+    paragraphs.push(...folderParagraphs)
   }
 
   return paragraphs
@@ -731,6 +741,17 @@ function formatFolder(folder: FolderWithContent, level: HeadingLevelType): Parag
 
 function formatContent(content: CollectedContent, level: HeadingLevelType): Paragraph[] {
   const paragraphs: Paragraph[] = []
+
+  // NON-FOLDER content goes FIRST
+  for (const note of content.textNotes) {
+    paragraphs.push(...formatTextNote(note, level))
+  }
+
+  // Tables - always skip empty tables
+  for (const table of content.tables) {
+    const tableName = getNodeName(table)
+    paragraphs.push(...createTable(table.tableData || [], tableName, true))
+  }
 
   for (const char of content.characters) {
     paragraphs.push(...formatCharacter(char, level))
@@ -749,16 +770,7 @@ function formatContent(content: CollectedContent, level: HeadingLevelType): Para
     paragraphs.push(...formatRelationship(rel, level))
   }
 
-  for (const note of content.textNotes) {
-    paragraphs.push(...formatTextNote(note, level))
-  }
-
-  // Tables - always skip empty tables
-  for (const table of content.tables) {
-    const tableName = getNodeName(table)
-    paragraphs.push(...createTable(table.tableData || [], tableName, true))
-  }
-
+  // FOLDERS go LAST
   for (const folder of content.folders) {
     paragraphs.push(...formatFolder(folder, level))
   }
