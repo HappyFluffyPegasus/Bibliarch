@@ -588,16 +588,25 @@ function formatLocation(loc: LocationWithContent, level: HeadingLevelType): Para
   return paragraphs
 }
 
-function formatTextNote(node: ExportNode, level: HeadingLevelType): Paragraph[] {
+function formatTextNote(node: ExportNode, level: HeadingLevelType, alwaysShow: boolean = false): Paragraph[] {
   const paragraphs: Paragraph[] = []
   const title = getNodeName(node)
   const content = getNodeContent(node)
 
-  // Skip if no title or no content
-  if (!title || isEmptyOrTemplate(content)) return paragraphs
+  if (!title) return paragraphs
+
+  const hasContent = !isEmptyOrTemplate(content)
+
+  // Skip if no content and not forced to show
+  if (!hasContent && !alwaysShow) return paragraphs
 
   paragraphs.push(createHeading(title, level))
-  paragraphs.push(createBodyText(content!))
+
+  if (hasContent) {
+    paragraphs.push(createBodyText(content!))
+  } else {
+    paragraphs.push(createNotEditedText())
+  }
 
   return paragraphs
 }
@@ -664,23 +673,58 @@ function formatFolder(folder: FolderWithContent, level: HeadingLevelType): Parag
   if (!title) return paragraphs
 
   const nextLevel = getNextHeadingLevel(level)
-  const childParagraphs = formatContent(folder.children, nextLevel)
+
+  // Format folder's content - text notes inside folders should always show
+  const childParagraphs: Paragraph[] = []
+  const children = folder.children
+
+  for (const char of children.characters) {
+    childParagraphs.push(...formatCharacter(char, nextLevel))
+  }
+
+  const sortedEvents = sortEventsByAge(children.events)
+  for (const event of sortedEvents) {
+    childParagraphs.push(...formatEvent(event, nextLevel))
+  }
+
+  for (const loc of children.locations) {
+    childParagraphs.push(...formatLocation(loc, nextLevel))
+  }
+
+  for (const rel of children.relationshipNodes) {
+    childParagraphs.push(...formatRelationship(rel, nextLevel))
+  }
+
+  // Text notes inside folders always show
+  for (const note of children.textNotes) {
+    childParagraphs.push(...formatTextNote(note, nextLevel, true))
+  }
+
+  // Tables - always skip empty tables
+  for (const table of children.tables) {
+    const tableName = getNodeName(table)
+    childParagraphs.push(...createTable(table.tableData || [], tableName, true))
+  }
+
+  for (const subFolder of children.folders) {
+    childParagraphs.push(...formatFolder(subFolder, nextLevel))
+  }
+
   const nodeContent = folder.node.content
   const hasContent = !isEmptyOrTemplate(nodeContent)
   const hasChildren = childParagraphs.length > 0
 
-  // Skip entirely if no content anywhere
-  if (!hasContent && !hasChildren) {
-    return paragraphs
-  }
-
+  // Always show folders
   paragraphs.push(createHeading(title, level))
 
-  if (hasContent) {
-    paragraphs.push(createBodyText(nodeContent!))
+  if (!hasContent && !hasChildren) {
+    paragraphs.push(createNotEditedText())
+  } else {
+    if (hasContent) {
+      paragraphs.push(createBodyText(nodeContent!))
+    }
+    paragraphs.push(...childParagraphs)
   }
-
-  paragraphs.push(...childParagraphs)
 
   return paragraphs
 }
