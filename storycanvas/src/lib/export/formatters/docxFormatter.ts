@@ -277,6 +277,18 @@ function createBodyText(text: string): Paragraph {
   })
 }
 
+function createNotEditedText(): Paragraph {
+  return new Paragraph({
+    children: [new TextRun({ text: 'This section has not been edited yet.', italics: true, color: '666666' })],
+    spacing: { after: 120 }
+  })
+}
+
+// Check if column name is generic (col1, col2, etc.)
+function isGenericColumnName(name: string): boolean {
+  return /^col\d+$/i.test(name.trim())
+}
+
 function createLabeledField(label: string, value: string): Paragraph {
   return new Paragraph({
     children: [
@@ -287,13 +299,27 @@ function createLabeledField(label: string, value: string): Paragraph {
   })
 }
 
-function createTable(tableData: Record<string, string>[], title?: string): Paragraph[] {
+function createTable(tableData: Record<string, string>[], title?: string, skipIfEmpty: boolean = false): Paragraph[] {
   const paragraphs: Paragraph[] = []
 
-  if (!tableData || tableData.length === 0) return paragraphs
+  if (!tableData || tableData.length === 0) {
+    if (skipIfEmpty) return paragraphs
+    // Return empty table notice if not skipping
+    if (title) {
+      paragraphs.push(new Paragraph({
+        children: [new TextRun({ text: title, bold: true })],
+        spacing: { before: 160, after: 80 }
+      }))
+    }
+    paragraphs.push(createNotEditedText())
+    return paragraphs
+  }
 
   const columns = Object.keys(tableData[0]).filter(k => k !== 'id' && !k.startsWith('_'))
   if (columns.length === 0) return paragraphs
+
+  // Check if all columns are generic (col1, col2, etc.) - don't show header row
+  const allGenericColumns = columns.every(isGenericColumnName)
 
   // Filter rows with data
   const valueColumn = columns.length >= 2 ? columns[1] : columns[0]
@@ -309,7 +335,18 @@ function createTable(tableData: Record<string, string>[], title?: string): Parag
     })
   })
 
-  if (rowsWithData.length === 0) return paragraphs
+  if (rowsWithData.length === 0) {
+    if (skipIfEmpty) return paragraphs
+    // Return empty table notice if not skipping
+    if (title) {
+      paragraphs.push(new Paragraph({
+        children: [new TextRun({ text: title, bold: true })],
+        spacing: { before: 160, after: 80 }
+      }))
+    }
+    paragraphs.push(createNotEditedText())
+    return paragraphs
+  }
 
   if (title) {
     paragraphs.push(new Paragraph({
@@ -318,26 +355,31 @@ function createTable(tableData: Record<string, string>[], title?: string): Parag
     }))
   }
 
-  // Create table
+  // Create table rows
+  const tableRows: TableRow[] = []
+
+  // Only add header row if columns are NOT generic
+  if (!allGenericColumns) {
+    tableRows.push(new TableRow({
+      children: columns.map(col => new TableCell({
+        children: [new Paragraph({
+          children: [new TextRun({ text: col, bold: true })]
+        })],
+        shading: { type: ShadingType.SOLID, color: 'E0E0E0' }
+      }))
+    }))
+  }
+
+  // Data rows
+  tableRows.push(...rowsWithData.map(row => new TableRow({
+    children: columns.map(col => new TableCell({
+      children: [new Paragraph({ text: row[col] || '' })]
+    }))
+  })))
+
   const table = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
-    rows: [
-      // Header row
-      new TableRow({
-        children: columns.map(col => new TableCell({
-          children: [new Paragraph({
-            children: [new TextRun({ text: col, bold: true })]
-          })],
-          shading: { type: ShadingType.SOLID, color: 'E0E0E0' }
-        }))
-      }),
-      // Data rows
-      ...rowsWithData.map(row => new TableRow({
-        children: columns.map(col => new TableCell({
-          children: [new Paragraph({ text: row[col] || '' })]
-        }))
-      }))
-    ]
+    rows: tableRows
   })
 
   paragraphs.push(new Paragraph({ children: [] })) // spacer
@@ -354,7 +396,6 @@ function formatCharacter(char: CharacterWithContent, level: HeadingLevelType): P
   if (!name) return paragraphs
 
   const sub = char.subCanvasContent
-  let hasContent = false
 
   // Check for content
   const fields: { label: string; value: string }[] = []
@@ -376,17 +417,24 @@ function formatCharacter(char: CharacterWithContent, level: HeadingLevelType): P
     }
   }
 
-  if (fields.length === 0 && sub.tables.length === 0) return paragraphs
-
+  // Always show the character heading
   paragraphs.push(createHeading(name, level))
 
-  for (const field of fields) {
-    paragraphs.push(createLabeledField(field.label, field.value))
-  }
+  if (fields.length === 0 && sub.tables.length === 0) {
+    // No content - show placeholder
+    paragraphs.push(createNotEditedText())
+  } else {
+    for (const field of fields) {
+      paragraphs.push(createLabeledField(field.label, field.value))
+    }
 
-  for (const table of sub.tables) {
-    const tableName = getNodeName(table) || 'Character Info'
-    paragraphs.push(...createTable(table.tableData || [], tableName !== 'Untitled' ? tableName : 'Character Info'))
+    for (const table of sub.tables) {
+      const tableName = getNodeName(table) || 'Character Info'
+      const displayName = tableName !== 'Untitled' ? tableName : 'Character Info'
+      // Skip "Characters Involved" tables that are empty
+      const isCharactersInvolved = tableName.toLowerCase() === 'characters involved'
+      paragraphs.push(...createTable(table.tableData || [], displayName, isCharactersInvolved))
+    }
   }
 
   return paragraphs
@@ -401,48 +449,59 @@ function formatEvent(event: EventWithContent, level: HeadingLevelType): Paragrap
   const sub = event.subCanvasContent
   const hasRealSummary = !isEmptyOrTemplate(summary)
 
-  const hasRealSubEvents = sub.events.some(e => !isEmptyOrTemplate(e.node.summary))
+  const hasRealSubEvents = sub.events.length > 0
   const hasRealTextNotes = sub.textNotes.some(n => !isEmptyOrTemplate(getNodeContent(n)))
   const hasRealTables = sub.tables.length > 0
+  const hasAnyContent = hasRealSummary || hasRealSubEvents || hasRealTextNotes || hasRealTables
 
-  if (!hasRealSummary && !hasRealSubEvents && !hasRealTextNotes && !hasRealTables) {
-    return paragraphs
-  }
-
+  // Always show the event heading
   paragraphs.push(createHeading(name, level))
 
   if (event.node.durationText && event.node.durationText !== 'N/A') {
     paragraphs.push(createLabeledField('Duration', event.node.durationText))
   }
 
-  if (hasRealSummary) {
-    paragraphs.push(createBodyText(summary!))
-  }
+  if (!hasAnyContent) {
+    // No content - show placeholder
+    paragraphs.push(createNotEditedText())
+  } else {
+    if (hasRealSummary) {
+      paragraphs.push(createBodyText(summary!))
+    }
 
-  // Sub-events
-  const sortedSubs = sortEventsByAge(sub.events)
-  const nextLevel = level === HeadingLevel.HEADING_2 ? HeadingLevel.HEADING_3 :
-                    level === HeadingLevel.HEADING_3 ? HeadingLevel.HEADING_4 :
-                    HeadingLevel.HEADING_5
-  for (const subEvent of sortedSubs) {
-    paragraphs.push(...formatEvent(subEvent, nextLevel))
-  }
+    // Sub-events
+    const sortedSubs = sortEventsByAge(sub.events)
+    const nextLevel = getNextHeadingLevel(level)
+    for (const subEvent of sortedSubs) {
+      paragraphs.push(...formatEvent(subEvent, nextLevel))
+    }
 
-  // Text notes
-  for (const note of sub.textNotes) {
-    const fieldName = getNodeName(note)
-    const fieldContent = getNodeContent(note)
-    if (fieldName && !isEmptyOrTemplate(fieldContent)) {
-      paragraphs.push(createLabeledField(fieldName, fieldContent!))
+    // Text notes
+    for (const note of sub.textNotes) {
+      const fieldName = getNodeName(note)
+      const fieldContent = getNodeContent(note)
+      if (fieldName && !isEmptyOrTemplate(fieldContent)) {
+        paragraphs.push(createLabeledField(fieldName, fieldContent!))
+      }
+    }
+
+    // Tables - skip empty "Characters Involved" tables
+    for (const table of sub.tables) {
+      const tableName = getNodeName(table)
+      const isCharactersInvolved = tableName.toLowerCase() === 'characters involved'
+      paragraphs.push(...createTable(table.tableData || [], tableName, isCharactersInvolved))
     }
   }
 
-  // Tables
-  for (const table of sub.tables) {
-    paragraphs.push(...createTable(table.tableData || [], getNodeName(table)))
-  }
-
   return paragraphs
+}
+
+function getNextHeadingLevel(level: HeadingLevelType): HeadingLevelType {
+  if (level === HeadingLevel.HEADING_2) return HeadingLevel.HEADING_3
+  if (level === HeadingLevel.HEADING_3) return HeadingLevel.HEADING_4
+  if (level === HeadingLevel.HEADING_4) return HeadingLevel.HEADING_5
+  if (level === HeadingLevel.HEADING_5) return HeadingLevel.HEADING_6
+  return HeadingLevel.HEADING_6 // Cap at H6
 }
 
 function formatLocation(loc: LocationWithContent, level: HeadingLevelType): Paragraph[] {
@@ -450,37 +509,50 @@ function formatLocation(loc: LocationWithContent, level: HeadingLevelType): Para
   const name = getNodeName(loc.node)
   if (!name) return paragraphs
 
+  const content = getNodeContent(loc.node)
+  const sub = loc.subCanvasContent
+  const hasContent = !isEmptyOrTemplate(content)
+  const hasTextNotes = sub.textNotes.some(n => !isEmptyOrTemplate(getNodeContent(n)))
+  const hasTables = sub.tables.length > 0
+  const hasSubLocations = sub.locations.length > 0
+  const hasFolders = sub.folders.length > 0
+  const hasAnyContent = hasContent || hasTextNotes || hasTables || hasSubLocations || hasFolders
+
+  // Always show the location heading
   paragraphs.push(createHeading(name, level))
 
-  const content = getNodeContent(loc.node)
-  if (!isEmptyOrTemplate(content)) {
-    paragraphs.push(createBodyText(content!))
-  }
-
-  const sub = loc.subCanvasContent
-
-  for (const note of sub.textNotes) {
-    const fieldName = getNodeName(note)
-    const fieldContent = getNodeContent(note)
-    if (fieldName && !isEmptyOrTemplate(fieldContent)) {
-      paragraphs.push(createLabeledField(fieldName, fieldContent!))
+  if (!hasAnyContent) {
+    // No content - show placeholder
+    paragraphs.push(createNotEditedText())
+  } else {
+    if (hasContent) {
+      paragraphs.push(createBodyText(content!))
     }
-  }
 
-  for (const table of sub.tables) {
-    paragraphs.push(...createTable(table.tableData || [], getNodeName(table)))
-  }
+    for (const note of sub.textNotes) {
+      const fieldName = getNodeName(note)
+      const fieldContent = getNodeContent(note)
+      if (fieldName && !isEmptyOrTemplate(fieldContent)) {
+        paragraphs.push(createLabeledField(fieldName, fieldContent!))
+      }
+    }
 
-  const nextLevel = level === HeadingLevel.HEADING_2 ? HeadingLevel.HEADING_3 :
-                    level === HeadingLevel.HEADING_3 ? HeadingLevel.HEADING_4 :
-                    HeadingLevel.HEADING_5
+    // Tables - skip empty "Characters Involved" tables
+    for (const table of sub.tables) {
+      const tableName = getNodeName(table)
+      const isCharactersInvolved = tableName.toLowerCase() === 'characters involved'
+      paragraphs.push(...createTable(table.tableData || [], tableName, isCharactersInvolved))
+    }
 
-  for (const subLoc of sub.locations) {
-    paragraphs.push(...formatLocation(subLoc, nextLevel))
-  }
+    const nextLevel = getNextHeadingLevel(level)
 
-  for (const folder of sub.folders) {
-    paragraphs.push(...formatFolder(folder, nextLevel))
+    for (const subLoc of sub.locations) {
+      paragraphs.push(...formatLocation(subLoc, nextLevel))
+    }
+
+    for (const folder of sub.folders) {
+      paragraphs.push(...formatFolder(folder, nextLevel))
+    }
   }
 
   return paragraphs
@@ -491,10 +563,16 @@ function formatTextNote(node: ExportNode, level: HeadingLevelType): Paragraph[] 
   const title = getNodeName(node)
   const content = getNodeContent(node)
 
-  if (!title || isEmptyOrTemplate(content)) return paragraphs
+  if (!title) return paragraphs
 
+  // Always show text note heading
   paragraphs.push(createHeading(title, level))
-  paragraphs.push(createBodyText(content!))
+
+  if (isEmptyOrTemplate(content)) {
+    paragraphs.push(createNotEditedText())
+  } else {
+    paragraphs.push(createBodyText(content!))
+  }
 
   return paragraphs
 }
@@ -502,13 +580,24 @@ function formatTextNote(node: ExportNode, level: HeadingLevelType): Paragraph[] 
 function formatRelationship(node: ExportNode, level: HeadingLevelType): Paragraph[] {
   const paragraphs: Paragraph[] = []
   const relData = node.relationshipData
-  if (!relData) return paragraphs
+
+  const nodeName = getNodeName(node) || 'Relationships'
+
+  // Always show the relationship heading
+  paragraphs.push(createHeading(nodeName, level))
+
+  if (!relData) {
+    paragraphs.push(createNotEditedText())
+    return paragraphs
+  }
 
   const characters = relData.selectedCharacters || []
   const relationships = relData.relationships || []
-  if (relationships.length === 0) return paragraphs
 
-  paragraphs.push(createHeading(getNodeName(node) || 'Relationships', level))
+  if (relationships.length === 0 && characters.length === 0) {
+    paragraphs.push(createNotEditedText())
+    return paragraphs
+  }
 
   if (characters.length > 0) {
     paragraphs.push(new Paragraph({
@@ -553,30 +642,30 @@ function formatFolder(folder: FolderWithContent, level: HeadingLevelType): Parag
   const title = getNodeName(folder.node)
   if (!title) return paragraphs
 
-  const childParagraphs = formatContent(folder.children, level === HeadingLevel.HEADING_2 ? HeadingLevel.HEADING_3 : HeadingLevel.HEADING_4)
+  const nextLevel = getNextHeadingLevel(level)
+  const childParagraphs = formatContent(folder.children, nextLevel)
   const nodeContent = folder.node.content
+  const hasContent = !isEmptyOrTemplate(nodeContent)
+  const hasChildren = childParagraphs.length > 0
 
-  if (childParagraphs.length === 0 && isEmptyOrTemplate(nodeContent)) {
-    return paragraphs
-  }
-
+  // Always show folder heading
   paragraphs.push(createHeading(title, level))
 
-  if (!isEmptyOrTemplate(nodeContent)) {
-    paragraphs.push(createBodyText(nodeContent!))
+  if (!hasContent && !hasChildren) {
+    // No content - show placeholder
+    paragraphs.push(createNotEditedText())
+  } else {
+    if (hasContent) {
+      paragraphs.push(createBodyText(nodeContent!))
+    }
+    paragraphs.push(...childParagraphs)
   }
-
-  paragraphs.push(...childParagraphs)
 
   return paragraphs
 }
 
 function formatContent(content: CollectedContent, level: HeadingLevelType): Paragraph[] {
   const paragraphs: Paragraph[] = []
-
-  const nextLevel = level === HeadingLevel.HEADING_2 ? HeadingLevel.HEADING_3 :
-                    level === HeadingLevel.HEADING_3 ? HeadingLevel.HEADING_4 :
-                    HeadingLevel.HEADING_5
 
   for (const char of content.characters) {
     paragraphs.push(...formatCharacter(char, level))
@@ -599,8 +688,11 @@ function formatContent(content: CollectedContent, level: HeadingLevelType): Para
     paragraphs.push(...formatTextNote(note, level))
   }
 
+  // Tables - skip empty "Characters Involved" tables
   for (const table of content.tables) {
-    paragraphs.push(...createTable(table.tableData || [], getNodeName(table)))
+    const tableName = getNodeName(table)
+    const isCharactersInvolved = tableName.toLowerCase() === 'characters involved'
+    paragraphs.push(...createTable(table.tableData || [], tableName, isCharactersInvolved))
   }
 
   for (const folder of content.folders) {
