@@ -371,14 +371,19 @@ function formatCharacter(
   // Skip characters with no name
   if (!name) return ''
 
-  let output = makeHeading(name, level)
-
   const indent = level >= 3 ? '    ' : ''
 
+  // Build content first to check if character has anything
+  let contentParts: string[] = []
+
   // Only show fields that have real content
-  output += formatField('Role', node.role, indent)
-  output += formatField('Description', node.description, indent)
-  output += formatField('Backstory', node.backstory, indent)
+  const roleField = formatField('Role', node.role, indent)
+  const descField = formatField('Description', node.description, indent)
+  const backstoryField = formatField('Backstory', node.backstory, indent)
+
+  if (roleField) contentParts.push(roleField)
+  if (descField) contentParts.push(descField)
+  if (backstoryField) contentParts.push(backstoryField)
 
   // Include text notes from character's sub-canvas as fields
   const subContent = charWithContent.subCanvasContent
@@ -390,24 +395,36 @@ function formatCharacter(
     // Skip if no name or template content
     if (!fieldName || isEmptyOrTemplate(fieldContent)) continue
 
-    output += formatField(fieldName, fieldContent, indent)
+    const field = formatField(fieldName, fieldContent, indent)
+    if (field) contentParts.push(field)
   }
 
-  // Include tables from character's sub-canvas (skip untitled ones)
+  // Include tables from character's sub-canvas
+  let tableContent = ''
   for (const table of subContent.tables) {
     const tableName = getNodeName(table)
     if (tableName && tableName !== 'Untitled') {
-      output += formatTable(table, level + 1)
+      tableContent += formatTable(table, level + 1)
     } else {
-      // For untitled tables, show as "Character Info" if it has data
-      output += formatTable({ ...table, text: 'Character Info' } as ExportNode, level + 1)
+      tableContent += formatTable({ ...table, text: 'Character Info' } as ExportNode, level + 1)
     }
   }
 
   // Include nested folders from character's sub-canvas
+  let folderContent = ''
   for (const folder of subContent.folders) {
-    output += formatFolder(folder, level + 1)
+    folderContent += formatFolder(folder, level + 1)
   }
+
+  // Skip character entirely if no content at all
+  if (contentParts.length === 0 && !tableContent.trim() && !folderContent.trim()) {
+    return ''
+  }
+
+  let output = makeHeading(name, level)
+  output += contentParts.join('')
+  output += tableContent
+  output += folderContent
 
   return output
 }
@@ -423,17 +440,35 @@ function formatEvent(
   // Skip events with no name
   if (!name) return ''
 
-  // Skip if the event only has template content
+  // Check what real content exists
   const summary = node.summary
   const subContent = eventWithContent.subCanvasContent
   const hasRealSummary = !isEmptyOrTemplate(summary)
-  const hasSubContent = subContent.events.length > 0 ||
-                        subContent.textNotes.some(n => !isEmptyOrTemplate(getNodeContent(n))) ||
-                        subContent.tables.length > 0 ||
-                        subContent.folders.length > 0
 
-  // If no real content at all, skip this event
-  if (!hasRealSummary && !hasSubContent && !node.durationText) {
+  // Check for real sub-content (recursively check if sub-events have content)
+  const hasRealSubEvents = subContent.events.some(e => {
+    const subSummary = e.node.summary
+    return !isEmptyOrTemplate(subSummary)
+  })
+  const hasRealTextNotes = subContent.textNotes.some(n => !isEmptyOrTemplate(getNodeContent(n)))
+  const hasRealTables = subContent.tables.some(t => {
+    const tableData = t.tableData
+    if (!tableData || tableData.length === 0) return false
+    const columns = Object.keys(tableData[0]).filter(k => k !== 'id' && !k.startsWith('_'))
+    return tableData.some(row => columns.some(col => {
+      const val = row[col]
+      return val && val.trim() && val !== '☐' && val !== '☑' && !isEmptyOrTemplate(val)
+    }))
+  })
+  const hasRealFolders = subContent.folders.some(f => {
+    const folderContent = formatContent(f.children, level + 2)
+    return folderContent.trim().length > 0
+  })
+
+  const hasSubContent = hasRealSubEvents || hasRealTextNotes || hasRealTables || hasRealFolders
+
+  // If no real content at all (just duration), skip this event
+  if (!hasRealSummary && !hasSubContent) {
     return ''
   }
 
@@ -441,7 +476,7 @@ function formatEvent(
 
   const indent = level >= 3 ? '    ' : ''
 
-  // Duration
+  // Duration - only show if there's also real content
   if (node.durationText && node.durationText !== 'N/A') {
     output += `${indent}Duration: ${node.durationText}\n`
   }
@@ -456,7 +491,7 @@ function formatEvent(
 
   output += '\n'
 
-  // Sub-events - sorted by age
+  // Sub-events - sorted by age, only those with content
   if (subContent.events.length > 0) {
     const sortedSubEvents = sortEventsByAge(subContent.events)
     for (const subEvent of sortedSubEvents) {
@@ -474,7 +509,7 @@ function formatEvent(
     output += formatField(fieldName, fieldContent, indent)
   }
 
-  // Tables inside event
+  // Tables inside event - only with real content
   for (const table of subContent.tables) {
     output += formatTable(table, level + 1)
   }
@@ -582,15 +617,28 @@ function formatTable(node: ExportNode, level: number): string {
     return ''
   }
 
-  // Check if table has any meaningful data (not just empty cells)
-  const hasData = tableData.some(row =>
-    columns.some(col => {
+  // Filter rows that have meaningful data
+  // For key-value tables (like Country Profile), check if the value column has data
+  const valueColumn = columns.length >= 2 ? columns[1] : columns[0]
+  const rowsWithData = tableData.filter(row => {
+    // Check if any column (especially value columns) has real data
+    return columns.some((col, idx) => {
       const val = row[col]
-      return val && val.trim() && val !== '☐' && val !== '☑'
+      if (!val || !val.trim()) return false
+      if (val === '☐' || val === '☑') return false
+      // For key-value tables, the first column is usually labels
+      // We care about whether the value (2nd column) has data
+      if (columns.length === 2 && idx === 0) {
+        // This is the label column - check if corresponding value exists
+        const valueVal = row[valueColumn]
+        return valueVal && valueVal.trim()
+      }
+      return true
     })
-  )
+  })
 
-  if (!hasData) {
+  // Skip if no rows have meaningful data
+  if (rowsWithData.length === 0) {
     return ''
   }
 
@@ -603,11 +651,11 @@ function formatTable(node: ExportNode, level: number): string {
 
   const indent = level >= 3 ? '    ' : ''
 
-  // Calculate column widths
+  // Calculate column widths based on rows with data
   const colWidths = columns.map(col => {
     const headerLen = col.length
     const maxDataLen = Math.max(
-      ...tableData.map(row => ((row[col] || '') as string).length),
+      ...rowsWithData.map(row => ((row[col] || '') as string).length),
       0
     )
     return Math.max(headerLen, maxDataLen, 8)
@@ -617,17 +665,11 @@ function formatTable(node: ExportNode, level: number): string {
   output += indent + columns.map((col, i) => col.padEnd(colWidths[i])).join(' | ') + '\n'
   output += indent + colWidths.map(w => '-'.repeat(w)).join('-+-') + '\n'
 
-  // Data rows - skip empty rows
-  for (const row of tableData) {
-    const hasRowData = columns.some(col => {
-      const val = row[col]
-      return val && val.trim()
-    })
-    if (hasRowData) {
-      output += indent + columns.map((col, i) =>
-        ((row[col] || '') as string).padEnd(colWidths[i])
-      ).join(' | ') + '\n'
-    }
+  // Data rows - only rows with data
+  for (const row of rowsWithData) {
+    output += indent + columns.map((col, i) =>
+      ((row[col] || '') as string).padEnd(colWidths[i])
+    ).join(' | ') + '\n'
   }
 
   output += '\n'
@@ -813,6 +855,24 @@ export function formatAsPlainText(
 
     // Apply options filter
     const filteredContent = filterContentByOptions(content, options)
+
+    // Filter out any folder that has the same name as the story (to avoid duplicate title)
+    // This happens when the main canvas has a folder named after the story
+    const storyTitleLower = story.title.toLowerCase().trim()
+    filteredContent.folders = filteredContent.folders.filter(f => {
+      const folderName = getNodeName(f.node).toLowerCase().trim()
+      return folderName !== storyTitleLower
+    })
+
+    // Also filter out text notes that just contain the story bio (already shown at top)
+    if (story.bio) {
+      const bioPart = story.bio.substring(0, 50).toLowerCase()
+      filteredContent.textNotes = filteredContent.textNotes.filter(n => {
+        const content = getNodeContent(n)
+        if (!content) return true
+        return !content.toLowerCase().includes(bioPart)
+      })
+    }
 
     // Format all content starting at level 2
     output += formatContent(filteredContent, 2)
