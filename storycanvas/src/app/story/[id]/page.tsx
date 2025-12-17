@@ -1127,8 +1127,8 @@ export default function StoryPage({ params }: PageProps) {
       {/* Header Tooltip - outside header to avoid overflow issues */}
       {headerTooltip && (
         <div
-          className="fixed px-3 py-1.5 bg-popover text-popover-foreground text-sm rounded-md shadow-lg border border-border whitespace-nowrap z-50 pointer-events-none"
-          style={{ left: headerTooltip.x, top: headerTooltip.y + 6 }}
+          className="fixed top-14 px-3 py-1.5 bg-popover text-popover-foreground text-sm rounded-md shadow-lg border border-border whitespace-nowrap z-50 pointer-events-none"
+          style={{ left: headerTooltip.x }}
         >
           {headerTooltip.text}
         </div>
