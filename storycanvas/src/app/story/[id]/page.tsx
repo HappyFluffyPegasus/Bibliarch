@@ -1100,7 +1100,10 @@ export default function StoryPage({ params }: PageProps) {
                 <Download className="w-4 h-4" />
               </Button>
             </div>
-            <ThemeToggle />
+            <ThemeToggle
+              onTooltipEnter={(text, x, y) => setHeaderTooltip({ text, x, y })}
+              onTooltipLeave={() => setHeaderTooltip(null)}
+            />
             <div
               className="relative"
               onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHeaderTooltip({ text: 'Canvas Settings', x: r.left, y: r.bottom }) }}
@@ -1114,11 +1117,17 @@ export default function StoryPage({ params }: PageProps) {
                 <Settings className="w-4 h-4" />
               </Button>
             </div>
-            <form action={signOut}>
-              <Button variant="ghost" size="sm" type="submit">
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </form>
+            <div
+              className="relative"
+              onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHeaderTooltip({ text: 'Sign Out', x: r.left, y: r.bottom }) }}
+              onMouseLeave={() => setHeaderTooltip(null)}
+            >
+              <form action={signOut}>
+                <Button variant="ghost" size="sm" type="submit">
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </form>
+            </div>
           </div>
         </div>
 
