@@ -450,18 +450,18 @@ function formatCharacter(char: CharacterWithContent, level: HeadingLevelType): P
     tableParagraphs.push(...createTable(table.tableData || [], displayName, true))
   }
 
-  // If nothing has content, skip entirely
-  if (fields.length === 0 && tableParagraphs.length === 0) {
-    return paragraphs
-  }
-
+  // Always show characters, even if empty
   paragraphs.push(createHeading(name, level))
 
-  for (const field of fields) {
-    paragraphs.push(createLabeledField(field.label, field.value))
+  if (fields.length === 0 && tableParagraphs.length === 0) {
+    // No content - show placeholder
+    paragraphs.push(createNotEditedText())
+  } else {
+    for (const field of fields) {
+      paragraphs.push(createLabeledField(field.label, field.value))
+    }
+    paragraphs.push(...tableParagraphs)
   }
-
-  paragraphs.push(...tableParagraphs)
 
   return paragraphs
 }
