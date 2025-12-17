@@ -281,8 +281,7 @@ function createSectionHeading(text: string, level: HeadingLevelType): Paragraph 
       new TextRun({
         text,
         bold: true,
-        size,
-        color: '1a1a1a'  // Dark color
+        size
       })
     ],
     spacing: { before: 300, after: 150 }
@@ -298,7 +297,7 @@ const TEXT_HEADING_SIZES: Record<string, number> = {
   [HeadingLevel.HEADING_6]: 22,  // 11pt
 }
 
-// Regular heading for text notes (smaller, less prominent, but still colored)
+// Regular heading for text notes (smaller, less prominent)
 function createHeading(text: string, level: HeadingLevelType): Paragraph {
   const size = TEXT_HEADING_SIZES[level] || 22
   return new Paragraph({
@@ -306,8 +305,7 @@ function createHeading(text: string, level: HeadingLevelType): Paragraph {
       new TextRun({
         text,
         bold: true,
-        size,
-        color: '333333'  // Slightly lighter than section headings
+        size
       })
     ],
     spacing: { before: 240, after: 120 }
@@ -855,8 +853,7 @@ export function formatAsDocx(
       new TextRun({
         text: story.title,
         bold: true,
-        size: 56,  // 28pt - large title
-        color: '000000'
+        size: 56  // 28pt - large title
       })
     ],
     spacing: { after: 200 }
