@@ -1106,7 +1106,7 @@ export default function StoryPage({ params }: PageProps) {
             />
             <div
               className="relative"
-              onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHeaderTooltip({ text: 'Canvas Settings', x: r.right - 110, y: r.bottom }) }}
+              onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHeaderTooltip({ text: 'Canvas Settings', x: r.left - 80, y: r.bottom }) }}
               onMouseLeave={() => setHeaderTooltip(null)}
             >
               <Button
@@ -1119,7 +1119,7 @@ export default function StoryPage({ params }: PageProps) {
             </div>
             <div
               className="relative"
-              onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHeaderTooltip({ text: 'Sign Out', x: r.right - 70, y: r.bottom }) }}
+              onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHeaderTooltip({ text: 'Sign Out', x: r.left - 40, y: r.bottom }) }}
               onMouseLeave={() => setHeaderTooltip(null)}
             >
               <form action={signOut}>
