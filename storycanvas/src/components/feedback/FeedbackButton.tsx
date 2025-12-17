@@ -5,7 +5,7 @@ import { MessageSquare } from 'lucide-react'
 import FeedbackModal from './FeedbackModal'
 
 interface FeedbackButtonProps {
-  onTooltipEnter?: (text: string, x: number) => void
+  onTooltipEnter?: (text: string, x: number, y: number) => void
   onTooltipLeave?: () => void
 }
 
@@ -16,7 +16,7 @@ export default function FeedbackButton({ onTooltipEnter, onTooltipLeave }: Feedb
     <>
       <div
         className="relative"
-        onMouseEnter={(e) => onTooltipEnter?.('Send Feedback', e.currentTarget.getBoundingClientRect().left)}
+        onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); onTooltipEnter?.('Send Feedback', r.left, r.bottom) }}
         onMouseLeave={() => onTooltipLeave?.()}
       >
         <button

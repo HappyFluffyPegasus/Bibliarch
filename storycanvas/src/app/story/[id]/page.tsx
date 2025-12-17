@@ -54,7 +54,7 @@ export default function StoryPage({ params }: PageProps) {
   const [editedTitle, setEditedTitle] = useState('')
   const [editedBio, setEditedBio] = useState('')
   const [zoom, setZoom] = useState(1)
-  const [headerTooltip, setHeaderTooltip] = useState<{ text: string; x: number } | null>(null)
+  const [headerTooltip, setHeaderTooltip] = useState<{ text: string; x: number; y: number } | null>(null)
 
   // Use cached queries - all called unconditionally
   const { data: user, isLoading: isUserLoading } = useUser()
@@ -909,7 +909,7 @@ export default function StoryPage({ params }: PageProps) {
               <div className="flex items-center gap-0.5 ml-1">
                 <div
                   className="relative"
-                  onMouseEnter={(e) => setHeaderTooltip({ text: 'Zoom out', x: e.currentTarget.getBoundingClientRect().left })}
+                  onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHeaderTooltip({ text: 'Zoom out', x: r.left, y: r.bottom }) }}
                   onMouseLeave={() => setHeaderTooltip(null)}
                 >
                   <Button
@@ -923,7 +923,7 @@ export default function StoryPage({ params }: PageProps) {
                 </div>
                 <div
                   className="relative"
-                  onMouseEnter={(e) => setHeaderTooltip({ text: 'Reset zoom', x: e.currentTarget.getBoundingClientRect().left })}
+                  onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHeaderTooltip({ text: 'Reset zoom', x: r.left, y: r.bottom }) }}
                   onMouseLeave={() => setHeaderTooltip(null)}
                 >
                   <Button
@@ -937,7 +937,7 @@ export default function StoryPage({ params }: PageProps) {
                 </div>
                 <div
                   className="relative"
-                  onMouseEnter={(e) => setHeaderTooltip({ text: 'Zoom in', x: e.currentTarget.getBoundingClientRect().left })}
+                  onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHeaderTooltip({ text: 'Zoom in', x: r.left, y: r.bottom }) }}
                   onMouseLeave={() => setHeaderTooltip(null)}
                 >
                   <Button
@@ -1045,7 +1045,7 @@ export default function StoryPage({ params }: PageProps) {
               ) : (
                 <div
                   className="relative"
-                  onMouseEnter={(e) => setHeaderTooltip({ text: 'Save now', x: e.currentTarget.getBoundingClientRect().left })}
+                  onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHeaderTooltip({ text: 'Save now', x: r.left, y: r.bottom }) }}
                   onMouseLeave={() => setHeaderTooltip(null)}
                 >
                 <Button
@@ -1066,7 +1066,7 @@ export default function StoryPage({ params }: PageProps) {
             </div>
             <div
               className="relative"
-              onMouseEnter={(e) => setHeaderTooltip({ text: 'Support Bibliarch', x: e.currentTarget.getBoundingClientRect().left })}
+              onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHeaderTooltip({ text: 'Support Bibliarch', x: r.left, y: r.bottom }) }}
               onMouseLeave={() => setHeaderTooltip(null)}
             >
               <Button
@@ -1084,12 +1084,12 @@ export default function StoryPage({ params }: PageProps) {
               </Button>
             </div>
             <FeedbackButton
-              onTooltipEnter={(text, x) => setHeaderTooltip({ text, x })}
+              onTooltipEnter={(text, x, y) => setHeaderTooltip({ text, x, y })}
               onTooltipLeave={() => setHeaderTooltip(null)}
             />
             <div
               className="relative"
-              onMouseEnter={(e) => setHeaderTooltip({ text: 'Export Project', x: e.currentTarget.getBoundingClientRect().left })}
+              onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHeaderTooltip({ text: 'Export Project', x: r.left, y: r.bottom }) }}
               onMouseLeave={() => setHeaderTooltip(null)}
             >
               <Button
@@ -1103,7 +1103,7 @@ export default function StoryPage({ params }: PageProps) {
             <ThemeToggle />
             <div
               className="relative"
-              onMouseEnter={(e) => setHeaderTooltip({ text: 'Canvas Settings', x: e.currentTarget.getBoundingClientRect().left })}
+              onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHeaderTooltip({ text: 'Canvas Settings', x: r.left, y: r.bottom }) }}
               onMouseLeave={() => setHeaderTooltip(null)}
             >
               <Button
@@ -1127,8 +1127,8 @@ export default function StoryPage({ params }: PageProps) {
       {/* Header Tooltip - outside header to avoid overflow issues */}
       {headerTooltip && (
         <div
-          className="fixed top-14 px-3 py-1.5 bg-popover text-popover-foreground text-sm rounded-md shadow-lg border border-border whitespace-nowrap z-50 pointer-events-none"
-          style={{ left: headerTooltip.x }}
+          className="fixed px-3 py-1.5 bg-popover text-popover-foreground text-sm rounded-md shadow-lg border border-border whitespace-nowrap z-50 pointer-events-none"
+          style={{ left: headerTooltip.x, top: headerTooltip.y + 6 }}
         >
           {headerTooltip.text}
         </div>
