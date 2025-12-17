@@ -275,15 +275,9 @@ const SECTION_HEADING_SIZES: Record<string, number> = {
 // Section heading for folder-type nodes (folders, characters, events, locations)
 // These are larger and darker (like headers)
 function createSectionHeading(text: string, level: HeadingLevelType): Paragraph {
-  const size = SECTION_HEADING_SIZES[level] || 24
   return new Paragraph({
-    children: [
-      new TextRun({
-        text,
-        bold: true,
-        size
-      })
-    ],
+    text,
+    heading: level,
     spacing: { before: 300, after: 150 }
   })
 }
@@ -297,17 +291,11 @@ const TEXT_HEADING_SIZES: Record<string, number> = {
   [HeadingLevel.HEADING_6]: 22,  // 11pt
 }
 
-// Regular heading for text notes (smaller, less prominent)
+// Regular heading for text notes
 function createHeading(text: string, level: HeadingLevelType): Paragraph {
-  const size = TEXT_HEADING_SIZES[level] || 22
   return new Paragraph({
-    children: [
-      new TextRun({
-        text,
-        bold: true,
-        size
-      })
-    ],
+    text,
+    heading: level,
     spacing: { before: 240, after: 120 }
   })
 }
@@ -849,13 +837,8 @@ export function formatAsDocx(
 
   // Title - Large and prominent
   sections.push(new Paragraph({
-    children: [
-      new TextRun({
-        text: story.title,
-        bold: true,
-        size: 56  // 28pt - large title
-      })
-    ],
+    text: story.title,
+    heading: HeadingLevel.TITLE,
     spacing: { after: 200 }
   }))
 
