@@ -1,9 +1,10 @@
 // Master doc export orchestration
 
+import { Packer } from 'docx'
 import { createClient } from '@/lib/supabase/client'
-import type { ExportOptions, ExportResult, StoryMetadata } from './types'
+import type { ExportOptions, StoryMetadata } from './types'
 import { fetchAllCanvasData } from './canvasTraversal'
-import { formatAsPlainText } from './formatters/plainTextFormatter'
+import { formatAsDocx } from './formatters/docxFormatter'
 
 /**
  * Fetch story metadata
@@ -29,8 +30,8 @@ async function fetchStoryMetadata(storyId: string, userId: string): Promise<Stor
 /**
  * Download a file to the user's computer
  */
-export function downloadFile(content: string, filename: string, mimeType: string) {
-  const blob = new Blob([content], { type: mimeType })
+export function downloadFile(content: Blob | string, filename: string, mimeType: string) {
+  const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType })
   const url = URL.createObjectURL(blob)
 
   const a = document.createElement('a')
@@ -54,7 +55,7 @@ function generateFilename(storyTitle: string): string {
 
   const date = new Date().toISOString().split('T')[0]
 
-  return `${sanitizedTitle}_export_${date}.txt`
+  return `${sanitizedTitle}_export_${date}.docx`
 }
 
 /**
@@ -81,7 +82,7 @@ export async function exportProject(
   userId: string,
   options: ExportOptions = defaultExportOptions,
   onProgress?: (progress: { stage: string; percent: number }) => void
-): Promise<ExportResult | null> {
+): Promise<{ blob: Blob; filename: string } | null> {
   try {
     // Stage 1: Fetch story metadata
     onProgress?.({ stage: 'Fetching story info...', percent: 10 })
@@ -97,20 +98,19 @@ export async function exportProject(
     // Stage 3: Generate document
     onProgress?.({ stage: 'Generating document...', percent: 60 })
 
-    const content = formatAsPlainText(story, allCanvases, options)
-    const mimeType = 'text/plain'
+    const doc = formatAsDocx(story, allCanvases, options)
 
-    // Stage 4: Prepare result
-    onProgress?.({ stage: 'Preparing download...', percent: 90 })
+    // Stage 4: Convert to blob
+    onProgress?.({ stage: 'Creating file...', percent: 80 })
+    const blob = await Packer.toBlob(doc)
 
     const filename = generateFilename(story.title)
 
     onProgress?.({ stage: 'Complete!', percent: 100 })
 
     return {
-      content,
-      filename,
-      mimeType
+      blob,
+      filename
     }
   } catch (error) {
     console.error('Export failed:', error)
@@ -131,7 +131,7 @@ export async function exportAndDownload(
     const result = await exportProject(storyId, userId, options, onProgress)
 
     if (result) {
-      downloadFile(result.content, result.filename, result.mimeType)
+      downloadFile(result.blob, result.filename, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
       return true
     }
 
