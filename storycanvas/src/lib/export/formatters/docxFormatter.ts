@@ -874,6 +874,9 @@ export function formatAsDocx(
     sections.push(...formatContent(filteredContent, HeadingLevel.HEADING_2))
   }
 
+  // Bibliarch blue: #3b82f6
+  const bibliarchBlue = '3b82f6'
+
   return new Document({
     styles: {
       default: {
@@ -881,42 +884,42 @@ export function formatAsDocx(
           run: {
             size: 56,
             bold: true,
-            color: '000000'
+            color: bibliarchBlue
           }
         },
         heading2: {
           run: {
             size: 36,
             bold: true,
-            color: '000000'
+            color: bibliarchBlue
           }
         },
         heading3: {
           run: {
             size: 32,
             bold: true,
-            color: '000000'
+            color: bibliarchBlue
           }
         },
         heading4: {
           run: {
             size: 28,
             bold: true,
-            color: '000000'
+            color: bibliarchBlue
           }
         },
         heading5: {
           run: {
             size: 26,
             bold: true,
-            color: '000000'
+            color: bibliarchBlue
           }
         },
         heading6: {
           run: {
             size: 24,
             bold: true,
-            color: '000000'
+            color: bibliarchBlue
           }
         }
       }
