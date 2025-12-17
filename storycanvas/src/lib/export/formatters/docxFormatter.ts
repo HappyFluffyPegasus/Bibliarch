@@ -875,6 +875,52 @@ export function formatAsDocx(
   }
 
   return new Document({
+    styles: {
+      default: {
+        heading1: {
+          run: {
+            size: 56,
+            bold: true,
+            color: '000000'
+          }
+        },
+        heading2: {
+          run: {
+            size: 36,
+            bold: true,
+            color: '000000'
+          }
+        },
+        heading3: {
+          run: {
+            size: 32,
+            bold: true,
+            color: '000000'
+          }
+        },
+        heading4: {
+          run: {
+            size: 28,
+            bold: true,
+            color: '000000'
+          }
+        },
+        heading5: {
+          run: {
+            size: 26,
+            bold: true,
+            color: '000000'
+          }
+        },
+        heading6: {
+          run: {
+            size: 24,
+            bold: true,
+            color: '000000'
+          }
+        }
+      }
+    },
     sections: [{
       children: sections
     }]
