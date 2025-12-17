@@ -572,18 +572,18 @@ function formatLocation(loc: LocationWithContent, level: HeadingLevelType): Para
     childParagraphs.push(...formatFolder(folder, nextLevel))
   }
 
-  // If no content anywhere, skip entirely
-  if (!hasContent && childParagraphs.length === 0) {
-    return paragraphs
-  }
-
+  // Always show locations, even if empty
   paragraphs.push(createHeading(name, level))
 
-  if (hasContent) {
-    paragraphs.push(createBodyText(content!))
+  if (!hasContent && childParagraphs.length === 0) {
+    // No content - show placeholder
+    paragraphs.push(createNotEditedText())
+  } else {
+    if (hasContent) {
+      paragraphs.push(createBodyText(content!))
+    }
+    paragraphs.push(...childParagraphs)
   }
-
-  paragraphs.push(...childParagraphs)
 
   return paragraphs
 }
