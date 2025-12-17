@@ -1083,7 +1083,10 @@ export default function StoryPage({ params }: PageProps) {
                 </a>
               </Button>
             </div>
-            <FeedbackButton />
+            <FeedbackButton
+              onTooltipEnter={(text, x) => setHeaderTooltip({ text, x })}
+              onTooltipLeave={() => setHeaderTooltip(null)}
+            />
             <div
               className="relative"
               onMouseEnter={(e) => setHeaderTooltip({ text: 'Export Project', x: e.currentTarget.getBoundingClientRect().left })}
@@ -1119,16 +1122,17 @@ export default function StoryPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Header Tooltip */}
-        {headerTooltip && (
-          <div
-            className="fixed top-14 px-3 py-1.5 bg-popover text-popover-foreground text-sm rounded-md shadow-lg border border-border whitespace-nowrap z-50 pointer-events-none"
-            style={{ left: headerTooltip.x }}
-          >
-            {headerTooltip.text}
-          </div>
-        )}
       </header>
+
+      {/* Header Tooltip - outside header to avoid overflow issues */}
+      {headerTooltip && (
+        <div
+          className="fixed top-14 px-3 py-1.5 bg-popover text-popover-foreground text-sm rounded-md shadow-lg border border-border whitespace-nowrap z-50 pointer-events-none"
+          style={{ left: headerTooltip.x }}
+        >
+          {headerTooltip.text}
+        </div>
+      )}
 
       {/* Canvas */}
       <div className="flex-1 relative overflow-hidden min-h-0">

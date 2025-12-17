@@ -36,7 +36,9 @@
       "Bash(git log:*)",
       "Bash(git remote set-url:*)",
       "Bash(npm run build:check)",
-      "Bash(git revert:*)"
+      "Bash(git revert:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": []
