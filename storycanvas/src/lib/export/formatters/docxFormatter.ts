@@ -289,6 +289,27 @@ function isGenericColumnName(name: string): boolean {
   return /^col\d+$/i.test(name.trim())
 }
 
+// Template table row values that should be filtered out
+const TABLE_TEMPLATE_VALUES = new Set([
+  'character name',
+  'role in event',
+  'name',
+  'role',
+  'description',
+  'notes',
+  'details',
+  'value',
+  'item',
+  'entry',
+])
+
+// Check if a row is a template row (all values are template placeholders)
+function isTemplateTableRow(row: Record<string, string>, columns: string[]): boolean {
+  const values = columns.map(col => (row[col] || '').trim().toLowerCase())
+  // If ALL values are either empty or template values, it's a template row
+  return values.every(val => !val || TABLE_TEMPLATE_VALUES.has(val))
+}
+
 function createLabeledField(label: string, value: string): Paragraph {
   return new Paragraph({
     children: [
@@ -321,9 +342,12 @@ function createTable(tableData: Record<string, string>[], title?: string, skipIf
   // Check if all columns are generic (col1, col2, etc.) - don't show header row
   const allGenericColumns = columns.every(isGenericColumnName)
 
-  // Filter rows with data
+  // Filter rows with data (excluding template rows)
   const valueColumn = columns.length >= 2 ? columns[1] : columns[0]
   const rowsWithData = tableData.filter(row => {
+    // Skip template rows like "Character Name | Role in Event"
+    if (isTemplateTableRow(row, columns)) return false
+
     return columns.some((col, idx) => {
       const val = row[col]
       if (!val || !val.trim() || val === '☐' || val === '☑') return false
