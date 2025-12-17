@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Sparkles, ChevronRight, Settings, LogOut, Home as HomeIcon, ChevronLeft, Plus, Minus, RotateCcw, Bitcoin, Save, Cloud, CloudOff, Loader2 } from 'lucide-react'
+import { Sparkles, ChevronRight, Settings, LogOut, Home as HomeIcon, ChevronLeft, Plus, Minus, RotateCcw, Bitcoin, Save, Cloud, CloudOff, Loader2, Download } from 'lucide-react'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { useColorContext } from '@/components/providers/color-provider'
@@ -16,6 +16,7 @@ import { subCanvasTemplates } from '@/lib/templates'
 import FeedbackButton from '@/components/feedback/FeedbackButton'
 import { signOut } from '@/lib/auth/actions'
 import { useUser, useProfile, useStory, useCanvas, useUpdateStory, useSaveCanvas } from '@/lib/hooks/useSupabaseQuery'
+import { ExportDialog } from '@/components/export/ExportDialog'
 
 // Use the HTML canvas instead to avoid Jest worker issues completely
 const Bibliarch = dynamic(
@@ -49,9 +50,11 @@ export default function StoryPage({ params }: PageProps) {
   const [isLoadingCanvas, setIsLoadingCanvas] = useState(false)
   const [canvasPath, setCanvasPath] = useState<{id: string, title: string}[]>([])
   const [showCanvasSettings, setShowCanvasSettings] = useState(false)
+  const [showExportDialog, setShowExportDialog] = useState(false)
   const [editedTitle, setEditedTitle] = useState('')
   const [editedBio, setEditedBio] = useState('')
   const [zoom, setZoom] = useState(1)
+  const [headerTooltip, setHeaderTooltip] = useState<{ text: string; x: number } | null>(null)
 
   // Use cached queries - all called unconditionally
   const { data: user, isLoading: isUserLoading } = useUser()
@@ -904,33 +907,48 @@ export default function StoryPage({ params }: PageProps) {
 
               {/* Zoom controls - Mobile only */}
               <div className="flex items-center gap-0.5 ml-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}
-                  title="Zoom out"
+                <div
+                  className="relative"
+                  onMouseEnter={(e) => setHeaderTooltip({ text: 'Zoom out', x: e.currentTarget.getBoundingClientRect().left })}
+                  onMouseLeave={() => setHeaderTooltip(null)}
                 >
-                  <Minus className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setZoom(1)}
-                  title="Reset zoom"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}
+                  >
+                    <Minus className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div
+                  className="relative"
+                  onMouseEnter={(e) => setHeaderTooltip({ text: 'Reset zoom', x: e.currentTarget.getBoundingClientRect().left })}
+                  onMouseLeave={() => setHeaderTooltip(null)}
                 >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setZoom(Math.min(3, zoom + 0.1))}
-                  title="Zoom in"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setZoom(1)}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+                <div
+                  className="relative"
+                  onMouseEnter={(e) => setHeaderTooltip({ text: 'Zoom in', x: e.currentTarget.getBoundingClientRect().left })}
+                  onMouseLeave={() => setHeaderTooltip(null)}
                 >
-                  <Plus className="w-4 h-4" />
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setZoom(Math.min(3, zoom + 0.1))}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -1025,6 +1043,11 @@ export default function StoryPage({ params }: PageProps) {
                   <span className="hidden sm:inline">Saving...</span>
                 </div>
               ) : (
+                <div
+                  className="relative"
+                  onMouseEnter={(e) => setHeaderTooltip({ text: 'Save now', x: e.currentTarget.getBoundingClientRect().left })}
+                  onMouseLeave={() => setHeaderTooltip(null)}
+                >
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1033,38 +1056,61 @@ export default function StoryPage({ params }: PageProps) {
                       handleSaveCanvas(latestCanvasData.current.nodes, latestCanvasData.current.connections)
                     }
                   }}
-                  title="Save now"
                   className="h-8 px-2 gap-1.5"
                 >
                   <Cloud className="w-4 h-4" />
                   <span className="hidden sm:inline text-xs">Save</span>
                 </Button>
+              </div>
               )}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              title="Support Bibliarch"
+            <div
+              className="relative"
+              onMouseEnter={(e) => setHeaderTooltip({ text: 'Support Bibliarch', x: e.currentTarget.getBoundingClientRect().left })}
+              onMouseLeave={() => setHeaderTooltip(null)}
             >
-              <a
-                href="https://pay.zaprite.com/pl_mTYYPoOo2S"
-                target="_blank"
-                rel="noreferrer noopener"
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
               >
-                <Bitcoin className="w-5 h-5" style={{ transform: 'rotate(0deg)' }} />
-              </a>
-            </Button>
+                <a
+                  href="https://pay.zaprite.com/pl_mTYYPoOo2S"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  <Bitcoin className="w-5 h-5" style={{ transform: 'rotate(0deg)' }} />
+                </a>
+              </Button>
+            </div>
             <FeedbackButton />
-            <ThemeToggle />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowCanvasSettings(true)}
-              title="Canvas Settings"
+            <div
+              className="relative"
+              onMouseEnter={(e) => setHeaderTooltip({ text: 'Export Project', x: e.currentTarget.getBoundingClientRect().left })}
+              onMouseLeave={() => setHeaderTooltip(null)}
             >
-              <Settings className="w-4 h-4" />
-            </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowExportDialog(true)}
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+            </div>
+            <ThemeToggle />
+            <div
+              className="relative"
+              onMouseEnter={(e) => setHeaderTooltip({ text: 'Canvas Settings', x: e.currentTarget.getBoundingClientRect().left })}
+              onMouseLeave={() => setHeaderTooltip(null)}
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCanvasSettings(true)}
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+            </div>
             <form action={signOut}>
               <Button variant="ghost" size="sm" type="submit">
                 <LogOut className="w-4 h-4" />
@@ -1072,6 +1118,16 @@ export default function StoryPage({ params }: PageProps) {
             </form>
           </div>
         </div>
+
+        {/* Header Tooltip */}
+        {headerTooltip && (
+          <div
+            className="fixed top-14 px-3 py-1.5 bg-popover text-popover-foreground text-sm rounded-md shadow-lg border border-border whitespace-nowrap z-50 pointer-events-none"
+            style={{ left: headerTooltip.x }}
+          >
+            {headerTooltip.text}
+          </div>
+        )}
       </header>
 
       {/* Canvas */}
@@ -1182,6 +1238,17 @@ export default function StoryPage({ params }: PageProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Export Dialog */}
+      {user && story && (
+        <ExportDialog
+          open={showExportDialog}
+          onOpenChange={setShowExportDialog}
+          storyId={resolvedParams.id}
+          userId={user.id}
+          storyTitle={story.title}
+        />
+      )}
 
     </div>
   )
