@@ -289,11 +289,27 @@ function createSectionHeading(text: string, level: HeadingLevelType): Paragraph 
   })
 }
 
-// Regular heading for text notes (smaller, less prominent)
+// Font sizes for text note headings (smaller than section headings)
+const TEXT_HEADING_SIZES: Record<string, number> = {
+  [HeadingLevel.HEADING_2]: 28,  // 14pt
+  [HeadingLevel.HEADING_3]: 26,  // 13pt
+  [HeadingLevel.HEADING_4]: 24,  // 12pt
+  [HeadingLevel.HEADING_5]: 22,  // 11pt
+  [HeadingLevel.HEADING_6]: 22,  // 11pt
+}
+
+// Regular heading for text notes (smaller, less prominent, but still colored)
 function createHeading(text: string, level: HeadingLevelType): Paragraph {
+  const size = TEXT_HEADING_SIZES[level] || 22
   return new Paragraph({
-    text,
-    heading: level,
+    children: [
+      new TextRun({
+        text,
+        bold: true,
+        size,
+        color: '333333'  // Slightly lighter than section headings
+      })
+    ],
     spacing: { before: 240, after: 120 }
   })
 }
