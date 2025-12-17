@@ -262,6 +262,34 @@ function collectCanvasContent(
 }
 
 // Document building helpers
+
+// Font sizes for different heading levels (in half-points, so 28 = 14pt)
+const SECTION_HEADING_SIZES: Record<string, number> = {
+  [HeadingLevel.HEADING_2]: 36,  // 18pt
+  [HeadingLevel.HEADING_3]: 32,  // 16pt
+  [HeadingLevel.HEADING_4]: 28,  // 14pt
+  [HeadingLevel.HEADING_5]: 26,  // 13pt
+  [HeadingLevel.HEADING_6]: 24,  // 12pt
+}
+
+// Section heading for folder-type nodes (folders, characters, events, locations)
+// These are larger and darker (like headers)
+function createSectionHeading(text: string, level: HeadingLevelType): Paragraph {
+  const size = SECTION_HEADING_SIZES[level] || 24
+  return new Paragraph({
+    children: [
+      new TextRun({
+        text,
+        bold: true,
+        size,
+        color: '1a1a1a'  // Dark color
+      })
+    ],
+    spacing: { before: 300, after: 150 }
+  })
+}
+
+// Regular heading for text notes (smaller, less prominent)
 function createHeading(text: string, level: HeadingLevelType): Paragraph {
   return new Paragraph({
     text,
@@ -450,8 +478,8 @@ function formatCharacter(char: CharacterWithContent, level: HeadingLevelType): P
     tableParagraphs.push(...createTable(table.tableData || [], displayName, true))
   }
 
-  // Always show characters, even if empty
-  paragraphs.push(createHeading(name, level))
+  // Always show characters, even if empty (use section heading - folder-type)
+  paragraphs.push(createSectionHeading(name, level))
 
   if (fields.length === 0 && tableParagraphs.length === 0) {
     // No content - show placeholder
@@ -510,7 +538,8 @@ function formatEvent(event: EventWithContent, level: HeadingLevelType): Paragrap
     return paragraphs
   }
 
-  paragraphs.push(createHeading(name, level))
+  // Use section heading - folder-type node
+  paragraphs.push(createSectionHeading(name, level))
 
   if (hasDuration) {
     paragraphs.push(createLabeledField('Duration', event.node.durationText!))
@@ -576,8 +605,8 @@ function formatLocation(loc: LocationWithContent, level: HeadingLevelType): Para
 
   const hasChildren = nonFolderParagraphs.length > 0 || folderParagraphs.length > 0
 
-  // Always show locations, even if empty
-  paragraphs.push(createHeading(name, level))
+  // Always show locations, even if empty (use section heading - folder-type)
+  paragraphs.push(createSectionHeading(name, level))
 
   if (!hasContent && !hasChildren) {
     // No content - show placeholder
@@ -633,7 +662,8 @@ function formatRelationship(node: ExportNode, level: HeadingLevelType): Paragrap
   }
 
   const nodeName = getNodeName(node) || 'Relationships'
-  paragraphs.push(createHeading(nodeName, level))
+  // Use section heading - folder-type node
+  paragraphs.push(createSectionHeading(nodeName, level))
 
   if (characters.length > 0) {
     paragraphs.push(new Paragraph({
@@ -722,8 +752,8 @@ function formatFolder(folder: FolderWithContent, level: HeadingLevelType): Parag
   const hasContent = !isEmptyOrTemplate(nodeContent)
   const hasChildren = nonFolderParagraphs.length > 0 || folderParagraphs.length > 0
 
-  // Always show folders
-  paragraphs.push(createHeading(title, level))
+  // Always show folders (use section heading - folder-type)
+  paragraphs.push(createSectionHeading(title, level))
 
   if (!hasContent && !hasChildren) {
     paragraphs.push(createNotEditedText())
@@ -803,10 +833,16 @@ export function formatAsDocx(
 ): Document {
   const sections: Paragraph[] = []
 
-  // Title - Heading 1
+  // Title - Large and prominent
   sections.push(new Paragraph({
-    text: story.title,
-    heading: HeadingLevel.TITLE,
+    children: [
+      new TextRun({
+        text: story.title,
+        bold: true,
+        size: 56,  // 28pt - large title
+        color: '000000'
+      })
+    ],
     spacing: { after: 200 }
   }))
 
