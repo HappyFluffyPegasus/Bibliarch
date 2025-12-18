@@ -148,6 +148,7 @@ interface HTMLCanvasProps {
   zoom?: number
   onZoomChange?: (zoom: number) => void
   eventDepth?: number  // Tracks event-to-event navigation depth (ignores folders/characters/locations)
+  realtimeSave?: boolean  // If true, saves on every change (for multi-user). If false, only saves on navigation/manual (default)
 }
 
 // Updated with smaller sidebar and trackpad support
@@ -180,7 +181,8 @@ export default function HTMLCanvas({
   initialShowHelp = false,
   zoom: controlledZoom,
   onZoomChange,
-  eventDepth = 0
+  eventDepth = 0,
+  realtimeSave = false
 }: HTMLCanvasProps) {
   const colorContext = useColorContext()
   const [nodes, setNodes] = useState<Node[]>(initialNodes)
@@ -276,17 +278,21 @@ export default function HTMLCanvas({
     originalConnections: Connection[]
   } | null>(null)
 
-  // Wrapper for onSave that skips saving when in template editor mode
-  // This prevents template edits from being saved to the actual canvas
+  // Wrapper for onSave that skips saving when in template editor mode or when realtimeSave is disabled
+  // When realtimeSave is false, saves only happen on navigation/manual button (parent handles via onStateChange)
   const handleSave = useCallback((nodesToSave: Node[], connectionsToSave: Connection[]) => {
     if (templateEditorMode) {
       // Don't save to parent when editing a template
       return
     }
+    if (!realtimeSave) {
+      // Don't auto-save on every change - parent will save on navigation/manual
+      return
+    }
     if (onSave) {
       onSave(nodesToSave, connectionsToSave)
     }
-  }, [templateEditorMode, onSave])
+  }, [templateEditorMode, realtimeSave, onSave])
 
   // Use controlled zoom if provided, otherwise use internal state
   const [internalZoom, setInternalZoom] = useState(1)
