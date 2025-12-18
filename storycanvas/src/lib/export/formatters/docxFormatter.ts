@@ -874,8 +874,16 @@ export function formatAsDocx(
     sections.push(...formatContent(filteredContent, HeadingLevel.HEADING_2))
   }
 
-  // Bibliarch blue: #3b82f6
-  const bibliarchBlue = '3b82f6'
+  // Bibliarch blue shades - progressively darker with depth
+  // Base: #3b82f6, getting slightly more black each level
+  const blueShades = {
+    h1: '3b82f6', // Brightest - title
+    h2: '3577e0', // Slightly darker
+    h3: '2f6cca', // Darker
+    h4: '2961b4', // Even darker
+    h5: '23569e', // Darker still
+    h6: '1d4b88', // Darkest
+  }
 
   return new Document({
     styles: {
@@ -884,42 +892,42 @@ export function formatAsDocx(
           run: {
             size: 56,
             bold: true,
-            color: bibliarchBlue
+            color: blueShades.h1
           }
         },
         heading2: {
           run: {
             size: 36,
             bold: true,
-            color: bibliarchBlue
+            color: blueShades.h2
           }
         },
         heading3: {
           run: {
             size: 32,
             bold: true,
-            color: bibliarchBlue
+            color: blueShades.h3
           }
         },
         heading4: {
           run: {
             size: 28,
             bold: true,
-            color: bibliarchBlue
+            color: blueShades.h4
           }
         },
         heading5: {
           run: {
             size: 26,
             bold: true,
-            color: bibliarchBlue
+            color: blueShades.h5
           }
         },
         heading6: {
           run: {
             size: 24,
             bold: true,
-            color: bibliarchBlue
+            color: blueShades.h6
           }
         }
       }
