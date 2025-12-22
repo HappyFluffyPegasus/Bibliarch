@@ -3,17 +3,16 @@
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import {
-  Clock,
   Plus,
   Trash2,
   ChevronRight,
+  ChevronDown,
   FileText,
   Users,
   MapPin,
   Sparkles,
   GripVertical,
   Copy,
-  MoreHorizontal,
   BookOpen,
   MessageSquare,
   Target,
@@ -49,6 +48,16 @@ interface EventCharacter {
   goal: string
 }
 
+// Section collapse state
+interface SectionState {
+  summary: boolean
+  script: boolean
+  relevance: boolean
+  characters: boolean
+  notes: boolean
+  scene: boolean
+}
+
 const EVENT_COLORS = [
   { name: "Blue", value: "#3B82F6", bg: "bg-blue-500/10", border: "border-blue-500/30", text: "text-blue-500" },
   { name: "Green", value: "#10B981", bg: "bg-emerald-500/10", border: "border-emerald-500/30", text: "text-emerald-500" },
@@ -64,6 +73,46 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
 
+// Collapsible Section Component
+function CollapsibleSection({
+  title,
+  icon: Icon,
+  iconColor,
+  isOpen,
+  onToggle,
+  description,
+  children
+}: {
+  title: string
+  icon: React.ElementType
+  iconColor: string
+  isOpen: boolean
+  onToggle: () => void
+  description: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="border border-border rounded-lg overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between p-3 bg-muted/30 hover:bg-muted/50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Icon className={`w-4 h-4 ${iconColor}`} />
+          <h2 className="font-semibold text-foreground text-sm">{title}</h2>
+          <span className="text-xs text-muted-foreground hidden sm:inline">— {description}</span>
+        </div>
+        {isOpen ? (
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+        )}
+      </button>
+      {isOpen && <div className="p-3 border-t border-border">{children}</div>}
+    </section>
+  )
+}
+
 export default function TimelinePage() {
   const params = useParams()
   const storyId = params.id as string
@@ -72,8 +121,17 @@ export default function TimelinePage() {
 
   const [events, setEvents] = useState<StoryEvent[]>([])
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
-  const [draggedEventId, setDraggedEventId] = useState<string | null>(null)
   const [showTagPicker, setShowTagPicker] = useState(false)
+
+  // Section collapse states
+  const [sections, setSections] = useState<SectionState>({
+    summary: true,
+    script: true,
+    relevance: false,
+    characters: false,
+    notes: false,
+    scene: false
+  })
 
   // Load from localStorage
   useEffect(() => {
@@ -94,6 +152,11 @@ export default function TimelinePage() {
 
   const selectedEvent = events.find((e) => e.id === selectedEventId)
   const selectedColor = EVENT_COLORS.find((c) => c.value === selectedEvent?.color) || EVENT_COLORS[0]
+
+  // Toggle section
+  const toggleSection = (section: keyof SectionState) => {
+    setSections((prev) => ({ ...prev, [section]: !prev[section] }))
+  }
 
   const handleCreateEvent = () => {
     const newEvent: StoryEvent = {
@@ -132,7 +195,8 @@ export default function TimelinePage() {
       ...event,
       id: generateId(),
       order: events.length,
-      title: `${event.title} (Copy)`
+      title: `${event.title} (Copy)`,
+      characters: event.characters.map((c) => ({ ...c, id: generateId() }))
     }
     setEvents([...events, newEvent])
     setSelectedEventId(newEvent.id)
@@ -186,34 +250,6 @@ export default function TimelinePage() {
     handleUpdateEvent(selectedEventId, { tags: newTags })
   }
 
-  const handleDragStart = (e: React.DragEvent, eventId: string) => {
-    setDraggedEventId(eventId)
-    e.dataTransfer.effectAllowed = "move"
-  }
-
-  const handleDragOver = (e: React.DragEvent, targetIndex: number) => {
-    e.preventDefault()
-    if (!draggedEventId) return
-
-    const draggedIndex = events.findIndex((ev) => ev.id === draggedEventId)
-    if (draggedIndex === targetIndex) return
-
-    const newEvents = [...events]
-    const [removed] = newEvents.splice(draggedIndex, 1)
-    newEvents.splice(targetIndex, 0, removed)
-
-    // Update order values
-    newEvents.forEach((ev, i) => {
-      ev.order = i
-    })
-
-    setEvents(newEvents)
-  }
-
-  const handleDragEnd = () => {
-    setDraggedEventId(null)
-  }
-
   return (
     <div className="h-screen flex bg-background">
       {/* Left Sidebar - Event List */}
@@ -254,16 +290,12 @@ export default function TimelinePage() {
                   return (
                     <div
                       key={event.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, event.id)}
-                      onDragOver={(e) => handleDragOver(e, index)}
-                      onDragEnd={handleDragEnd}
                       onClick={() => setSelectedEventId(event.id)}
                       className={`group relative rounded-lg border transition-all cursor-pointer ${
                         selectedEventId === event.id
                           ? `${color.bg} ${color.border} border-2`
                           : "border-transparent hover:bg-muted/50"
-                      } ${draggedEventId === event.id ? "opacity-50" : ""}`}
+                      }`}
                     >
                       <div className="flex items-start gap-2 p-3">
                         <div className="flex items-center gap-2 flex-shrink-0">
@@ -441,177 +473,165 @@ export default function TimelinePage() {
               </div>
             </header>
 
-            {/* Event Content */}
+            {/* Event Content - Collapsible Sections */}
             <div className="flex-1 overflow-y-auto">
-              <div className="max-w-4xl mx-auto p-6 space-y-6">
+              <div className="max-w-4xl mx-auto p-6 space-y-4">
                 {/* Summary */}
-                <section>
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-4 h-4 text-sky-500" />
-                    <h2 className="font-semibold text-foreground">Summary</h2>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    A brief overview of what happens in this event
-                  </p>
+                <CollapsibleSection
+                  title="Summary"
+                  icon={FileText}
+                  iconColor="text-sky-500"
+                  isOpen={sections.summary}
+                  onToggle={() => toggleSection("summary")}
+                  description="Brief overview of what happens"
+                >
                   <textarea
                     value={selectedEvent.summary}
                     onChange={(e) => handleUpdateEvent(selectedEvent.id, { summary: e.target.value })}
                     placeholder="Describe what happens in this event..."
                     className="w-full h-24 p-3 rounded-lg border border-border bg-background text-foreground text-sm resize-none focus:ring-2 focus:ring-sky-500/50 focus:border-sky-500 outline-none"
                   />
-                </section>
+                </CollapsibleSection>
 
                 {/* Script / Dialogue */}
-                <section>
-                  <div className="flex items-center gap-2 mb-2">
-                    <MessageSquare className="w-4 h-4 text-emerald-500" />
-                    <h2 className="font-semibold text-foreground">Script & Dialogue</h2>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Write the dialogue and actions for this scene
-                  </p>
+                <CollapsibleSection
+                  title="Script & Dialogue"
+                  icon={MessageSquare}
+                  iconColor="text-emerald-500"
+                  isOpen={sections.script}
+                  onToggle={() => toggleSection("script")}
+                  description="Dialogue and actions for the scene"
+                >
                   <textarea
                     value={selectedEvent.script}
                     onChange={(e) => handleUpdateEvent(selectedEvent.id, { script: e.target.value })}
                     placeholder="ALICE: (entering the room) Hey, what's going on here?&#10;&#10;BOB: (nervously) Nothing! Just... working on something.&#10;&#10;[Alice notices the broken vase on the floor]&#10;&#10;ALICE: Is that my grandmother's vase?"
                     className="w-full h-48 p-3 rounded-lg border border-border bg-background text-foreground text-sm resize-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none font-mono"
                   />
-                </section>
+                </CollapsibleSection>
 
                 {/* Story Relevance */}
-                <section>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Target className="w-4 h-4 text-amber-500" />
-                    <h2 className="font-semibold text-foreground">Story Relevance</h2>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Why does this event matter? How does it advance the plot?
-                  </p>
+                <CollapsibleSection
+                  title="Story Relevance"
+                  icon={Target}
+                  iconColor="text-amber-500"
+                  isOpen={sections.relevance}
+                  onToggle={() => toggleSection("relevance")}
+                  description="Why this matters to the plot"
+                >
                   <textarea
                     value={selectedEvent.relevance}
                     onChange={(e) => handleUpdateEvent(selectedEvent.id, { relevance: e.target.value })}
                     placeholder="This event is important because...&#10;&#10;• It establishes the conflict between...&#10;• It reveals that the character...&#10;• It sets up the next event where..."
                     className="w-full h-32 p-3 rounded-lg border border-border bg-background text-foreground text-sm resize-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 outline-none"
                   />
-                </section>
+                </CollapsibleSection>
 
                 {/* Characters in Scene */}
-                <section>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-violet-500" />
-                      <h2 className="font-semibold text-foreground">Characters in Scene</h2>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={handleAddCharacter}>
-                      <Plus className="w-3 h-3 mr-1" />
-                      Add Character
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Who appears in this event and what are they doing?
-                  </p>
-
-                  {selectedEvent.characters.length === 0 ? (
-                    <div className="text-center py-8 border border-dashed border-border rounded-lg">
-                      <Users className="w-8 h-8 mx-auto mb-2 text-muted-foreground/30" />
-                      <p className="text-sm text-muted-foreground">No characters added</p>
-                      <p className="text-xs text-muted-foreground/70">
-                        Add characters to track their involvement
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {selectedEvent.characters.map((char, index) => (
+                <CollapsibleSection
+                  title="Characters"
+                  icon={Users}
+                  iconColor="text-violet-500"
+                  isOpen={sections.characters}
+                  onToggle={() => toggleSection("characters")}
+                  description="Who appears and their states"
+                >
+                  <div className="space-y-3">
+                    {selectedEvent.characters.length === 0 ? (
+                      <div className="text-center py-6 border border-dashed border-border rounded-lg">
+                        <Users className="w-6 h-6 mx-auto mb-2 text-muted-foreground/30" />
+                        <p className="text-xs text-muted-foreground">No characters added</p>
+                      </div>
+                    ) : (
+                      selectedEvent.characters.map((char, index) => (
                         <div
                           key={char.id}
-                          className="p-4 rounded-lg border border-border bg-muted/30"
+                          className="p-3 rounded-lg border border-border bg-muted/30"
                         >
-                          <div className="flex items-start justify-between gap-4 mb-3">
+                          <div className="flex items-start justify-between gap-4 mb-2">
                             <input
                               type="text"
                               value={char.name}
                               onChange={(e) => handleUpdateCharacter(index, { name: e.target.value })}
                               placeholder="Character Name"
-                              className="font-medium bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/50"
+                              className="font-medium bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground/50 text-sm"
                             />
                             <button
                               onClick={() => handleRemoveCharacter(index)}
                               className="text-muted-foreground hover:text-destructive"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                          <div className="grid grid-cols-3 gap-3">
-                            <div>
-                              <label className="text-xs text-muted-foreground mb-1 block">Role in Scene</label>
-                              <input
-                                type="text"
-                                value={char.role}
-                                onChange={(e) => handleUpdateCharacter(index, { role: e.target.value })}
-                                placeholder="e.g., Protagonist, Antagonist"
-                                className="w-full px-2 py-1.5 text-sm rounded border border-border bg-background"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-muted-foreground mb-1 block">Emotional State</label>
-                              <input
-                                type="text"
-                                value={char.emotion}
-                                onChange={(e) => handleUpdateCharacter(index, { emotion: e.target.value })}
-                                placeholder="e.g., Anxious, Excited"
-                                className="w-full px-2 py-1.5 text-sm rounded border border-border bg-background"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs text-muted-foreground mb-1 block">Goal/Motivation</label>
-                              <input
-                                type="text"
-                                value={char.goal}
-                                onChange={(e) => handleUpdateCharacter(index, { goal: e.target.value })}
-                                placeholder="e.g., Find the truth"
-                                className="w-full px-2 py-1.5 text-sm rounded border border-border bg-background"
-                              />
-                            </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <input
+                              type="text"
+                              value={char.role}
+                              onChange={(e) => handleUpdateCharacter(index, { role: e.target.value })}
+                              placeholder="Role"
+                              className="text-xs px-2 py-1.5 rounded border border-border bg-background"
+                            />
+                            <input
+                              type="text"
+                              value={char.emotion}
+                              onChange={(e) => handleUpdateCharacter(index, { emotion: e.target.value })}
+                              placeholder="Emotion"
+                              className="text-xs px-2 py-1.5 rounded border border-border bg-background"
+                            />
+                            <input
+                              type="text"
+                              value={char.goal}
+                              onChange={(e) => handleUpdateCharacter(index, { goal: e.target.value })}
+                              placeholder="Goal"
+                              className="text-xs px-2 py-1.5 rounded border border-border bg-background"
+                            />
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
+                      ))
+                    )}
+                    <Button variant="outline" size="sm" onClick={handleAddCharacter} className="w-full">
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add Character
+                    </Button>
+                  </div>
+                </CollapsibleSection>
 
                 {/* Notes */}
-                <section>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Lightbulb className="w-4 h-4 text-pink-500" />
-                    <h2 className="font-semibold text-foreground">Notes & Ideas</h2>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Additional thoughts, reminders, or ideas for this event
-                  </p>
+                <CollapsibleSection
+                  title="Notes & Ideas"
+                  icon={Lightbulb}
+                  iconColor="text-pink-500"
+                  isOpen={sections.notes}
+                  onToggle={() => toggleSection("notes")}
+                  description="Additional thoughts and reminders"
+                >
                   <textarea
                     value={selectedEvent.notes}
                     onChange={(e) => handleUpdateEvent(selectedEvent.id, { notes: e.target.value })}
                     placeholder="Any additional notes, ideas, or reminders..."
                     className="w-full h-24 p-3 rounded-lg border border-border bg-background text-foreground text-sm resize-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500 outline-none"
                   />
-                </section>
+                </CollapsibleSection>
 
-                {/* Scene Link */}
-                <section className="pb-8">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Link2 className="w-4 h-4 text-cyan-500" />
-                    <h2 className="font-semibold text-foreground">3D Scene</h2>
-                  </div>
+                {/* 3D Scene Link */}
+                <CollapsibleSection
+                  title="3D Scene"
+                  icon={Link2}
+                  iconColor="text-cyan-500"
+                  isOpen={sections.scene}
+                  onToggle={() => toggleSection("scene")}
+                  description="Link to visualize this event"
+                >
                   <div className="p-4 rounded-lg border border-dashed border-border bg-muted/30 text-center">
-                    <Sparkles className="w-8 h-8 mx-auto mb-2 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground mb-2">
+                    <Sparkles className="w-6 h-6 mx-auto mb-2 text-muted-foreground/30" />
+                    <p className="text-xs text-muted-foreground mb-2">
                       Link a 3D scene to visualize this event
                     </p>
                     <Button variant="outline" size="sm" disabled>
                       Create Scene (Coming Soon)
                     </Button>
                   </div>
-                </section>
+                </CollapsibleSection>
               </div>
             </div>
           </>
