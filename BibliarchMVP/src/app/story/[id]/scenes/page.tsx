@@ -543,7 +543,7 @@ export default function ScenesPage() {
                   type="text"
                   value={currentScene.title}
                   onChange={(e) => updateSceneTitle(currentScene.id, e.target.value)}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800"
+                  className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
 
@@ -557,7 +557,7 @@ export default function ScenesPage() {
                   max={300}
                   value={currentScene.duration}
                   onChange={(e) => updateSceneDuration(currentScene.id, parseInt(e.target.value) || 10)}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800"
+                  className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
 
@@ -762,7 +762,7 @@ export default function ScenesPage() {
               <select
                 value={newDialogueCharacterId}
                 onChange={(e) => setNewDialogueCharacterId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               >
                 <option value="">Select character...</option>
                 {currentScene?.characters.map((char) => (
@@ -779,7 +779,7 @@ export default function ScenesPage() {
                 onChange={(e) => setNewDialogueText(e.target.value)}
                 placeholder="What does the character say?"
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               />
             </div>
             <div>
@@ -792,7 +792,7 @@ export default function ScenesPage() {
                 max={30}
                 value={newDialogueDuration}
                 onChange={(e) => setNewDialogueDuration(parseInt(e.target.value) || 3)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               />
             </div>
           </div>

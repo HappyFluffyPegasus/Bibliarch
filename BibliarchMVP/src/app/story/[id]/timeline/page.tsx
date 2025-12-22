@@ -394,7 +394,7 @@ export default function TimelinePage() {
                         value={selectedEvent.location}
                         onChange={(e) => handleUpdateEvent(selectedEvent.id, { location: e.target.value })}
                         placeholder="Location"
-                        className="bg-transparent border-none outline-none w-32 placeholder:text-muted-foreground/50"
+                        className="bg-transparent border-none outline-none w-32 text-foreground placeholder:text-muted-foreground/50"
                       />
                     </div>
                     <div className="h-4 w-px bg-border" />
@@ -406,7 +406,7 @@ export default function TimelinePage() {
                         value={selectedEvent.timeframe}
                         onChange={(e) => handleUpdateEvent(selectedEvent.id, { timeframe: e.target.value })}
                         placeholder="When"
-                        className="bg-transparent border-none outline-none w-32 placeholder:text-muted-foreground/50"
+                        className="bg-transparent border-none outline-none w-32 text-foreground placeholder:text-muted-foreground/50"
                       />
                     </div>
                   </div>
@@ -569,21 +569,21 @@ export default function TimelinePage() {
                               value={char.role}
                               onChange={(e) => handleUpdateCharacter(index, { role: e.target.value })}
                               placeholder="Role"
-                              className="text-xs px-2 py-1.5 rounded border border-border bg-background"
+                              className="text-xs px-2 py-1.5 rounded border border-border bg-background text-foreground"
                             />
                             <input
                               type="text"
                               value={char.emotion}
                               onChange={(e) => handleUpdateCharacter(index, { emotion: e.target.value })}
                               placeholder="Emotion"
-                              className="text-xs px-2 py-1.5 rounded border border-border bg-background"
+                              className="text-xs px-2 py-1.5 rounded border border-border bg-background text-foreground"
                             />
                             <input
                               type="text"
                               value={char.goal}
                               onChange={(e) => handleUpdateCharacter(index, { goal: e.target.value })}
                               placeholder="Goal"
-                              className="text-xs px-2 py-1.5 rounded border border-border bg-background"
+                              className="text-xs px-2 py-1.5 rounded border border-border bg-background text-foreground"
                             />
                           </div>
                         </div>
