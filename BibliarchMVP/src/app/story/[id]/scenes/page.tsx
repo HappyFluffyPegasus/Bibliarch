@@ -722,7 +722,7 @@ export default function ScenesPage() {
                     key={char.id}
                     onClick={() => addCharacterToScene(char.id)}
                     disabled={alreadyInScene}
-                    className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                    className={`w-full text-left px-3 py-2 rounded-lg border transition-colors text-gray-900 dark:text-white ${
                       alreadyInScene
                         ? "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 opacity-50 cursor-not-allowed"
                         : "border-gray-200 dark:border-gray-700 hover:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-900/20"

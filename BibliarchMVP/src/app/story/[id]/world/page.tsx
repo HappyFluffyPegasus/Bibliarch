@@ -284,7 +284,7 @@ export default function WorldPage() {
                       setBuildingType(type)
                       setTool("place-building")
                     }}
-                    className={`px-2 py-3 text-xs text-center border rounded-lg transition-all ${
+                    className={`px-2 py-3 text-xs text-center border rounded-lg transition-all text-gray-900 dark:text-white ${
                       buildingType === type && tool === "place-building"
                         ? "border-sky-500 bg-sky-50 dark:bg-sky-900/30 ring-1 ring-sky-500"
                         : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -316,7 +316,7 @@ export default function WorldPage() {
                       setDecoType(type)
                       setTool("place-decoration")
                     }}
-                    className={`px-2 py-3 text-xs text-center border rounded-lg transition-all ${
+                    className={`px-2 py-3 text-xs text-center border rounded-lg transition-all text-gray-900 dark:text-white ${
                       decoType === type && tool === "place-decoration"
                         ? "border-sky-500 bg-sky-50 dark:bg-sky-900/30 ring-1 ring-sky-500"
                         : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -346,7 +346,7 @@ export default function WorldPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setTool("terrain-raise")}
-                  className={`flex-1 py-2 text-xs rounded-lg border transition-all ${
+                  className={`flex-1 py-2 text-xs rounded-lg border transition-all text-gray-900 dark:text-white ${
                     tool === "terrain-raise"
                       ? "border-sky-500 bg-sky-50 dark:bg-sky-900/30"
                       : "border-gray-200 dark:border-gray-700"
@@ -357,7 +357,7 @@ export default function WorldPage() {
                 </button>
                 <button
                   onClick={() => setTool("terrain-lower")}
-                  className={`flex-1 py-2 text-xs rounded-lg border transition-all ${
+                  className={`flex-1 py-2 text-xs rounded-lg border transition-all text-gray-900 dark:text-white ${
                     tool === "terrain-lower"
                       ? "border-sky-500 bg-sky-50 dark:bg-sky-900/30"
                       : "border-gray-200 dark:border-gray-700"
