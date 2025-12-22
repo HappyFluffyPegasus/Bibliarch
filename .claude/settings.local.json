@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(move \"bibliarch-mvp\" \"Bibliarch MVP\")",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(dir /b \"C:\\\\Users\\\\stell\\\\src\\\\stella\\\\BibliarchMVP\")",
+      "Bash(findstr:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(tree:*)",
+      "Bash(copy \"C:\\\\Users\\\\stell\\\\src\\\\stella\\\\CharacterCreator\\\\character-creator\\\\public\\\\models\\\\Neighbor Base V16.glb\" \"C:\\\\Users\\\\stell\\\\src\\\\stella\\\\BibliarchMVP\\\\public\\\\models\"\")"
+    ]
+  }
+}

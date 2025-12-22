@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tailwindcss init -p)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout 3:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)",
+      "Bash(git tag:*)",
+      "Bash(node parse-model.js:*)",
+      "Bash(node list-all-meshes.js:*)",
+      "Bash(node list-all-nodes.js:*)",
+      "Bash(node -e:*)",
+      "Bash(node list-materials.js:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -419,7 +419,7 @@ export default function ScenesPage() {
                       <ChevronRight className={`w-3 h-3 flex-shrink-0 ${
                         selectedSceneId === scene.id ? "text-sky-500" : "text-gray-400"
                       }`} />
-                      <span className="truncate">{scene.title}</span>
+                      <span className="truncate text-gray-900 dark:text-white">{scene.title}</span>
                     </div>
                     <button
                       onClick={(e) => {
@@ -596,7 +596,7 @@ export default function ScenesPage() {
                             className="w-3 h-3 rounded-full"
                             style={{ backgroundColor: char.color }}
                           />
-                          <span>{char.name}</span>
+                          <span className="text-gray-900 dark:text-white">{char.name}</span>
                         </div>
                         <button
                           onClick={(e) => {
@@ -728,7 +728,7 @@ export default function ScenesPage() {
                         : "border-gray-200 dark:border-gray-700 hover:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-900/20"
                     }`}
                   >
-                    <span className="font-medium">{char.name}</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{char.name}</span>
                     {alreadyInScene && (
                       <span className="text-xs text-gray-400 ml-2">(already in scene)</span>
                     )}

@@ -435,11 +435,12 @@ export default function StoryPage({ params }: PageProps) {
         if (currentCanvasId.includes('character-') && subCanvasTemplates.character) {
           console.log('Applying character sub-canvas template')
           const timestamp = Date.now()
+          const randomSuffix = Math.random().toString(36).substring(2, 9)
 
-          // Create ID mapping for updating references
+          // Create ID mapping for updating references (with random suffix to prevent duplicates)
           const idMap: Record<string, string> = {}
           subCanvasTemplates.character.nodes.forEach(node => {
-            idMap[node.id] = `${node.id}-${timestamp}`
+            idMap[node.id] = `${node.id}-${timestamp}-${randomSuffix}`
           })
 
           templateData = {
@@ -451,33 +452,45 @@ export default function StoryPage({ params }: PageProps) {
             })),
             connections: subCanvasTemplates.character.connections.map(conn => ({
               ...conn,
-              id: `${conn.id}-${timestamp}`,
+              id: `${conn.id}-${timestamp}-${randomSuffix}`,
               from: idMap[conn.from] || conn.from,
               to: idMap[conn.to] || conn.to
             }))
           }
         } else if (currentCanvasId.includes('location-') && subCanvasTemplates.location) {
           console.log('Applying location sub-canvas template')
+          const timestamp = Date.now()
+          const randomSuffix = Math.random().toString(36).substring(2, 9)
+
+          // Create ID mapping for updating references (with random suffix to prevent duplicates)
+          const idMap: Record<string, string> = {}
+          subCanvasTemplates.location.nodes.forEach(node => {
+            idMap[node.id] = `${node.id}-${timestamp}-${randomSuffix}`
+          })
+
           templateData = {
             nodes: subCanvasTemplates.location.nodes.map(node => ({
               ...node,
-              id: `${node.id}-${Date.now()}`
+              id: idMap[node.id],
+              ...(node.childIds ? { childIds: node.childIds.map(childId => idMap[childId]) } : {}),
+              ...(node.parentId ? { parentId: idMap[node.parentId] } : {})
             })),
             connections: subCanvasTemplates.location.connections.map(conn => ({
               ...conn,
-              id: `${conn.id}-${Date.now()}`,
-              from: `${conn.from}-${Date.now()}`,
-              to: `${conn.to}-${Date.now()}`
+              id: `${conn.id}-${timestamp}-${randomSuffix}`,
+              from: idMap[conn.from] || conn.from,
+              to: idMap[conn.to] || conn.to
             }))
           }
         } else if (currentCanvasId.includes('event-canvas-') && subCanvasTemplates.event) {
           console.log('Applying event sub-canvas template')
           const timestamp = Date.now()
+          const randomSuffix = Math.random().toString(36).substring(2, 9)
 
-          // Create ID mapping for updating references
+          // Create ID mapping for updating references (with random suffix to prevent duplicates)
           const idMap: Record<string, string> = {}
           subCanvasTemplates.event.nodes.forEach(node => {
-            idMap[node.id] = `${node.id}-${timestamp}`
+            idMap[node.id] = `${node.id}-${timestamp}-${randomSuffix}`
           })
 
           templateData = {
@@ -489,7 +502,7 @@ export default function StoryPage({ params }: PageProps) {
             })),
             connections: subCanvasTemplates.event.connections.map(conn => ({
               ...conn,
-              id: `${conn.id}-${timestamp}`,
+              id: `${conn.id}-${timestamp}-${randomSuffix}`,
               from: idMap[conn.from] || conn.from,
               to: idMap[conn.to] || conn.to
             }))

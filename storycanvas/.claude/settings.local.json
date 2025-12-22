@@ -38,7 +38,8 @@
       "Bash(npm run build:check)",
       "Bash(git revert:*)",
       "Bash(npm install:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(git diff:*)"
     ],
     "deny": [],
     "ask": []
