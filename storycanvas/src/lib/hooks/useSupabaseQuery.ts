@@ -168,7 +168,7 @@ export function useCanvas(storyId: string | null | undefined, canvasType: string
       return data || null
     },
     enabled: !!storyId,
-    staleTime: 30 * 1000, // Canvas data changes frequently, cache for 30 seconds
+    staleTime: 5 * 1000, // Canvas data changes frequently, cache for only 5 seconds to prevent stale data
   })
 }
 

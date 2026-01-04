@@ -6551,9 +6551,9 @@ export default function HTMLCanvas({
                           setNodes(updatedNodes)
                           saveToHistory(updatedNodes, connections)
 
-                          // Save in background without blocking navigation
+                          // CRITICAL FIX: Wait for save to complete before navigating
                           if (onSave) {
-                            handleSave(updatedNodes, connections)
+                            await onSave(updatedNodes, connections)
                           }
 
                           colorContext.setCurrentFolderId(node.id)
@@ -6907,9 +6907,9 @@ export default function HTMLCanvas({
                             setNodes(updatedNodes)
                             saveToHistory(updatedNodes, connections)
 
-                            // Save in background without blocking navigation
+                            // CRITICAL FIX: Wait for save to complete before navigating
                             if (onSave) {
-                              handleSave(updatedNodes, connections)
+                              await onSave(updatedNodes, connections)
                             }
 
                             onNavigateToCanvas(linkedCanvasId, node.title || 'Event')
@@ -7674,9 +7674,9 @@ export default function HTMLCanvas({
                           setNodes(updatedNodes)
                           saveToHistory(updatedNodes, connections)
 
-                          // Save in background without blocking navigation
+                          // CRITICAL FIX: Wait for save to complete before navigating
                           if (onSave) {
-                            handleSave(updatedNodes, connections)
+                            await onSave(updatedNodes, connections)
                           }
 
                           onNavigateToCanvas(linkedCanvasId, node.text)
@@ -8252,9 +8252,9 @@ export default function HTMLCanvas({
                                           setNodes(updatedNodes)
                                           saveToHistory(updatedNodes, connections)
 
-                                          // Save in background without blocking navigation
+                                          // CRITICAL FIX: Wait for save to complete before navigating
                                           if (onSave) {
-                                            handleSave(updatedNodes, connections)
+                                            await onSave(updatedNodes, connections)
                                           }
 
                                           colorContext.setCurrentFolderId(currentNode.id)
@@ -8377,9 +8377,9 @@ export default function HTMLCanvas({
                                           setNodes(updatedNodes)
                                           saveToHistory(updatedNodes, connections)
 
-                                          // Save in background without blocking navigation
+                                          // CRITICAL FIX: Wait for save to complete before navigating
                                           if (onSave) {
-                                            handleSave(updatedNodes, connections)
+                                            await onSave(updatedNodes, connections)
                                           }
 
                                           colorContext.setCurrentFolderId(currentNode.id)
@@ -8486,9 +8486,9 @@ export default function HTMLCanvas({
                                                 setNodes(updatedNodes)
                                                 saveToHistory(updatedNodes, connections)
 
-                                                // Save in background without blocking navigation
+                                                // CRITICAL FIX: Wait for save to complete before navigating
                                                 if (onSave) {
-                                                  handleSave(updatedNodes, connections)
+                                                  await onSave(updatedNodes, connections)
                                                 }
 
                                                 onNavigateToCanvas(linkedCanvasId, nodeTitle)
@@ -8686,7 +8686,7 @@ export default function HTMLCanvas({
                               <div className="absolute bottom-1 right-1 flex items-center gap-1">
                                 <div
                                   className="p-1 cursor-pointer ${!isPanning ? 'hover:bg-black/10' : ''} rounded"
-                                  onClick={(e) => {
+                                  onClick={async (e) => {
                                     e.stopPropagation()
                                     // CRITICAL: Get the most up-to-date node from the nodes array
                                     const currentNode = nodes.find(n => n.id === childNode.id)
@@ -8710,9 +8710,9 @@ export default function HTMLCanvas({
                                       setNodes(updatedNodes)
                                       saveToHistory(updatedNodes, connections)
 
-                                      // Save in background without blocking navigation
+                                      // CRITICAL FIX: Wait for save to complete before navigating
                                       if (onSave) {
-                                        handleSave(updatedNodes, connections)
+                                        await onSave(updatedNodes, connections)
                                       }
 
                                       // Switch to folder color context
@@ -8856,9 +8856,10 @@ export default function HTMLCanvas({
                         setNodes(updatedNodes)
                         saveToHistory(updatedNodes, connections)
 
-                        // Save in background without blocking navigation
+                        // CRITICAL FIX: Wait for save to complete before navigating
+                        // This ensures linkedCanvasId is saved to database
                         if (onSave) {
-                          handleSave(updatedNodes, connections)
+                          await onSave(updatedNodes, connections)
                         }
 
                         // Switch to folder color context

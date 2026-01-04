@@ -707,7 +707,12 @@ export default function StoryPage({ params }: PageProps) {
     const newPath = alreadyInPath ? canvasPath : [...canvasPath, { id: canvasId, title: nodeTitle }]
     setCanvasPath(newPath)
 
-    // Update canvas ID IMMEDIATELY (no clearing, no delays)
+    // CRITICAL FIX: Clear old canvas data BEFORE changing canvas ID
+    // This prevents showing stale data from the previous canvas
+    setCanvasData(null)
+    setIsLoadingCanvas(true)
+
+    // Now update canvas ID - the useEffect will load new data
     setCurrentCanvasId(canvasId)
   }
 
@@ -726,6 +731,11 @@ export default function StoryPage({ params }: PageProps) {
     const newPath = [...canvasPath]
     newPath.pop() // Remove current location from path
     setCanvasPath(newPath)
+
+    // CRITICAL FIX: Clear old canvas data BEFORE changing canvas ID
+    // This prevents showing stale data from the previous canvas
+    setCanvasData(null)
+    setIsLoadingCanvas(true)
 
     // Navigate to the previous location (last item in the new path, or main if empty)
     const previousLocation = newPath.length > 0 ? newPath[newPath.length - 1] : null
