@@ -193,6 +193,7 @@ export default function HTMLCanvas({
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
+  const [isSpaceHeld, setIsSpaceHeld] = useState(false) // For Space+drag panning
   const [showHelp, setShowHelp] = useState(initialShowHelp)
   const [showStylePanel, setShowStylePanel] = useState(false)
   const [showGridPanel, setShowGridPanel] = useState(false)
@@ -916,16 +917,18 @@ export default function HTMLCanvas({
       }
 
       // Detect if this is a mouse wheel (vs trackpad)
-      // Mouse wheels: deltaMode=1 (line mode) or large deltaY values
-      // Trackpads: deltaMode=0 (pixel mode) with small incremental values
-      const isMouse = e.deltaMode === 1 || Math.abs(e.deltaY) >= 50
+      // Mouse wheels: deltaMode=1 (line mode), or discrete jumps (not smooth)
+      // Trackpads: deltaMode=0 (pixel mode) with smooth continuous values
+      // Lower threshold to catch more mice - some mice have small deltaY
+      const isMouse = e.deltaMode === 1 || Math.abs(e.deltaY) >= 20
 
       if (isMouse) {
         // For mouse wheel, pan the canvas
         const canvasContainer = canvas.parentElement
         if (canvasContainer) {
           e.preventDefault()
-          const scrollMultiplier = 2.5
+          // Use deltaY directly for more natural feel, with a multiplier
+          const scrollMultiplier = e.deltaMode === 1 ? 20 : 1.5 // Higher for line mode
           if (e.shiftKey) {
             // Shift + wheel = horizontal scroll
             canvasContainer.scrollLeft += e.deltaY * scrollMultiplier
@@ -935,7 +938,7 @@ export default function HTMLCanvas({
           }
         }
       }
-      // For trackpad, let native scroll behavior handle it
+      // For trackpad, let native scroll behavior handle it (smooth pixel scrolling)
     }
 
     canvas.addEventListener('wheel', handleNativeWheel, { passive: false })
@@ -1353,6 +1356,41 @@ export default function HTMLCanvas({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [undo, redo, selectedId, selectedIds, nodes, connections, saveToHistory, setNodes, setConnections, setSelectedId, setSelectedIds, clipboard, handleSave])
 
+  // Space key tracking for Space+drag panning (common in design tools)
+  useEffect(() => {
+    const handleSpaceDown = (e: KeyboardEvent) => {
+      // Don't trigger while typing
+      if (document.activeElement?.getAttribute('contenteditable') === 'true') return
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return
+
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault()
+        setIsSpaceHeld(true)
+      }
+    }
+
+    const handleSpaceUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpaceHeld(false)
+      }
+    }
+
+    // Also reset on blur (user switches away from window)
+    const handleBlur = () => {
+      setIsSpaceHeld(false)
+    }
+
+    document.addEventListener('keydown', handleSpaceDown)
+    document.addEventListener('keyup', handleSpaceUp)
+    window.addEventListener('blur', handleBlur)
+
+    return () => {
+      document.removeEventListener('keydown', handleSpaceDown)
+      document.removeEventListener('keyup', handleSpaceUp)
+      window.removeEventListener('blur', handleBlur)
+    }
+  }, [])
+
   // Auto-sync: When selectedIds has exactly 1 item, sync to selectedId for single-selection mode
   useEffect(() => {
     if (selectedIds.length === 1 && selectedIds[0] !== selectedId) {
@@ -1464,8 +1502,34 @@ export default function HTMLCanvas({
     }
 
     // Middle mouse (button 1) or right mouse (button 2) always pans
-    if ((e.button === 1 || e.button === 2) && e.target === canvasRef.current) {
+    // Check if clicking on empty canvas area (not on a node)
+    const targetElement = e.target as HTMLElement
+    const isOnNode = targetElement.closest('[data-node-id]') !== null
+    const isCanvasArea = canvasRef.current?.contains(targetElement) && !isOnNode
+
+    if ((e.button === 1 || e.button === 2) && isCanvasArea) {
       e.preventDefault() // Prevent context menu on right click
+      // CRITICAL: Reset ALL states that block panning in handleCanvasMouseMove
+      setIsSelecting(false)
+      setSelectionBox(null)
+      setIsDragReady(null)
+      setDraggingNode(null)
+      setIsDraggingCharacter(false)
+      setIsPanning(true)
+      setIsMoving(true)
+      setLastPanPoint({ x: e.clientX, y: e.clientY })
+      return
+    }
+
+    // Left click (button 0) in PAN mode OR with Space held - only pan, no selection
+    if ((tool === 'pan' || isSpaceHeld) && e.button === 0 && isCanvasArea) {
+      e.preventDefault()
+      // CRITICAL: Reset ALL states that block panning in handleCanvasMouseMove
+      setIsSelecting(false)
+      setSelectionBox(null)
+      setIsDragReady(null)
+      setDraggingNode(null)
+      setIsDraggingCharacter(false)
       setIsPanning(true)
       setIsMoving(true)
       setLastPanPoint({ x: e.clientX, y: e.clientY })
@@ -1497,7 +1561,7 @@ export default function HTMLCanvas({
       setIsMoving(true)
       setLastPanPoint({ x: e.clientX, y: e.clientY })
     }
-  }, [tool, isDraggingCharacter, zoom, zoomCenter])
+  }, [tool, isDraggingCharacter, zoom, zoomCenter, isSpaceHeld])
 
   // Helper function to handle node drag start for both mouse and touch events
   const handleNodeDragStart = useCallback((node: Node, clientX: number, clientY: number, isTouch: boolean = false) => {
@@ -1642,11 +1706,10 @@ export default function HTMLCanvas({
       const deltaX = clientX - lastPanPoint.x
       const deltaY = clientY - lastPanPoint.y
 
-      // Use the parent container for scrolling instead of transform
-      const canvasContainer = canvasRef.current?.parentElement
-      if (canvasContainer) {
-        canvasContainer.scrollLeft -= deltaX
-        canvasContainer.scrollTop -= deltaY
+      // Use scrollContainerRef directly - it's the actual scrollable container
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollLeft -= deltaX
+        scrollContainerRef.current.scrollTop -= deltaY
       }
 
       setLastPanPoint({ x: clientX, y: clientY })
@@ -4765,7 +4828,7 @@ export default function HTMLCanvas({
                 </Button>
               </div>
               <div className="text-xs text-muted-foreground space-y-1">
-                <div><strong>Pan:</strong> Click & drag, or use trackpad/scroll</div>
+                <div><strong>Pan:</strong> Space + drag, middle-click drag, or scroll wheel</div>
                 <div><strong>Zoom:</strong> {isMac ? '⌘' : 'Ctrl'} + scroll wheel</div>
                 <div><strong>Select:</strong> Only tool for editing text - click nodes to select and edit</div>
                 <div><strong>Move:</strong> Drag selected nodes to reposition them</div>

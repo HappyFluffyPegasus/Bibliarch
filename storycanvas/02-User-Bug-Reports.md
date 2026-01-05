@@ -50,18 +50,23 @@ When dragging a folder, the collision detection didn't check if the target node 
 ---
 
 ## Priority #3: Mouse Panning Bug
-**Status:** PENDING
+**Status:** FIXED
 
 **User Report:**
 > "When using an actual mouse I can't pan around the canvas. Make a differentiation between actual mouse and trackpad."
 
-**Analysis:**
-Panning works with trackpad but not with external mouse. Need to detect input device type.
+**Root Cause:**
+1. Pan tool didn't work with left-click (only middle/right mouse)
+2. In select mode, left-click started selection box instead of panning
+3. Mouse wheel detection threshold was too high (50), missing some mice
 
-**Fix Needed:**
-- Investigate mouse vs trackpad event differences
-- Add middle-click drag for mouse panning, or
-- Add keyboard modifier (Space + drag) for panning
+**Fixes Applied:**
+1. Made pan tool work properly with left-click (lines ~1513-1520)
+2. Added Space+drag panning - hold Space and drag to pan (common design tool pattern)
+3. Added `isSpaceHeld` state to track Space key (lines ~196, 1359-1392)
+4. Lowered mouse wheel detection threshold from 50 to 20 (line ~922)
+5. Improved scroll multiplier for different deltaMode values (line ~930)
+6. Updated help text to explain panning options
 
 ---
 
@@ -91,3 +96,7 @@ ContentEditable preserves HTML formatting from clipboard. Need to strip formatti
 - Fixed Priority #2: Folder self-nesting bug
   - Skip targets that were inside dragged node's original bounds
   - Skip sibling nodes in same list container
+- Fixed Priority #3: Mouse panning bug
+  - Added Space+drag panning
+  - Made pan tool work with left-click
+  - Improved mouse wheel detection
