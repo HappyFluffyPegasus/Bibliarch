@@ -32,17 +32,20 @@ Race condition where navigation happened before data was saved:
 ---
 
 ## Priority #2: Folder Self-Nesting Bug
-**Status:** PENDING
+**Status:** FIXED
 
 **User Report:**
 > "When I move a folder node it thinks I'm trying to put the folder inside of one of the contents of the folder. Make this no longer happen anymore."
 
-**Analysis:**
-When dragging a folder node, the collision detection incorrectly thinks the folder should be dropped into its own children.
+**Root Cause:**
+When dragging a folder, the collision detection didn't check if the target node was:
+1. Visually inside the dragged folder's original bounds
+2. A sibling in the same list container
 
-**Fix Needed:**
-- Add parent-child relationship check in drop detection
-- Prevent a node from being dropped into its own descendants
+**Fixes Applied:**
+1. Added check to skip list containers that were inside the dragged node's original bounds (lines ~1973-1986)
+2. Added check to skip folder/character targets that overlapped with the dragged node's original bounds (lines ~2041-2054)
+3. Added check to skip sibling nodes in the same list container (lines ~2056-2060)
 
 ---
 
@@ -85,3 +88,6 @@ ContentEditable preserves HTML formatting from clipboard. Need to strip formatti
   - Cleared canvas data before navigation
   - Made arrow handlers await saves
   - Reduced cache time to 5 seconds
+- Fixed Priority #2: Folder self-nesting bug
+  - Skip targets that were inside dragged node's original bounds
+  - Skip sibling nodes in same list container

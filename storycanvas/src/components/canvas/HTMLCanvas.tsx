@@ -1970,6 +1970,21 @@ export default function HTMLCanvas({
         // Find if dropped onto any list container
         const listContainers = nodes.filter(n => n.type === 'list')
         for (const listNode of listContainers) {
+          // CRITICAL FIX: Skip lists that were INSIDE the dragged node's ORIGINAL bounds
+          // This prevents dropping a folder into a list that was visually "inside" it
+          const draggedWidth = draggedNodeObj.width || 240
+          const draggedHeight = draggedNodeObj.height || 120
+          const wasListInsideOriginalBounds = !(
+            listNode.x + listNode.width < draggedNodeObj.x ||  // list is left of original
+            listNode.x > draggedNodeObj.x + draggedWidth ||     // list is right of original
+            listNode.y + listNode.height < draggedNodeObj.y ||  // list is above original
+            listNode.y > draggedNodeObj.y + draggedHeight       // list is below original
+          )
+
+          if (wasListInsideOriginalBounds) {
+            continue // Skip - can't drop into a list that was inside us
+          }
+
           // Check if dragged node overlaps with list bounds (AABB collision detection)
           // Get dragged node bounds
           const draggedRight = dragPosition.x + draggedNodeObj.width
@@ -2037,6 +2052,27 @@ export default function HTMLCanvas({
           const draggedHeight = draggedNodeObj.height || 120
           const draggedCenterX = dragPosition.x + draggedWidth / 2
           const draggedCenterY = dragPosition.y + draggedHeight / 2
+
+          // CRITICAL FIX: Skip targets that were INSIDE the dragged node's ORIGINAL bounds
+          // This prevents dropping a folder into nodes that are visually "inside" it
+          const targetWidth = folderNode.width || 240
+          const targetHeight = folderNode.height || 120
+          const wasInsideOriginalBounds = !(
+            folderNode.x + targetWidth < draggedNodeObj.x ||  // target is left of original
+            folderNode.x > draggedNodeObj.x + draggedWidth ||  // target is right of original
+            folderNode.y + targetHeight < draggedNodeObj.y ||  // target is above original
+            folderNode.y > draggedNodeObj.y + draggedHeight    // target is below original
+          )
+
+          if (wasInsideOriginalBounds) {
+            continue // Skip - can't drop into something that was inside us
+          }
+
+          // CRITICAL FIX: Skip targets that are siblings in the same list container
+          // Prevents accidentally dropping into sibling folders when rearranging
+          if (draggedNodeObj.parentId && folderNode.parentId === draggedNodeObj.parentId) {
+            continue // Skip - can't drop into sibling in same list
+          }
 
           // Check if CENTER is inside folder bounds (much smaller hitbox than full overlap)
           const folderRight = folderNode.x + (folderNode.width || 240)
