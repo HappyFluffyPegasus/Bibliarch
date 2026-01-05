@@ -71,22 +71,41 @@ When dragging a folder, the collision detection didn't check if the target node 
 ---
 
 ## Priority #4: Pasted Text Color Bug
-**Status:** PENDING
+**Status:** FIXED
 
 **User Report:**
 > "When I copy paste text into the website from outside of it the text is the same color as outside instead of adhering to the color palette system."
 
-**Analysis:**
-ContentEditable preserves HTML formatting from clipboard. Need to strip formatting on paste.
+**Root Cause:**
+ContentEditable elements preserve HTML formatting from clipboard by default, including colors, fonts, and styles.
 
-**Fix Needed:**
-- Add `onPaste` handler to all contentEditable elements
-- Strip HTML formatting and paste as plain text
-- Or use `e.clipboardData.getData('text/plain')` instead of default paste
+**Fixes Applied:**
+1. Added `handlePlainTextPaste` helper function that strips HTML and pastes plain text only
+2. Added `onPaste={handlePlainTextPaste}` to all 14 contentEditable elements:
+   - Compact text content (line ~5604)
+   - Image header (line ~5779)
+   - Image caption (line ~6000)
+   - Location title (line ~6584)
+   - Event title (line ~6824) - combined with auto-resize
+   - Event summary (line ~6908) - combined with auto-resize
+   - Character title (line ~7717)
+   - List title (line ~8044)
+   - Child character title (line ~8277)
+   - Child location title (line ~8409)
+   - Child event title (line ~8530)
+   - Child folder title (line ~8674)
+   - Child folder content (line ~8757)
+   - Folder content (line ~8903) - combined with auto-resize
 
 ---
 
 ## Change Log
+
+### January 5, 2026
+- Fixed Priority #4: Pasted text color bug
+  - Added plain text paste handler to all 14 contentEditable elements
+  - Strips HTML formatting and pastes only plain text
+  - Text now uses the node's color from the palette system
 
 ### January 4, 2026
 - Fixed Priority #1: Navigation race condition and data loss bug

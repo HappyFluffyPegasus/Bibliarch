@@ -579,6 +579,13 @@ export default function HTMLCanvas({
     currentHistoryIndexRef.current = historyIndex
   }, [historyIndex])
 
+  // Paste handler to strip HTML formatting and paste plain text only
+  const handlePlainTextPaste = useCallback((e: React.ClipboardEvent) => {
+    e.preventDefault()
+    const text = e.clipboardData.getData('text/plain')
+    document.execCommand('insertText', false, text)
+  }, [])
+
   // Delayed blur handler to allow Grammarly and other extensions to apply changes
   const handleDelayedBlur = useCallback((callback: () => void) => {
     // Clear any existing timeout
@@ -5594,6 +5601,7 @@ export default function HTMLCanvas({
                   <div
                     contentEditable={editingField?.nodeId === node.id && editingField?.field === 'content'}
                     suppressContentEditableWarning
+                    onPaste={handlePlainTextPaste}
                     className="w-full bg-transparent border-none outline-none text-sm leading-relaxed"
                     style={{
                       color: getTextColor(getNodeColor('text', node.color, node.id)),
@@ -5768,6 +5776,7 @@ export default function HTMLCanvas({
                         key={`${node.id}-header`}
                         contentEditable={editingField?.nodeId === node.id && editingField?.field === 'header'}
                         suppressContentEditableWarning
+                        onPaste={handlePlainTextPaste}
                         data-content-type="header"
                         className={`px-2 py-1 text-sm font-medium border-b bg-black/10 dark:bg-white/10 ${(editingField?.nodeId === node.id && editingField?.field === 'header') ? 'cursor-text' : 'cursor-move'}`}
                         style={{
@@ -5988,6 +5997,7 @@ export default function HTMLCanvas({
                         key={`${node.id}-caption`}
                         contentEditable={editingField?.nodeId === node.id && editingField?.field === 'caption'}
                         suppressContentEditableWarning
+                        onPaste={handlePlainTextPaste}
                         data-content-type="caption"
                         className={`px-2 py-1 text-xs italic border-t bg-black/10 dark:bg-white/10 ${(editingField?.nodeId === node.id && editingField?.field === 'caption') ? 'cursor-text' : 'cursor-move'}`}
                         style={{
@@ -6571,6 +6581,7 @@ export default function HTMLCanvas({
                         key={`${node.id}-title`}
                         contentEditable={editingField?.nodeId === node.id && editingField?.field === 'title'}
                         suppressContentEditableWarning={true}
+                        onPaste={handlePlainTextPaste}
                         data-content-type="title"
                         className={`bg-transparent border-none outline-none font-medium text-base rounded px-1 ${(editingField?.nodeId === node.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                         style={{
@@ -6811,6 +6822,9 @@ export default function HTMLCanvas({
                           userSelect: (editingField?.nodeId === node.id && editingField?.field === 'title') ? 'text' : 'none'
                         }}
                         onPaste={(e) => {
+                          e.preventDefault()
+                          const text = e.clipboardData.getData('text/plain')
+                          document.execCommand('insertText', false, text)
                           const target = e.currentTarget as HTMLElement
                           if (target) {
                             debouncedAutoResize(node.id, target, true)
@@ -6892,6 +6906,9 @@ export default function HTMLCanvas({
                           })
                         }}
                         onPaste={(e) => {
+                          e.preventDefault()
+                          const text = e.clipboardData.getData('text/plain')
+                          document.execCommand('insertText', false, text)
                           const target = e.currentTarget as HTMLElement
                           if (target) {
                             debouncedAutoResize(node.id, target, false)
@@ -7697,6 +7714,7 @@ export default function HTMLCanvas({
                         key={`${node.id}-title`}
                         contentEditable={editingField?.nodeId === node.id && editingField?.field === 'title'}
                         suppressContentEditableWarning={true}
+                        onPaste={handlePlainTextPaste}
                         data-content-type="title"
                         className={`font-medium text-sm outline-none bg-transparent border-none rounded px-1 w-full ${(editingField?.nodeId === node.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                         style={{
@@ -8023,6 +8041,7 @@ export default function HTMLCanvas({
                     key={`${node.id}-title`}
                     contentEditable={editingField?.nodeId === node.id && editingField?.field === 'title'}
                     suppressContentEditableWarning={true}
+                    onPaste={handlePlainTextPaste}
                     data-content-type="title"
                     className={`flex-1 font-medium text-sm outline-none bg-transparent border-none rounded px-1 ${(editingField?.nodeId === node.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                     style={{
@@ -8255,6 +8274,7 @@ export default function HTMLCanvas({
                                         key={`${childNode.id}-title`}
                                         contentEditable={editingField?.nodeId === childNode.id && editingField?.field === 'title'}
                                         suppressContentEditableWarning={true}
+                                        onPaste={handlePlainTextPaste}
                                         data-content-type="title"
                                         className={`flex-1 bg-transparent border-none outline-none font-medium text-sm rounded px-1 whitespace-nowrap overflow-hidden ${(editingField?.nodeId === childNode.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                                         style={{
@@ -8386,6 +8406,7 @@ export default function HTMLCanvas({
                                         key={`${childNode.id}-title`}
                                         contentEditable={editingField?.nodeId === childNode.id && editingField?.field === 'title'}
                                         suppressContentEditableWarning={true}
+                                        onPaste={handlePlainTextPaste}
                                         data-content-type="title"
                                         className={`flex-1 bg-transparent border-none outline-none font-medium text-sm rounded px-1 whitespace-nowrap overflow-hidden ${(editingField?.nodeId === childNode.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                                         style={{
@@ -8506,6 +8527,7 @@ export default function HTMLCanvas({
                                         key={`${childNode.id}-title`}
                                         contentEditable={editingField?.nodeId === childNode.id && editingField?.field === 'title'}
                                         suppressContentEditableWarning={true}
+                                        onPaste={handlePlainTextPaste}
                                         data-content-type="title"
                                         className={`flex-1 bg-transparent border-none outline-none font-medium text-sm rounded px-1 whitespace-nowrap overflow-hidden ${(editingField?.nodeId === childNode.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                                         style={{
@@ -8649,6 +8671,7 @@ export default function HTMLCanvas({
                                     key={`${childNode.id}-title`}
                                     contentEditable={editingField?.nodeId === childNode.id && editingField?.field === 'title'}
                                     suppressContentEditableWarning={true}
+                                    onPaste={handlePlainTextPaste}
                                     data-content-type="title"
                                     className={`flex-1 bg-transparent border-none outline-none font-medium text-sm min-w-0 rounded px-1 ${(editingField?.nodeId === childNode.id && editingField?.field === 'title') ? 'cursor-text' : 'cursor-move'}`}
                                     style={{
@@ -8731,6 +8754,7 @@ export default function HTMLCanvas({
                                   key={`${childNode.id}-content`}
                                   contentEditable={editingField?.nodeId === childNode.id && editingField?.field === 'content'}
                                   suppressContentEditableWarning={true}
+                                  onPaste={handlePlainTextPaste}
                                   data-content-type="content"
                                   className={`w-full bg-transparent border-none outline-none text-sm min-h-[3.5rem] max-h-full overflow-auto leading-relaxed rounded px-1 ${(editingField?.nodeId === childNode.id && editingField?.field === 'content') ? 'cursor-text' : 'cursor-move'}`}
                                   style={{
@@ -8877,6 +8901,9 @@ export default function HTMLCanvas({
                     }}
                     // Removed onKeyUp to prevent cursor jumping
                     onPaste={(e) => {
+                      e.preventDefault()
+                      const text = e.clipboardData.getData('text/plain')
+                      document.execCommand('insertText', false, text)
                       // Handle paste operations for text nodes
                       if (node.type === 'text' || !node.type) {
                         const target = e.currentTarget as HTMLElement
