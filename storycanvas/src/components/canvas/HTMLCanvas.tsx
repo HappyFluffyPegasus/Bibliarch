@@ -1321,10 +1321,14 @@ export default function HTMLCanvas({
             ...n,
             id: generateUniqueId(n.type || 'node'),
             x: n.x + 30,
-            y: n.y + 30
+            y: n.y + 30,
+            linkedCanvasId: undefined,
+            childIds: [],
+            parentId: undefined
           }))
           const newNodes = [...nodes, ...pastedNodes]
           setNodes(newNodes)
+          setVisibleNodeIds([...visibleNodeIds, ...pastedNodes.map(n => n.id)])
           saveToHistory(newNodes, connections)
           handleSave(newNodes, connections)
           // Select the pasted nodes
@@ -1344,10 +1348,14 @@ export default function HTMLCanvas({
             ...n,
             id: generateUniqueId(n.type || 'node'),
             x: n.x + 30,
-            y: n.y + 30
+            y: n.y + 30,
+            linkedCanvasId: undefined,
+            childIds: [],
+            parentId: undefined
           }))
           const newNodes = [...nodes, ...dupedNodes]
           setNodes(newNodes)
+          setVisibleNodeIds([...visibleNodeIds, ...dupedNodes.map(n => n.id)])
           saveToHistory(newNodes, connections)
           handleSave(newNodes, connections)
           // Select the duplicated nodes
