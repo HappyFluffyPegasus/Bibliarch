@@ -3532,11 +3532,12 @@ export default function HTMLCanvas({
 
     // Create a new folder node with the template's interior
     const folderId = `folder-${Date.now()}`
-    const linkedCanvasId = `canvas-${Date.now()}`
 
     // Determine node type and properties based on display type
+    // Use type-specific linkedCanvasId patterns to match navigation logic
     let newNode: Node
     if (template.displayType === 'character') {
+      const linkedCanvasId = `character-canvas-${folderId}`
       newNode = {
         id: folderId,
         x: viewportCenterX - 160,
@@ -3550,6 +3551,7 @@ export default function HTMLCanvas({
         profileImageUrl: template.profileImageUrl
       }
     } else if (template.displayType === 'location') {
+      const linkedCanvasId = `location-canvas-${folderId}`
       newNode = {
         id: folderId,
         x: viewportCenterX - 160,
@@ -3563,6 +3565,7 @@ export default function HTMLCanvas({
         linkedCanvasId
       }
     } else if (template.displayType === 'event') {
+      const linkedCanvasId = `event-canvas-${folderId}`
       newNode = {
         id: folderId,
         x: viewportCenterX - 140,
@@ -3578,6 +3581,7 @@ export default function HTMLCanvas({
       }
     } else {
       // folder type (default)
+      const linkedCanvasId = `folder-canvas-${folderId}`
       newNode = {
         id: folderId,
         x: viewportCenterX - 150,
@@ -3620,9 +3624,19 @@ export default function HTMLCanvas({
           idMapping[node.id] = newId
 
           // Also generate new linkedCanvasId for folder/character/location nodes
+          // Use type-specific patterns to match navigation logic
           let newLinkedCanvasId = node.linkedCanvasId
           if (node.linkedCanvasId && (node.type === 'folder' || node.type === 'character' || node.type === 'location' || node.type === 'event')) {
-            newLinkedCanvasId = `canvas-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+            const suffix = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+            if (node.type === 'character') {
+              newLinkedCanvasId = `character-canvas-${newId}`
+            } else if (node.type === 'location') {
+              newLinkedCanvasId = `location-canvas-${newId}`
+            } else if (node.type === 'event') {
+              newLinkedCanvasId = `event-canvas-${newId}`
+            } else {
+              newLinkedCanvasId = `folder-canvas-${newId}`
+            }
             canvasIdMapping[node.linkedCanvasId] = newLinkedCanvasId
           }
 
@@ -3643,14 +3657,14 @@ export default function HTMLCanvas({
           to: idMapping[conn.to] || conn.to
         }))
 
-        console.log('[Template] Saving interior canvas:', linkedCanvasId, 'with', newTemplateNodes.length, 'nodes')
+        console.log('[Template] Saving interior canvas:', newNode.linkedCanvasId, 'with', newTemplateNodes.length, 'nodes')
         console.log('[Template] Position offset applied:', { offsetX, offsetY })
 
         const { error } = await supabase
           .from('canvas_data')
           .upsert({
             story_id: storyId,
-            canvas_type: linkedCanvasId,
+            canvas_type: newNode.linkedCanvasId,
             nodes: newTemplateNodes,
             connections: newTemplateConnections,
             updated_at: new Date().toISOString()
@@ -3661,7 +3675,7 @@ export default function HTMLCanvas({
         if (error) {
           console.error('[Template] Error saving interior:', error)
         } else {
-          console.log('[Template] Interior saved successfully to canvas:', linkedCanvasId)
+          console.log('[Template] Interior saved successfully to canvas:', newNode.linkedCanvasId)
         }
       } catch (error) {
         console.error('[Template] Error saving template interior:', error)
@@ -6486,12 +6500,34 @@ export default function HTMLCanvas({
                     transition: draggingNode ? 'none' : 'opacity 0.1s ease',
                     touchAction: 'none'
                   }}
-                  onDoubleClick={(e) => {
+                  onDoubleClick={async (e) => {
                     e.preventDefault()
                     e.stopPropagation()
                     // Handle double-click navigation for location nodes
-                    if (onNavigateToCanvas) {
-                      onNavigateToCanvas(node.id, 'location')
+                    if (!onNavigateToCanvas) return
+
+                    const nodeTitle = node.text || 'Location'
+
+                    if (node.linkedCanvasId) {
+                      colorContext.setCurrentFolderId(node.id)
+                      onNavigateToCanvas(node.linkedCanvasId, nodeTitle)
+                    } else {
+                      // Create new linkedCanvasId
+                      const linkedCanvasId = `location-canvas-${node.id}`
+
+                      const updatedNodes = nodes.map(n =>
+                        n.id === node.id ? { ...n, linkedCanvasId } : n
+                      )
+
+                      setNodes(updatedNodes)
+                      saveToHistory(updatedNodes, connections)
+
+                      if (onSave) {
+                        await onSave(updatedNodes, connections)
+                      }
+
+                      colorContext.setCurrentFolderId(node.id)
+                      onNavigateToCanvas(linkedCanvasId, nodeTitle)
                     }
                   }}
                   onMouseDown={(e) => {
